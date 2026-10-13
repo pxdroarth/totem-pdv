@@ -39,7 +39,7 @@ async function renderTabelaProdutos() {
   $('#tabela-produtos').innerHTML = lista.map(p => `
     <tr class="${p.ativo ? '' : 'inativo'}">
       <td>${p.imagem ? `<img class="mini" src="${esc(urlArquivo(p.imagem))}" alt="">` : ''}</td>
-      <td>${esc(p.nome)}${p.ativo ? '' : ' <small>(oculto)</small>'}</td>
+      <td>${esc(p.nome)}${p.ativo ? '' : ' <small>(oculto)</small>'}${(p.opcoes || []).length ? `<br><small class="ajuda">Variações: ${p.opcoes.map(g => esc(g.nome)).join(', ')}</small>` : ''}</td>
       <td>${esc(p.codigoBarras)}</td>
       <td><span class="cat-tabela">${icone(iconeCategoria(p.categoria), 18)} ${esc(p.categoria)}</span></td>
       <td>${reais(p.precoCentavos)}</td>
@@ -65,6 +65,8 @@ function preencherSelectCategoria(valor) {
 
 function abrirProduto(p) {
   produtoEditando = p ? { ...p } : { imagem: '', ativo: true, estoque: 0 };
+  produtoEditando.opcoes = JSON.parse(JSON.stringify(produtoEditando.opcoes || []));
+  renderEditorOpcoes();
   const f = $('#form-produto');
   f.produtoId.value = produtoEditando.id || '';
   f.nome.value = produtoEditando.nome || '';
@@ -103,7 +105,8 @@ $('#form-produto').onsubmit = async e => {
       categoria: f.categoria.value,
       ativo: f.ativo.checked,
       controlarEstoque: f.controlarEstoque.checked,
-      imagem: produtoEditando.imagem
+      imagem: produtoEditando.imagem,
+      opcoes: lerEditorOpcoes()
     });
     fecharProduto();
     toast('Produto salvo', 'ok');
@@ -127,6 +130,63 @@ $('#btn-excluir-produto').onclick = async () => {
   await renderTabelaProdutos();
   await carregarDados();
 };
+// ---------- editor de variações (sabor, frutas, adicionais) ----------
+const centavosParaTexto = c => c ? (c / 100).toFixed(2).replace('.', ',') : '';
+
+function renderEditorOpcoes() {
+  const grupos = produtoEditando.opcoes;
+  $('#lista-grupos-opcoes').innerHTML = grupos.map((g, gi) => `
+    <div class="grupo-edit" data-g="${gi}">
+      <div class="grupo-edit-topo">
+        <label>Nome do grupo<input class="g-nome" value="${esc(g.nome || '')}" placeholder="Ex.: Sabor"></label>
+        <label class="curto">Mínimo<input class="g-min" type="number" min="0" value="${g.min ?? 1}"></label>
+        <label class="curto">Máximo<input class="g-max" type="number" min="1" value="${g.max ?? 1}"></label>
+        <button type="button" class="btn-mini" data-rem-g="${gi}" aria-label="Remover grupo">${icone('lixo', 18)}</button>
+      </div>
+      ${(g.itens || []).map((i, ii) => `
+        <div class="item-edit">
+          <input class="i-nome" value="${esc(i.nome || '')}" placeholder="Opção (ex.: Morango)">
+          <input class="i-preco" value="${centavosParaTexto(i.precoCentavos)}" placeholder="+ R$ 0,00" inputmode="decimal">
+          <button type="button" class="btn-mini" data-rem-i="${gi}:${ii}" aria-label="Remover opção">${icone('fechar', 16)}</button>
+        </div>`).join('')}
+      <button type="button" class="btn btn-pequeno" data-add-i="${gi}">+ Opção</button>
+    </div>`).join('');
+}
+
+// lê o que está na tela de volta para produtoEditando.opcoes (mantendo os ids já salvos)
+function lerEditorOpcoes() {
+  produtoEditando.opcoes = $$('#lista-grupos-opcoes .grupo-edit').map(el => {
+    const antigo = produtoEditando.opcoes[Number(el.dataset.g)] || {};
+    return {
+      id: antigo.id, nome: el.querySelector('.g-nome').value.trim(),
+      min: Number(el.querySelector('.g-min').value) || 0, max: Number(el.querySelector('.g-max').value) || 1,
+      itens: [...el.querySelectorAll('.item-edit')].map((it, ii) => ({
+        id: (antigo.itens || [])[ii]?.id, nome: it.querySelector('.i-nome').value.trim(),
+        precoCentavos: paraCentavos(it.querySelector('.i-preco').value || '0')
+      }))
+    };
+  });
+  return produtoEditando.opcoes;
+}
+
+$('#btn-add-grupo').onclick = () => {
+  lerEditorOpcoes();
+  produtoEditando.opcoes.push({ nome: '', min: 1, max: 1, itens: [{ nome: '', precoCentavos: 0 }] });
+  renderEditorOpcoes();
+  $$('#lista-grupos-opcoes .g-nome').pop().focus();
+};
+$('#lista-grupos-opcoes').onclick = e => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  lerEditorOpcoes();
+  const grupos = produtoEditando.opcoes;
+  if (b.dataset.addI !== undefined) grupos[Number(b.dataset.addI)].itens.push({ nome: '', precoCentavos: 0 });
+  if (b.dataset.remG !== undefined) grupos.splice(Number(b.dataset.remG), 1);
+  if (b.dataset.remI !== undefined) { const [gi, ii] = b.dataset.remI.split(':').map(Number); grupos[gi].itens.splice(ii, 1); }
+  renderEditorOpcoes();
+  if (b.dataset.addI !== undefined) $$(`#lista-grupos-opcoes .grupo-edit[data-g="${b.dataset.addI}"] .i-nome`).pop().focus();
+};
+
 $('#form-produto').controlarEstoque.onchange = e => ($('#form-produto').estoque.disabled = !e.target.checked);
 $('#btn-novo-produto').onclick = () => abrirProduto(null);
 $('#busca-admin').oninput = renderTabelaProdutos;

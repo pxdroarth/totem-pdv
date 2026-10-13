@@ -246,6 +246,23 @@
 </section>
 
 <!-- ===== MODAIS ===== -->
+<div id="modal-opcoes" class="modal modal-opcoes">
+  <div class="modal-caixa opcoes-caixa" role="dialog" aria-labelledby="opcoes-nome">
+    <header class="opcoes-topo">
+      <span class="opcoes-foto" id="opcoes-foto"></span>
+      <div><p class="opcoes-sub">Monte do seu jeito</p><h2 id="opcoes-nome">Produto</h2></div>
+    </header>
+    <div class="opcoes-grupos" id="opcoes-grupos"></div>
+    <footer class="opcoes-rodape">
+      <p class="opcoes-aviso" id="opcoes-aviso"></p>
+      <div class="acoes">
+        <button class="btn btn-contorno btn-alto" id="btn-opcoes-cancelar">Cancelar</button>
+        <button class="btn-finalizar" id="btn-opcoes-adicionar" disabled><span>Adicionar ao pedido</span><strong></strong></button>
+      </div>
+    </footer>
+  </div>
+</div>
+
 <div id="modal-pin" class="modal">
   <div class="modal-caixa pin-caixa">
     <h2 id="pin-titulo">Digite o PIN</h2>
@@ -279,6 +296,12 @@
       <button type="button" class="btn" id="btn-imagem">Escolher foto</button>
       <button type="button" class="btn btn-fantasma" id="btn-remover-imagem">Remover foto</button>
     </div>
+    <section class="editor-opcoes">
+      <h3>Variações (opcional)</h3>
+      <p class="ajuda">Para o cliente escolher na hora da compra. Exemplos: Sabor (mínimo 1, máximo 1), Frutas (mínimo 1, máximo 2), Adicionais (mínimo 0, máximo 2, com preço extra).</p>
+      <div id="lista-grupos-opcoes"></div>
+      <button type="button" class="btn" id="btn-add-grupo">+ Adicionar grupo de variação</button>
+    </section>
     <div class="acoes">
       <button type="button" class="btn btn-perigo" id="btn-excluir-produto">Excluir</button>
       <span class="espaco"></span>

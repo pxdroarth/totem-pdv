@@ -12,6 +12,7 @@ fácil de editar. Roda no Dell com Windows em tela cheia travada (modo quiosque)
 - **Controle de estoque** (baixa automática, alerta de estoque baixo, produto esgotado some do totem)
 - **Categorias por seção** (Suplementos, Empório...): cadastro no painel com ícone, ordem e opção de ocultar
 - **Itens feitos na hora** (smoothies, shakes): produto sem controle de estoque, nunca fica esgotado
+- **Variações de produto** (sabor, frutas, adicionais): o cliente monta o pedido no totem; cada opção pode ter preço extra
 - **Painel admin**: produtos, categorias, vendas do dia/período, mais vendidos, pedidos aguardando caixa, cancelamentos, reimpressão, backup
 - Volta sozinho para a tela inicial após inatividade
 
@@ -55,6 +56,13 @@ Painel admin → **Categorias**:
 - Renomear uma categoria muda todos os produtos dela junto.
 - Só é possível excluir categoria sem produtos (mude os produtos de categoria antes).
 - Categoria sem produto disponível não aparece para o cliente.
+
+## Variações (sabor, frutas, adicionais)
+Painel admin → Produtos → Editar → **Variações (opcional)**:
+- Cada **grupo** tem nome, mínimo e máximo. Ex.: *Sabor* (mín 1, máx 1), *Frutas* (mín 1, máx 2), *Adicionais* (mín 0, máx 2).
+- Cada **opção** pode ter preço extra (ex.: *Dose extra de whey* + R$ 5,00). Deixe em branco para sem custo.
+- No totem, tocar (ou passar no leitor) um produto com variações abre a tela "Monte do seu jeito"; o botão só libera quando os grupos obrigatórios estão escolhidos.
+- O preço final é recalculado no sistema na hora da venda; as escolhas saem no cupom e no relatório.
 
 ## Onde ficam os dados
 `%APPDATA%\Lisufit PDV\dados.json` (e as fotos em `imagens\`). Use o botão **Fazer backup** com frequência (pendrive).

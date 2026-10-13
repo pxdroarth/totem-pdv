@@ -3,7 +3,9 @@ const estado = {
   config: {},
   produtos: [],
   categorias: [],
-  carrinho: new Map(), // id -> qtd
+  // chave -> { id, qtd, escolhas, adicionalCentavos, descricao }
+  // (o mesmo produto com sabores diferentes vira linhas diferentes)
+  carrinho: new Map(),
   categoria: 'Todos',
   pixTxid: ''
 };
@@ -29,7 +31,11 @@ const visiveis = () => estado.produtos
 const produtoPorId = id => estado.produtos.find(p => p.id === id);
 // produto feito na hora (controlarEstoque = false) nunca esgota
 const temEstoque = (p, qtd) => p.controlarEstoque === false || qtd <= p.estoque;
-const totalCarrinho = () => [...estado.carrinho].reduce((s, [id, q]) => s + (produtoPorId(id)?.precoCentavos || 0) * q, 0);
+const temOpcoes = p => Array.isArray(p.opcoes) && p.opcoes.length > 0;
+const precoLinha = l => (produtoPorId(l.id)?.precoCentavos || 0) + (l.adicionalCentavos || 0);
+const totalCarrinho = () => [...estado.carrinho.values()].reduce((s, l) => s + precoLinha(l) * l.qtd, 0);
+// quantidade de um produto somando todas as variações (para estoque e selo do card)
+const qtdProduto = id => [...estado.carrinho.values()].filter(l => l.id === id).reduce((s, l) => s + l.qtd, 0);
 
 // ---------- catálogo ----------
 function renderCategorias() {
@@ -58,7 +64,7 @@ function renderProdutos() {
     const img = p.imagem
       ? `<img src="${esc(urlArquivo(p.imagem))}" alt="">`
       : `<div class="sem-img">${icone(iconeCategoria(p.categoria), 56)}</div>`;
-    const qtd = estado.carrinho.get(p.id) || 0;
+    const qtd = qtdProduto(p.id);
     return `<button class="card-produto ${esgotado ? 'esgotado' : ''} ${qtd ? 'no-pedido' : ''}" data-id="${p.id}" ${esgotado ? 'disabled' : ''}>
       <span class="foto">${img}${qtd ? `<span class="selo-qtd">${qtd}</span>` : ''}
         ${p.controlarEstoque === false ? '<span class="tag-hora">Feito na hora</span>' : ''}</span>
@@ -69,38 +75,50 @@ function renderProdutos() {
 }
 
 // ---------- carrinho ----------
+// produto com variações abre a tela de escolha; sem variações entra direto
 function adicionar(id) {
   const p = produtoPorId(id);
   if (!p) return;
-  const atual = estado.carrinho.get(id) || 0;
-  if (!temEstoque(p, atual + 1)) return toast(`Só temos ${p.estoque} unidade(s) de ${p.nome}.`, 'erro');
-  estado.carrinho.set(id, atual + 1);
+  if (temOpcoes(p)) return abrirOpcoes(p);
+  adicionarLinha(p, {}, 0, '');
+}
+
+function adicionarLinha(p, escolhas, adicionalCentavos, descricao) {
+  if (!temEstoque(p, qtdProduto(p.id) + 1)) return toast(`Só temos ${p.estoque} unidade(s) de ${p.nome}.`, 'erro');
+  const chave = p.id + '|' + JSON.stringify(Object.keys(escolhas).sort().map(k => [k, [...escolhas[k]].sort()]));
+  const linha = estado.carrinho.get(chave);
+  if (linha) linha.qtd++;
+  else estado.carrinho.set(chave, { id: p.id, qtd: 1, escolhas, adicionalCentavos, descricao });
   renderCarrinho();
   toast(`${p.nome} adicionado`, 'ok');
 }
 
-function alterarQtd(id, delta) {
-  const p = produtoPorId(id);
-  const nova = (estado.carrinho.get(id) || 0) + delta;
-  if (nova <= 0) estado.carrinho.delete(id);
-  else if (!temEstoque(p, nova)) return toast(`Só temos ${p.estoque} unidade(s).`, 'erro');
-  else estado.carrinho.set(id, nova);
+function alterarQtd(chave, delta) {
+  const l = estado.carrinho.get(chave);
+  if (!l) return;
+  const p = produtoPorId(l.id);
+  if (l.qtd + delta <= 0) estado.carrinho.delete(chave);
+  else if (delta > 0 && !temEstoque(p, qtdProduto(l.id) + delta)) return toast(`Só temos ${p.estoque} unidade(s).`, 'erro');
+  else l.qtd += delta;
   renderCarrinho();
 }
 
 function renderCarrinho() {
   const itens = [...estado.carrinho];
-  $('#lista-carrinho').innerHTML = itens.length ? itens.map(([id, q]) => {
-    const p = produtoPorId(id);
+  $('#lista-carrinho').innerHTML = itens.length ? itens.map(([chave, l]) => {
+    const p = produtoPorId(l.id);
     const foto = p.imagem ? `<img src="${esc(urlArquivo(p.imagem))}" alt="">` : icone(iconeCategoria(p.categoria), 28);
+    const k = esc(chave);
     return `<li><span class="item-foto">${foto}</span>
-      <div class="item-info"><span>${esc(p.nome)}</span><small>${reais(p.precoCentavos)} cada</small></div>
-      <div class="qtd"><button data-menos="${id}" aria-label="Diminuir">${icone(q === 1 ? 'lixo' : 'menos', 20)}</button><b>${q}</b>
-      <button data-mais="${id}" aria-label="Aumentar">${icone('mais', 20)}</button></div>
-      <strong class="item-total">${reais(p.precoCentavos * q)}</strong></li>`;
+      <div class="item-info"><span>${esc(p.nome)}</span>
+        ${l.descricao ? `<small class="item-opcoes">${esc(l.descricao)}</small>` : ''}
+        <small>${reais(precoLinha(l))} cada</small></div>
+      <div class="qtd"><button data-menos="${k}" aria-label="Diminuir">${icone(l.qtd === 1 ? 'lixo' : 'menos', 20)}</button><b>${l.qtd}</b>
+      <button data-mais="${k}" aria-label="Aumentar">${icone('mais', 20)}</button></div>
+      <strong class="item-total">${reais(precoLinha(l) * l.qtd)}</strong></li>`;
   }).join('') : '<li class="vazio">Seu pedido está vazio.</li>';
   const total = reais(totalCarrinho());
-  const n = itens.reduce((s, [, q]) => s + q, 0);
+  const n = itens.reduce((s, [, l]) => s + l.qtd, 0);
   $('#total-carrinho').textContent = total;
   $('#total-gaveta').textContent = total;
   $('#qtd-itens').textContent = n;
@@ -119,7 +137,75 @@ function limparCompra() {
 }
 
 // ---------- pagamento ----------
-const itensVenda = () => [...estado.carrinho].map(([id, qtd]) => ({ id, qtd }));
+const itensVenda = () => [...estado.carrinho.values()].map(l => ({ id: l.id, qtd: l.qtd, escolhas: l.escolhas }));
+
+// ---------- escolha de variações (sabor, frutas, adicionais) ----------
+let escolhaAtual = null; // { p, sel: { grupoId: Set(itemId) } }
+
+const regraGrupo = g => g.min === 0
+  ? (g.max === 1 ? 'Opcional' : `Opcional, até ${g.max}`)
+  : g.min === g.max ? `Escolha ${g.min}` : `Escolha de ${g.min} a ${g.max}`;
+
+function abrirOpcoes(p) {
+  escolhaAtual = { p, sel: Object.fromEntries(p.opcoes.map(g => [g.id, new Set()])) };
+  $('#opcoes-nome').textContent = p.nome;
+  $('#opcoes-foto').innerHTML = p.imagem ? `<img src="${esc(urlArquivo(p.imagem))}" alt="">` : icone(iconeCategoria(p.categoria), 40);
+  renderOpcoes();
+  $('#modal-opcoes').classList.add('aberto');
+}
+
+function calcularEscolha() {
+  const { p, sel } = escolhaAtual;
+  let adicional = 0; const partes = []; const faltando = [];
+  for (const g of p.opcoes) {
+    const itens = g.itens.filter(i => sel[g.id].has(i.id));
+    adicional += itens.reduce((s, i) => s + i.precoCentavos, 0);
+    if (itens.length) partes.push(`${g.nome}: ${itens.map(i => i.nome).join(', ')}`);
+    if (itens.length < g.min) faltando.push(g.nome);
+  }
+  return { adicional, descricao: partes.join('; '), faltando };
+}
+
+function renderOpcoes() {
+  const { p, sel } = escolhaAtual;
+  $('#opcoes-grupos').innerHTML = p.opcoes.map(g => `
+    <section class="grupo-opcao">
+      <header><h3>${esc(g.nome)}</h3><span class="regra ${g.min > 0 ? 'obrigatorio' : ''}">${regraGrupo(g)}</span></header>
+      <div class="chips-opcao">${g.itens.map(i => `
+        <button class="chip-opcao ${sel[g.id].has(i.id) ? 'ativo' : ''}" data-grupo="${g.id}" data-item="${i.id}">
+          <span>${esc(i.nome)}</span>${i.precoCentavos ? `<small>+ ${reais(i.precoCentavos)}</small>` : ''}
+        </button>`).join('')}</div>
+    </section>`).join('');
+  const { adicional, faltando } = calcularEscolha();
+  const btn = $('#btn-opcoes-adicionar');
+  btn.disabled = faltando.length > 0;
+  btn.innerHTML = `<span>Adicionar ao pedido</span><strong>${reais(p.precoCentavos + adicional)}</strong>`;
+  $('#opcoes-aviso').textContent = faltando.length ? `Falta escolher: ${faltando.join(', ')}` : '';
+}
+
+const fecharOpcoes = () => { $('#modal-opcoes').classList.remove('aberto'); escolhaAtual = null; };
+
+$('#opcoes-grupos').onclick = e => {
+  const b = e.target.closest('[data-grupo]');
+  if (!b || !escolhaAtual) return;
+  const g = escolhaAtual.p.opcoes.find(x => x.id === b.dataset.grupo);
+  const set = escolhaAtual.sel[g.id], id = b.dataset.item;
+  if (set.has(id)) set.delete(id);
+  else if (g.max === 1) { set.clear(); set.add(id); }       // escolha única: troca
+  else if (set.size >= g.max) return toast(`Em ${g.nome}, escolha no máximo ${g.max}.`, 'erro');
+  else set.add(id);
+  renderOpcoes();
+};
+$('#btn-opcoes-cancelar').onclick = fecharOpcoes;
+$('#btn-opcoes-adicionar').onclick = () => {
+  if (!escolhaAtual) return;
+  const { p, sel } = escolhaAtual;
+  const { adicional, descricao, faltando } = calcularEscolha();
+  if (faltando.length) return;
+  const escolhas = Object.fromEntries(Object.entries(sel).filter(([, v]) => v.size).map(([k, v]) => [k, [...v]]));
+  fecharOpcoes();
+  adicionarLinha(p, escolhas, adicional, descricao);
+};
 
 async function confirmarComPin() {
   if (!estado.config.confirmarPagamentoComPin) return true;
@@ -172,6 +258,7 @@ setInterval(() => {
   if (['inicio', 'admin', 'fim'].includes(tela)) return;
   if ($('#modal-pin').classList.contains('aberto')) return;
   if (Date.now() - ultimaAcao > (estado.config.tempoInatividadeSeg || 90) * 1000) {
+    fecharOpcoes();
     limparCompra();
     fecharGaveta();
     mostrarTela('inicio');
@@ -181,7 +268,7 @@ setInterval(() => {
 // ---------- eventos ----------
 $('#btn-comecar').onclick = () => mostrarTela('loja');
 $('#btn-nova-compra').onclick = () => mostrarTela('inicio');
-$('#btn-cancelar-compra').onclick = () => { limparCompra(); fecharGaveta(); mostrarTela('inicio'); };
+$('#btn-cancelar-compra').onclick = () => { fecharOpcoes(); limparCompra(); fecharGaveta(); mostrarTela('inicio'); };
 $('#btn-voltar-carrinho').onclick = () => mostrarTela('loja');
 $$('[data-voltar]').forEach(b => (b.onclick = () => mostrarTela(b.dataset.voltar)));
 
@@ -226,6 +313,7 @@ $('#btn-cartao-pago').onclick = async () => { if (await confirmarComPin()) final
 ouvirLeitor(codigo => {
   const tela = document.body.dataset.tela;
   if (!['inicio', 'loja', 'fim'].includes(tela)) return;
+  if ($('#modal-opcoes').classList.contains('aberto')) return;
   const p = visiveis().find(x => x.codigoBarras === codigo);
   if (!p) return toast(`Produto não cadastrado (${codigo}). Chame um atendente.`, 'erro');
   if (tela !== 'loja') mostrarTela('loja');

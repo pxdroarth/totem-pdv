@@ -64,7 +64,7 @@ function htmlCupom(venda, cfg) {
   const esc = s => String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
   const formas = { pix: 'PIX', cartao: 'Cartão', caixa: 'Pagar no caixa' };
   const linhas = venda.itens.map(i =>
-    `<tr><td colspan="2">${esc(i.nome)}</td></tr>
+    `<tr><td colspan="2">${esc(i.nome)}${i.opcoes ? `<br><small>${esc(i.opcoes)}</small>` : ''}</td></tr>
      <tr><td>${i.qtd} x ${reais(i.precoCentavos)}</td><td class="d">${reais(i.totalCentavos)}</td></tr>`).join('');
   const caixa = venda.status === 'aguardando_caixa'
     ? `<div class="grande">PEDIDO Nº ${venda.numero}</div><p class="c">Apresente este ticket no caixa para pagar.</p>` : '';

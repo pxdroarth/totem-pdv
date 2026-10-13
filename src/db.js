@@ -34,9 +34,14 @@ const PRODUTOS_EXEMPLO = [
   ['Pasta de Amendoim 500g', '7890000000103', 2490, 'Snacks'],
   ['Coqueteleira 600ml', '7890000000110', 2990, 'Acessórios'],
   // Empório (feitos na hora: sem código de barras e sem controle de estoque)
-  ['Smoothie Morango com Whey 400ml', '', 1890, 'Smoothies', false],
-  ['Smoothie Banana e Pasta de Amendoim 400ml', '', 1990, 'Smoothies', false],
-  ['Shake Proteico Chocolate 500ml', '', 1690, 'Shakes', false],
+  ['Smoothie Proteico 400ml', '', 1890, 'Smoothies', false, [
+    { nome: 'Sabor do whey', min: 1, max: 1, itens: [['Morango'], ['Baunilha'], ['Chocolate']] },
+    { nome: 'Frutas', min: 1, max: 2, itens: [['Banana'], ['Morango'], ['Manga'], ['Açaí', 200]] },
+    { nome: 'Adicionais', min: 0, max: 2, itens: [['Dose extra de whey', 500], ['Pasta de amendoim', 300], ['Aveia', 150]] }
+  ]],
+  ['Shake Proteico 500ml', '', 1690, 'Shakes', false, [
+    { nome: 'Sabor', min: 1, max: 1, itens: [['Chocolate'], ['Baunilha'], ['Morango'], ['Cookies'] ] }
+  ]],
   ['Frango com Batata-doce 350g', '7890000000127', 2290, 'Congelados'],
   ['Escondidinho Fit de Carne 350g', '7890000000134', 2490, 'Congelados'],
   ['Patinho Moído 500g', '7890000000141', 3290, 'Carnes']
@@ -65,6 +70,46 @@ function diaLocal(d = new Date()) {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
 
+// ---------- variações de produto ----------
+// opcoes = [{ id, nome: 'Sabor', min: 1, max: 1, itens: [{ id, nome: 'Morango', precoCentavos: 0 }] }]
+function limparOpcoes(lista) {
+  if (!Array.isArray(lista)) return [];
+  return lista.map(g => {
+    const itens = (Array.isArray(g.itens) ? g.itens : [])
+      .map(i => ({ id: i.id || crypto.randomUUID(), nome: String(i.nome || '').trim(),
+        precoCentavos: Math.max(0, Math.round(Number(i.precoCentavos) || 0)) }))
+      .filter(i => i.nome);
+    const nome = String(g.nome || '').trim();
+    if (!nome && !itens.length) return null;
+    if (!nome) throw new Error('Dê um nome para cada grupo de opções (ex.: Sabor).');
+    if (!itens.length) throw new Error(`O grupo "${nome}" precisa de pelo menos uma opção.`);
+    let min = Math.max(0, Math.round(Number(g.min) || 0));
+    let max = Math.max(1, Math.round(Number(g.max) || 1));
+    max = Math.min(max, itens.length);
+    if (min > max) throw new Error(`No grupo "${nome}", o mínimo não pode ser maior que o máximo.`);
+    return { id: g.id || crypto.randomUUID(), nome, min, max, itens };
+  }).filter(Boolean);
+}
+
+// valida as escolhas do cliente e devolve o valor extra + texto para cupom/relatórios
+function resolverEscolhas(produto, escolhas) {
+  const grupos = produto.opcoes || [];
+  if (!grupos.length) return { adicionalCentavos: 0, descricao: '' };
+  const e = escolhas && typeof escolhas === 'object' ? escolhas : {};
+  let adicionalCentavos = 0;
+  const partes = [];
+  for (const g of grupos) {
+    const ids = Array.isArray(e[g.id]) ? [...new Set(e[g.id])] : [];
+    const itens = ids.map(id => g.itens.find(i => i.id === id));
+    if (itens.some(i => !i)) throw new Error(`Opção inválida em "${g.nome}" (${produto.nome}).`);
+    if (itens.length < g.min) throw new Error(`Escolha pelo menos ${g.min} em "${g.nome}" (${produto.nome}).`);
+    if (itens.length > g.max) throw new Error(`Escolha no máximo ${g.max} em "${g.nome}" (${produto.nome}).`);
+    adicionalCentavos += itens.reduce((s, i) => s + i.precoCentavos, 0);
+    if (itens.length) partes.push(`${g.nome}: ${itens.map(i => i.nome).join(', ')}`);
+  }
+  return { adicionalCentavos, descricao: partes.join('; ') };
+}
+
 class Banco {
   constructor(pasta) {
     this.arquivo = path.join(pasta, 'dados.json');
@@ -82,9 +127,10 @@ class Banco {
     }
     const d = {
       config: { ...CONFIG_PADRAO },
-      produtos: PRODUTOS_EXEMPLO.map(([nome, codigoBarras, precoCentavos, categoria, controlarEstoque = true]) => ({
+      produtos: PRODUTOS_EXEMPLO.map(([nome, codigoBarras, precoCentavos, categoria, controlarEstoque = true, opcoes = []]) => ({
         id: crypto.randomUUID(), nome, codigoBarras, precoCentavos, categoria,
-        estoque: controlarEstoque ? 20 : 0, controlarEstoque, imagem: '', ativo: true
+        estoque: controlarEstoque ? 20 : 0, controlarEstoque, imagem: '', ativo: true,
+        opcoes: limparOpcoes(opcoes.map(g => ({ ...g, itens: g.itens.map(([n, c = 0]) => ({ nome: n, precoCentavos: c })) })))
       })),
       categorias: CATEGORIAS_PADRAO.map(([nome, secao, icone], ordem) => ({
         id: crypto.randomUUID(), nome, secao, icone, ordem, ativo: true
@@ -195,7 +241,8 @@ class Banco {
       estoque: Math.round(Number(p.estoque) || 0),
       controlarEstoque: p.controlarEstoque !== false, // false = feito na hora (smoothie, shake): nunca esgota
       imagem: p.imagem || '',
-      ativo: p.ativo !== false
+      ativo: p.ativo !== false,
+      opcoes: limparOpcoes(p.opcoes) // variações: sabor, frutas, adicionais...
     };
     if (!limpo.nome) throw new Error('Informe o nome do produto.');
     if (limpo.precoCentavos <= 0) throw new Error('Informe um preço maior que zero.');
@@ -220,12 +267,16 @@ class Banco {
 
   registrarVenda({ itens, formaPagamento, status }) {
     if (!Array.isArray(itens) || !itens.length) throw new Error('Carrinho vazio.');
-    const linhas = itens.map(({ id, qtd }) => {
+    const linhas = itens.map(({ id, qtd, escolhas }) => {
       const p = this.dados.produtos.find(x => x.id === id);
       if (!p) throw new Error('Produto não encontrado.');
       const q = Math.max(1, Math.round(qtd));
+      // o preço das opções é recalculado aqui, nunca confiando no valor vindo da tela
+      const { adicionalCentavos, descricao } = resolverEscolhas(p, escolhas);
+      const unit = p.precoCentavos + adicionalCentavos;
       return { id: p.id, nome: p.nome, codigoBarras: p.codigoBarras, qtd: q,
-        precoCentavos: p.precoCentavos, totalCentavos: p.precoCentavos * q };
+        precoCentavos: unit, totalCentavos: unit * q,
+        ...(descricao ? { opcoes: descricao, escolhas } : {}) };
     });
     const venda = {
       numero: this.dados.proximoNumero++,

@@ -20,7 +20,7 @@ async function emitir(venda, config) {
       formaPagamento: venda.formaPagamento,
       totalReais: (venda.totalCentavos / 100).toFixed(2),
       itens: venda.itens.map(i => ({
-        codigo: i.codigoBarras, descricao: i.nome, quantidade: i.qtd,
+        codigo: i.codigoBarras, descricao: i.opcoes ? `${i.nome} (${i.opcoes})` : i.nome, quantidade: i.qtd,
         valorUnitario: (i.precoCentavos / 100).toFixed(2),
         valorTotal: (i.totalCentavos / 100).toFixed(2)
       }))
