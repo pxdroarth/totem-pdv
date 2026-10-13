@@ -18,6 +18,9 @@ const CONFIG_PADRAO = {
   imprimirCupom: true,
   tempoInatividadeSeg: 90,
   mensagemCupom: 'Obrigado pela preferência!',
+  quandoEsgotar: 'esgotado',      // 'esgotado' (aparece esgotado) | 'ocultar' (some do totem) | 'vender' (deixa vender)
+  imprimirViaPreparo: true,       // imprime uma 2ª via com a senha para quem prepara os itens feitos na hora
+  cancelarAguardandoMin: 0,       // cancela pedidos "pagar no balcão" não pagos após X minutos (0 = nunca, -1 = no dia seguinte)
   fiscal: { modo: 'desativado', pastaIntegracao: '' }
 };
 
@@ -129,7 +132,7 @@ class Banco {
       config: { ...CONFIG_PADRAO },
       produtos: PRODUTOS_EXEMPLO.map(([nome, codigoBarras, precoCentavos, categoria, controlarEstoque = true, opcoes = []]) => ({
         id: crypto.randomUUID(), nome, codigoBarras, precoCentavos, categoria,
-        estoque: controlarEstoque ? 20 : 0, controlarEstoque, imagem: '', ativo: true,
+        estoque: controlarEstoque ? 20 : 0, estoqueMinimo: 3, controlarEstoque, imagem: '', ativo: true,
         opcoes: limparOpcoes(opcoes.map(g => ({ ...g, itens: g.itens.map(([n, c = 0]) => ({ nome: n, precoCentavos: c })) })))
       })),
       categorias: CATEGORIAS_PADRAO.map(([nome, secao, icone], ordem) => ({
@@ -239,6 +242,7 @@ class Banco {
       precoCentavos: Math.round(Number(p.precoCentavos) || 0),
       categoria: String(p.categoria || 'Outros').trim(),
       estoque: Math.round(Number(p.estoque) || 0),
+      estoqueMinimo: Math.max(0, Math.round(Number(p.estoqueMinimo ?? 3) || 0)),
       controlarEstoque: p.controlarEstoque !== false, // false = feito na hora (smoothie, shake): nunca esgota
       imagem: p.imagem || '',
       ativo: p.ativo !== false,
@@ -276,6 +280,7 @@ class Banco {
       const unit = p.precoCentavos + adicionalCentavos;
       return { id: p.id, nome: p.nome, codigoBarras: p.codigoBarras, qtd: q,
         precoCentavos: unit, totalCentavos: unit * q,
+        ...(p.controlarEstoque === false ? { preparo: true } : {}), // feito na hora: vai para a via de preparo
         ...(descricao ? { opcoes: descricao, escolhas } : {}) };
     });
     const venda = {
@@ -315,6 +320,64 @@ class Banco {
     }
     this._salvar();
     return v;
+  }
+
+  // pedidos "pagar no balcão" esquecidos: cancela sozinho conforme a configuração
+  cancelarAguardandoAntigos(agora = new Date()) {
+    const min = Number(this.dados.config.cancelarAguardandoMin) || 0;
+    if (!min) return [];
+    const hoje = diaLocal(agora);
+    const vencidas = this.dados.vendas.filter(v => v.status === 'aguardando_caixa' &&
+      (min === -1 ? (v.dia || v.data.slice(0, 10)) < hoje : agora - new Date(v.data) > min * 60000));
+    for (const v of vencidas) { v.status = 'cancelada'; v.canceladaAutomaticamente = true; }
+    if (vencidas.length) this._salvar();
+    return vencidas.map(v => v.numero);
+  }
+
+  // linhas = saída de planilha.lerPlanilhaProdutos. aplicar=false só simula (prévia).
+  importarProdutos(linhas, aplicar = false) {
+    const produtos = aplicar ? this.dados.produtos : this.dados.produtos.map(p => ({ ...p }));
+    const categorias = aplicar ? this.dados.categorias : this.dados.categorias.map(c => ({ ...c }));
+    const res = { novos: 0, atualizados: 0, categoriasNovas: [], erros: [] };
+    const vistos = new Set();
+    for (const { linha, dados: d, erro } of linhas) {
+      if (erro) { res.erros.push({ linha, erro }); continue; }
+      const chave = d.codigoBarras ? 'c:' + d.codigoBarras : 'n:' + normalizar(d.nome);
+      if (vistos.has(chave)) { res.erros.push({ linha, erro: `Produto repetido na planilha (${d.codigoBarras || d.nome}).` }); continue; }
+      vistos.add(chave);
+      let p = d.codigoBarras && produtos.find(x => x.codigoBarras === d.codigoBarras);
+      if (!p && d.nome) p = produtos.find(x => normalizar(x.nome) === normalizar(d.nome) && (!x.codigoBarras || !d.codigoBarras));
+      if (!p) {
+        if (!d.nome) { res.erros.push({ linha, erro: 'Produto novo sem nome.' }); continue; }
+        if (!d.precoCentavos) { res.erros.push({ linha, erro: `"${d.nome}" é novo e está sem preço.` }); continue; }
+      }
+      const dono = d.codigoBarras && produtos.find(x => x.codigoBarras === d.codigoBarras && x !== p);
+      if (dono) { res.erros.push({ linha, erro: `Código ${d.codigoBarras} já é do produto "${dono.nome}".` }); continue; }
+      if (d.categoria) {
+        const cat = categorias.find(c => normalizar(c.nome) === normalizar(d.categoria));
+        if (cat) d.categoria = cat.nome;
+        else {
+          categorias.push({ id: crypto.randomUUID(), nome: d.categoria, secao: d.secao || 'Outros', icone: 'tag',
+            ordem: Math.max(-1, ...categorias.map(x => x.ordem)) + 1, ativo: true });
+          res.categoriasNovas.push(d.categoria);
+        }
+      }
+      const campos = {};
+      for (const k of ['nome', 'codigoBarras', 'precoCentavos', 'categoria', 'estoque', 'estoqueMinimo', 'ativo']) if (d[k] !== undefined) campos[k] = d[k];
+      if (d.feitoNaHora !== undefined) campos.controlarEstoque = !d.feitoNaHora;
+      if (p) { Object.assign(p, campos); res.atualizados++; }
+      else {
+        produtos.push({ id: crypto.randomUUID(), codigoBarras: '', categoria: 'Outros', estoque: 0, estoqueMinimo: 3,
+          controlarEstoque: true, imagem: '', ativo: true, opcoes: [], ...campos });
+        if (!categorias.some(c => normalizar(c.nome) === normalizar(campos.categoria || 'Outros'))) {
+          categorias.push({ id: crypto.randomUUID(), nome: 'Outros', secao: 'Outros', icone: 'tag', ordem: categorias.length, ativo: true });
+          res.categoriasNovas.push('Outros');
+        }
+        res.novos++;
+      }
+    }
+    if (aplicar) this._salvar();
+    return res;
   }
 
   listarVendas({ de, ate } = {}) {

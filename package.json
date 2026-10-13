@@ -10,6 +10,7 @@
     "dist": "electron-builder --win nsis"
   },
   "dependencies": {
+    "exceljs": "^4.4.0",
     "qrcode": "^1.5.4"
   },
   "devDependencies": {
@@ -19,8 +20,14 @@
   "build": {
     "appId": "br.loja.pdvsuplementos",
     "productName": "Lisufit PDV",
-    "files": ["src/**/*", "renderer/**/*", "package.json"],
-    "win": { "target": "nsis" },
+    "files": [
+      "src/**/*",
+      "renderer/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": "nsis"
+    },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,

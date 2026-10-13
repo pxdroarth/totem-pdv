@@ -25,12 +25,14 @@ async function carregarDados() {
 // Produto aparece no totem se estiver ativo e a categoria dele não estiver oculta
 const categoriaOculta = nome => estado.categorias.some(c => c.nome === nome && !c.ativo);
 const ordemCategoria = nome => { const c = estado.categorias.find(x => x.nome === nome); return c ? c.ordem : 9999; };
+// quandoEsgotar = 'ocultar': produto zerado some do totem até repor
+const escondidoPorEstoque = p => estado.config.quandoEsgotar === 'ocultar' && p.controlarEstoque !== false && p.estoque <= 0;
 const visiveis = () => estado.produtos
-  .filter(p => p.ativo && !categoriaOculta(p.categoria))
+  .filter(p => p.ativo && !categoriaOculta(p.categoria) && !escondidoPorEstoque(p))
   .sort((a, b) => ordemCategoria(a.categoria) - ordemCategoria(b.categoria) || a.nome.localeCompare(b.nome));
 const produtoPorId = id => estado.produtos.find(p => p.id === id);
 // produto feito na hora (controlarEstoque = false) nunca esgota
-const temEstoque = (p, qtd) => p.controlarEstoque === false || qtd <= p.estoque;
+const temEstoque = (p, qtd) => p.controlarEstoque === false || estado.config.quandoEsgotar === 'vender' || qtd <= p.estoque;
 const temOpcoes = p => Array.isArray(p.opcoes) && p.opcoes.length > 0;
 const precoLinha = l => (produtoPorId(l.id)?.precoCentavos || 0) + (l.adicionalCentavos || 0);
 const totalCarrinho = () => [...estado.carrinho.values()].reduce((s, l) => s + precoLinha(l) * l.qtd, 0);
@@ -220,10 +222,16 @@ async function finalizar(formaPagamento) {
   try {
     const { venda, avisos } = await pdv.registrarVenda({ itens: itensVenda(), formaPagamento, status });
     avisos.forEach(a => console.warn(a));
+    const temPreparo = venda.itens.some(i => i.preparo);
     if (status === 'aguardando_caixa') {
       $('#fim-titulo').textContent = 'Pedido registrado!';
       $('#fim-pedido').textContent = `Pedido nº ${venda.numero}`;
-      $('#fim-msg').textContent = `Leve os produtos e o ticket ao caixa e pague ${reais(venda.totalCentavos)}.`;
+      $('#fim-msg').textContent = `Leve o ticket ao caixa e pague ${reais(venda.totalCentavos)}.` +
+        (temPreparo ? ' Seu pedido será preparado após o pagamento.' : '');
+    } else if (temPreparo) {
+      $('#fim-titulo').textContent = 'Pedido confirmado!';
+      $('#fim-pedido').textContent = `Senha ${venda.numero}`;
+      $('#fim-msg').textContent = 'Retire seu cupom e aguarde ser chamado(a) para pegar o pedido.';
     } else {
       $('#fim-titulo').textContent = 'Compra concluída!';
       $('#fim-pedido').textContent = '';

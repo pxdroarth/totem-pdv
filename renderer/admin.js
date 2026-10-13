@@ -32,8 +32,16 @@ async function renderTabelaProdutos() {
   filtro.innerHTML = '<option value="">Todas as categorias</option>' + opcoesCategorias();
   filtro.value = estado.categorias.some(c => c.nome === atual) ? atual : '';
   const termo = $('#busca-admin').value.trim().toLowerCase();
+  const fEstoque = $('#filtro-estoque-admin').value;
+  const baixos = estado.produtos.filter(estoqueBaixo);
+  const zerados = baixos.filter(p => p.estoque <= 0);
+  const aviso = $('#aviso-estoque');
+  aviso.hidden = !baixos.length || !!fEstoque;
+  aviso.innerHTML = `${icone('alerta', 20)} <b>${baixos.length} produto(s) com estoque baixo</b>` +
+    (zerados.length ? ` — ${zerados.length} esgotado(s)` : '') + ' <u>Ver lista</u>';
   const lista = estado.produtos
     .filter(p => !filtro.value || p.categoria === filtro.value)
+    .filter(p => !fEstoque || (fEstoque === 'baixo' ? estoqueBaixo(p) : p.controlarEstoque !== false && p.estoque <= 0))
     .filter(p => !termo || p.nome.toLowerCase().includes(termo) || p.codigoBarras.includes(termo))
     .sort((a, b) => a.nome.localeCompare(b.nome));
   $('#tabela-produtos').innerHTML = lista.map(p => `
@@ -43,10 +51,13 @@ async function renderTabelaProdutos() {
       <td>${esc(p.codigoBarras)}</td>
       <td><span class="cat-tabela">${icone(iconeCategoria(p.categoria), 18)} ${esc(p.categoria)}</span></td>
       <td>${reais(p.precoCentavos)}</td>
-      <td class="${p.controlarEstoque !== false && p.estoque <= 3 ? 'alerta' : ''}">${p.controlarEstoque === false ? '<small>feito na hora</small>' : p.estoque}</td>
+      <td class="${estoqueBaixo(p) ? 'alerta' : ''}">${p.controlarEstoque === false ? '<small>feito na hora</small>' : `${p.estoque} <small class="ajuda">mín. ${p.estoqueMinimo ?? 3}</small>`}</td>
       <td><button class="btn btn-pequeno" data-editar="${p.id}">Editar</button></td>
     </tr>`).join('');
 }
+
+// abaixo (ou igual) do mínimo cadastrado no produto; feito na hora nunca entra
+const estoqueBaixo = p => p.controlarEstoque !== false && p.estoque <= (p.estoqueMinimo ?? 3);
 
 // <option>s agrupados por seção
 function opcoesCategorias() {
@@ -73,10 +84,11 @@ function abrirProduto(p) {
   f.codigoBarras.value = produtoEditando.codigoBarras || '';
   f.preco.value = produtoEditando.precoCentavos ? (produtoEditando.precoCentavos / 100).toFixed(2).replace('.', ',') : '';
   f.estoque.value = produtoEditando.estoque ?? 0;
+  f.estoqueMinimo.value = produtoEditando.estoqueMinimo ?? 3;
   preencherSelectCategoria(produtoEditando.categoria || $('#filtro-categoria-admin').value);
   f.ativo.checked = produtoEditando.ativo !== false;
   f.controlarEstoque.checked = produtoEditando.controlarEstoque !== false;
-  f.estoque.disabled = !f.controlarEstoque.checked;
+  f.estoque.disabled = f.estoqueMinimo.disabled = !f.controlarEstoque.checked;
   $('#produto-titulo').textContent = p ? 'Editar produto' : 'Novo produto';
   $('#btn-excluir-produto').style.visibility = p ? 'visible' : 'hidden';
   atualizarPreview();
@@ -102,6 +114,7 @@ $('#form-produto').onsubmit = async e => {
       codigoBarras: f.codigoBarras.value,
       precoCentavos: paraCentavos(f.preco.value),
       estoque: f.estoque.value,
+      estoqueMinimo: f.estoqueMinimo.value,
       categoria: f.categoria.value,
       ativo: f.ativo.checked,
       controlarEstoque: f.controlarEstoque.checked,
@@ -187,7 +200,53 @@ $('#lista-grupos-opcoes').onclick = e => {
   if (b.dataset.addI !== undefined) $$(`#lista-grupos-opcoes .grupo-edit[data-g="${b.dataset.addI}"] .i-nome`).pop().focus();
 };
 
-$('#form-produto').controlarEstoque.onchange = e => ($('#form-produto').estoque.disabled = !e.target.checked);
+$('#form-produto').controlarEstoque.onchange = e => {
+  const f = $('#form-produto');
+  f.estoque.disabled = f.estoqueMinimo.disabled = !e.target.checked;
+};
+$('#filtro-estoque-admin').onchange = renderTabelaProdutos;
+$('#aviso-estoque').onclick = () => { $('#filtro-estoque-admin').value = 'baixo'; renderTabelaProdutos(); };
+
+// ---------- planilhas ----------
+$('#btn-exportar-produtos').onclick = async () => {
+  try { const arq = await pdv.exportarProdutos(); if (arq) toast('Planilha salva em ' + arq, 'ok'); }
+  catch (err) { toast(err.message, 'erro'); }
+};
+$('#btn-importar-produtos').onclick = async () => {
+  try {
+    const r = await pdv.lerPlanilhaProdutos();
+    if (!r) return;
+    $('#importar-arquivo').textContent = r.arquivo;
+    $('#importar-resumo').innerHTML = [
+      ['Produtos novos', r.novos], ['Produtos atualizados', r.atualizados],
+      ['Linhas com problema', r.erros.length]
+    ].map(([t, v]) => `<div class="card-resumo"><small>${t}</small><strong>${v}</strong></div>`).join('');
+    $('#importar-erros').innerHTML =
+      (r.categoriasNovas.length ? `<p class="ajuda">Categorias que serão criadas: <b>${r.categoriasNovas.map(esc).join(', ')}</b></p>` : '') +
+      (r.erros.length ? `<p><b>Estas linhas vão ficar de fora:</b></p><ul class="lista-erros">${r.erros.map(e =>
+        `<li><b>Linha ${e.linha}:</b> ${esc(e.erro)}</li>`).join('')}</ul>` : '');
+    const total = r.novos + r.atualizados;
+    $('#btn-importar-confirmar').disabled = !total;
+    $('#btn-importar-confirmar').textContent = total ? `Importar ${total} produto(s)` : 'Nada para importar';
+    $('#modal-importar').classList.add('aberto');
+  } catch (err) { toast(err.message, 'erro'); }
+};
+$('#btn-importar-cancelar').onclick = () => $('#modal-importar').classList.remove('aberto');
+$('#btn-importar-confirmar').onclick = async () => {
+  try {
+    const r = await pdv.importarProdutos();
+    $('#modal-importar').classList.remove('aberto');
+    toast(`Importado: ${r.novos} novo(s), ${r.atualizados} atualizado(s)`, 'ok');
+    await renderTabelaProdutos();
+    await carregarDados();
+  } catch (err) { toast(err.message, 'erro'); }
+};
+$('#btn-exportar-vendas').onclick = async () => {
+  try {
+    const arq = await pdv.exportarVendas({ de: $('#vendas-de').value, ate: $('#vendas-ate').value });
+    if (arq) toast('Planilha salva em ' + arq, 'ok');
+  } catch (err) { toast(err.message, 'erro'); }
+};
 $('#btn-novo-produto').onclick = () => abrirProduto(null);
 $('#busca-admin').oninput = renderTabelaProdutos;
 $('#filtro-categoria-admin').onchange = renderTabelaProdutos;
@@ -309,7 +368,7 @@ async function carregarVendas() {
   const aguardando = (await pdv.vendas({})).filter(v => v.status === 'aguardando_caixa');
   $('#tabela-aguardando').innerHTML = aguardando.length ? aguardando.map(v => `
     <tr><td><b>Pedido ${v.numero}</b></td><td>${new Date(v.data).toLocaleString('pt-BR')}</td>
-    <td>${v.itens.map(i => `${i.qtd}× ${esc(i.nome)}`).join('<br>')}</td><td><b>${reais(v.totalCentavos)}</b></td>
+    <td>${v.itens.map(i => `${i.qtd}× ${esc(i.nome)}${i.opcoes ? ` <small class="ajuda">(${esc(i.opcoes)})</small>` : ''}`).join('<br>')}</td><td><b>${reais(v.totalCentavos)}</b></td>
     <td><button class="btn btn-primario btn-pequeno" data-pagar="${v.numero}">Marcar como pago</button>
         <button class="btn btn-perigo btn-pequeno" data-cancelar="${v.numero}">Cancelar</button></td></tr>`).join('')
     : '<tr><td class="vazio">Nenhum pedido aguardando.</td></tr>';
@@ -328,7 +387,7 @@ async function carregarVendas() {
     <tr class="${v.status === 'cancelada' ? 'inativo' : ''}">
       <td>${v.numero}</td><td>${new Date(v.data).toLocaleString('pt-BR')}</td>
       <td>${v.itens.reduce((s, i) => s + i.qtd, 0)}</td><td>${formas[v.formaPagamento]}</td>
-      <td>${statusNome[v.status]}</td><td>${reais(v.totalCentavos)}</td>
+      <td>${statusNome[v.status]}${v.canceladaAutomaticamente ? ' <small class="ajuda">(automático)</small>' : ''}</td><td>${reais(v.totalCentavos)}</td>
       <td><button class="btn btn-pequeno" data-reimprimir="${v.numero}">Reimprimir</button>
       ${v.status === 'paga' ? `<button class="btn btn-pequeno btn-perigo" data-cancelar="${v.numero}">Cancelar</button>` : ''}</td>
     </tr>`).join('') || '<tr><td class="vazio" colspan="7">Sem vendas no período.</td></tr>';
@@ -364,6 +423,9 @@ async function carregarConfig() {
     'pinAdmin', 'pinAtendente', 'tempoInatividadeSeg'].forEach(k => (f[k].value = c[k] ?? ''));
   f.confirmarPagamentoComPin.checked = !!c.confirmarPagamentoComPin;
   f.imprimirCupom.checked = !!c.imprimirCupom;
+  f.quandoEsgotar.value = c.quandoEsgotar || 'esgotado';
+  f.imprimirViaPreparo.checked = c.imprimirViaPreparo !== false;
+  f.cancelarAguardandoMin.value = String(c.cancelarAguardandoMin || 0);
   f.fiscalModo.value = c.fiscal?.modo || 'desativado';
   f.fiscalPasta.value = c.fiscal?.pastaIntegracao || '';
   try {
@@ -389,6 +451,8 @@ $('#form-config').onsubmit = async e => {
       confirmarPagamentoComPin: f.confirmarPagamentoComPin.checked,
       tempoInatividadeSeg: Math.max(30, Number(f.tempoInatividadeSeg.value) || 90),
       imprimirCupom: f.imprimirCupom.checked, impressoraCupom: f.impressoraCupom.value,
+      quandoEsgotar: f.quandoEsgotar.value, imprimirViaPreparo: f.imprimirViaPreparo.checked,
+      cancelarAguardandoMin: Number(f.cancelarAguardandoMin.value) || 0,
       fiscal: { modo: f.fiscalModo.value, pastaIntegracao: f.fiscalPasta.value }
     });
     await carregarDados();

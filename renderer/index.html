@@ -162,8 +162,17 @@
       <div class="barra">
         <input id="busca-admin" type="search" placeholder="Buscar por nome ou código...">
         <select id="filtro-categoria-admin"><option value="">Todas as categorias</option></select>
+        <select id="filtro-estoque-admin">
+          <option value="">Qualquer estoque</option>
+          <option value="baixo">Estoque baixo</option>
+          <option value="zerado">Esgotados</option>
+        </select>
+        <span class="espaco"></span>
+        <button class="btn" id="btn-importar-produtos">Importar planilha</button>
+        <button class="btn" id="btn-exportar-produtos">Exportar planilha</button>
         <button class="btn btn-primario" id="btn-novo-produto">+ Novo produto</button>
       </div>
+      <button type="button" class="aviso-estoque" id="aviso-estoque" hidden></button>
       <table class="tabela">
         <thead><tr><th></th><th>Produto</th><th>Código de barras</th><th>Categoria</th><th>Preço</th><th>Estoque</th><th></th></tr></thead>
         <tbody id="tabela-produtos"></tbody>
@@ -188,6 +197,8 @@
         <label>De <input type="date" id="vendas-de"></label>
         <label>Até <input type="date" id="vendas-ate"></label>
         <button class="btn" id="btn-filtrar-vendas">Filtrar</button>
+        <span class="espaco"></span>
+        <button class="btn" id="btn-exportar-vendas">Exportar planilha do período</button>
       </div>
       <div class="cards-resumo" id="resumo-vendas"></div>
       <h3>Pedidos aguardando pagamento no caixa</h3>
@@ -223,6 +234,25 @@
         <fieldset><legend>Impressão do cupom</legend>
           <label class="check-label"><input type="checkbox" name="imprimirCupom"> Imprimir cupom ao finalizar</label>
           <label>Impressora<select name="impressoraCupom" id="sel-impressora"></select></label>
+        </fieldset>
+        <fieldset><legend>Pedidos e estoque</legend>
+          <label>Quando um produto acaba
+            <select name="quandoEsgotar">
+              <option value="esgotado">Aparece como esgotado no totem</option>
+              <option value="ocultar">Some do totem até repor</option>
+              <option value="vender">Continua vendendo (estoque fica negativo)</option>
+            </select>
+          </label>
+          <label class="check-label"><input type="checkbox" name="imprimirViaPreparo"> Imprimir via de preparo com a senha (itens feitos na hora)</label>
+          <label>Pedido "pagar no balcão" que não foi pago
+            <select name="cancelarAguardandoMin">
+              <option value="0">Fica aguardando até alguém resolver</option>
+              <option value="15">Cancela sozinho após 15 minutos</option>
+              <option value="30">Cancela sozinho após 30 minutos</option>
+              <option value="60">Cancela sozinho após 1 hora</option>
+              <option value="-1">Cancela sozinho no dia seguinte</option>
+            </select>
+          </label>
         </fieldset>
         <fieldset><legend>Nota fiscal</legend>
           <label>Integração
@@ -263,6 +293,19 @@
   </div>
 </div>
 
+<div id="modal-importar" class="modal">
+  <div class="modal-caixa importar-caixa" role="dialog" aria-labelledby="importar-titulo">
+    <h2 id="importar-titulo">Importar planilha</h2>
+    <p class="ajuda" id="importar-arquivo"></p>
+    <div class="cards-resumo" id="importar-resumo"></div>
+    <div id="importar-erros"></div>
+    <div class="acoes">
+      <button type="button" class="btn btn-fantasma" id="btn-importar-cancelar">Cancelar</button>
+      <button type="button" class="btn btn-primario" id="btn-importar-confirmar">Importar</button>
+    </div>
+  </div>
+</div>
+
 <div id="modal-pin" class="modal">
   <div class="modal-caixa pin-caixa">
     <h2 id="pin-titulo">Digite o PIN</h2>
@@ -281,6 +324,7 @@
     <div class="linha">
       <label>Preço (R$)<input name="preco" inputmode="decimal" required></label>
       <label>Estoque<input name="estoque" type="number"></label>
+      <label>Estoque mínimo<input name="estoqueMinimo" type="number" min="0"></label>
     </div>
     <div>
       <label class="check-label"><input type="checkbox" name="controlarEstoque" checked> Controlar estoque</label>

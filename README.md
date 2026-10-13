@@ -64,6 +64,22 @@ Painel admin → Produtos → Editar → **Variações (opcional)**:
 - No totem, tocar (ou passar no leitor) um produto com variações abre a tela "Monte do seu jeito"; o botão só libera quando os grupos obrigatórios estão escolhidos.
 - O preço final é recalculado no sistema na hora da venda; as escolhas saem no cupom e no relatório.
 
+## Planilhas (Excel)
+- **Produtos › Exportar planilha** gera um `.xlsx` com todos os produtos. Ele serve de modelo: a loja edita no Excel (preço, estoque, produtos novos) e usa **Importar planilha**.
+- Antes de gravar, a importação mostra uma prévia com o que é novo, o que vai ser atualizado e quais linhas têm erro, informando o número da linha.
+- O produto é encontrado pelo código de barras ou, se não tiver código, pelo nome. Fotos e variações não vão na planilha e continuam como estão.
+- **Vendas › Exportar planilha do período** gera um `.xlsx` com duas abas, Vendas e Itens vendidos (com as opções escolhidas), para a gestora.
+- Também aceita `.csv` separado por ponto e vírgula.
+
+## Estoque
+- Cada produto tem **estoque mínimo** (padrão 3). Abaixo dele, aparece o aviso vermelho no painel e o filtro "Estoque baixo".
+- Em Configurações › Pedidos e estoque, defina o que acontece quando o produto acaba: aparece como esgotado, some do totem ou continua vendendo.
+
+## Senha e via de preparo
+- Pedido com item **feito na hora** recebe uma **senha** (o número da venda). Ela aparece na tela final e no cupom do cliente.
+- Quando o pedido é pago, sai uma **via de preparo** com a senha, os itens e as opções (sabor, frutas). No "pagar no balcão", a via só sai quando o atendente marca como pago.
+- Pedidos "pagar no balcão" esquecidos podem ser cancelados sozinhos (15 min, 30 min, 1 h ou no dia seguinte). O padrão é nunca cancelar.
+
 ## Onde ficam os dados
 `%APPDATA%\Lisufit PDV\dados.json` (e as fotos em `imagens\`). Use o botão **Fazer backup** com frequência (pendrive).
 

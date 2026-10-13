@@ -5,6 +5,7 @@ const QRCode = require('qrcode');
 const { Banco } = require('./db');
 const { gerarPix } = require('./pix');
 const fiscal = require('./fiscal');
+const planilha = require('./planilha');
 
 const DEV = process.argv.includes('--dev');
 let janela;
@@ -43,6 +44,10 @@ function criarJanela() {
 app.whenReady().then(() => {
   banco = new Banco(app.getPath('userData'));
   criarJanela();
+  // pedidos "pagar no balcão" esquecidos são cancelados conforme a configuração
+  const verificarAntigos = () => { try { banco.cancelarAguardandoAntigos(); } catch (e) { console.error(e); } };
+  verificarAntigos();
+  setInterval(verificarAntigos, 60 * 1000);
   // Atalho escondido para abrir o painel admin (pede PIN)
   globalShortcut.register('CommandOrControl+Shift+A', () => janela.webContents.send('abrir-admin'));
 });
@@ -66,8 +71,10 @@ function htmlCupom(venda, cfg) {
   const linhas = venda.itens.map(i =>
     `<tr><td colspan="2">${esc(i.nome)}${i.opcoes ? `<br><small>${esc(i.opcoes)}</small>` : ''}</td></tr>
      <tr><td>${i.qtd} x ${reais(i.precoCentavos)}</td><td class="d">${reais(i.totalCentavos)}</td></tr>`).join('');
+  const temPreparo = venda.itens.some(i => i.preparo);
   const caixa = venda.status === 'aguardando_caixa'
-    ? `<div class="grande">PEDIDO Nº ${venda.numero}</div><p class="c">Apresente este ticket no caixa para pagar.</p>` : '';
+    ? `<div class="grande">PEDIDO Nº ${venda.numero}</div><p class="c">Apresente este ticket no caixa para pagar.${temPreparo ? '<br>Seu pedido será preparado após o pagamento.' : ''}</p>`
+    : temPreparo ? `<div class="grande">SENHA ${venda.numero}</div><p class="c">Aguarde ser chamado(a) para retirar.</p>` : '';
   return `<!doctype html><html><head><meta charset="utf-8"><style>
     @page { margin: 0; } body { font-family: monospace; font-size: 12px; width: 72mm; margin: 2mm; }
     .c { text-align: center; } .d { text-align: right; } table { width: 100%; border-collapse: collapse; }
@@ -84,11 +91,36 @@ function htmlCupom(venda, cfg) {
   </body></html>`;
 }
 
+// via de quem prepara: só os itens feitos na hora, com as opções em destaque
+function htmlPreparo(venda) {
+  const esc = s => String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+  const itens = venda.itens.filter(i => i.preparo).map(i =>
+    `<div class="item"><b>${i.qtd}x ${esc(i.nome)}</b>${i.opcoes ? '<br>' + esc(i.opcoes).split('; ').join('<br>') : ''}</div>`).join('');
+  return `<!doctype html><html><head><meta charset="utf-8"><style>
+    @page { margin: 0; } body { font-family: monospace; font-size: 14px; width: 72mm; margin: 2mm; }
+    .c { text-align: center; } .senha { font-size: 34px; font-weight: bold; text-align: center; margin: 4px 0; }
+    .item { margin: 8px 0; } hr { border: 0; border-top: 1px dashed #000; }
+  </style></head><body>
+    <div class="c"><b>PREPARO</b></div><div class="senha">SENHA ${venda.numero}</div>
+    <div class="c">${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</div><hr>
+    ${itens}<hr></body></html>`;
+}
+
+async function imprimirPreparo(venda) {
+  const cfg = banco.getConfig();
+  if (!cfg.imprimirViaPreparo || venda.status !== 'paga' || !venda.itens.some(i => i.preparo)) return 'sem via de preparo';
+  return imprimirHtml(htmlPreparo(venda), cfg);
+}
+
 async function imprimirCupom(venda) {
   const cfg = banco.getConfig();
   if (!cfg.imprimirCupom) return 'impressão desativada';
+  return imprimirHtml(htmlCupom(venda, cfg), cfg);
+}
+
+async function imprimirHtml(html, cfg) {
   const w = new BrowserWindow({ show: false, webPreferences: { javascript: false } });
-  await w.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(htmlCupom(venda, cfg)));
+  await w.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html));
   return new Promise((resolve, reject) => {
     w.webContents.print(
       { silent: true, printBackground: false, deviceName: cfg.impressoraCupom || undefined, margins: { marginType: 'none' } },
@@ -145,16 +177,19 @@ tratar('venda:registrar', async dadosVenda => {
     catch (e) { avisos.push('Fiscal: ' + e.message); }
   }
   try { await imprimirCupom(venda); } catch (e) { avisos.push(e.message); }
+  try { await imprimirPreparo(venda); } catch (e) { avisos.push('Preparo: ' + e.message); }
   return { venda, avisos };
 });
 
 tratar('venda:atualizar', async (numero, mudancas) => {
   const v = banco.atualizarVenda(numero, mudancas);
+  const avisos = [];
   if (mudancas.status === 'paga') {
+    try { await imprimirPreparo(v); } catch (e) { avisos.push('Preparo: ' + e.message); }
     try { v.fiscal = await fiscal.emitir(v, banco.getConfig()); banco.atualizarVenda(v.numero, { fiscal: v.fiscal }); }
-    catch (e) { return { venda: v, avisos: ['Fiscal: ' + e.message] }; }
+    catch (e) { avisos.push('Fiscal: ' + e.message); }
   }
-  return { venda: v, avisos: [] };
+  return { venda: v, avisos };
 });
 
 tratar('vendas:listar', filtro => banco.listarVendas(filtro));
@@ -162,6 +197,38 @@ tratar('vendas:reimprimir', numero => {
   const v = banco.listarVendas().find(x => x.numero === numero);
   if (!v) throw new Error('Venda não encontrada.');
   return imprimirCupom(v);
+});
+
+// ---------- planilhas ----------
+const hojeArquivo = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+async function escolherOndeSalvar(nome) {
+  const r = await dialog.showSaveDialog(janela, { defaultPath: path.join(app.getPath('documents'), nome),
+    filters: [{ name: 'Planilha do Excel', extensions: ['xlsx'] }] });
+  return r.canceled ? '' : r.filePath;
+}
+tratar('produtos:exportar', async () => {
+  const arq = await escolherOndeSalvar(`produtos-lisufit-${hojeArquivo()}.xlsx`);
+  return arq ? planilha.exportarProdutos(arq, banco.getProdutos(), banco.getCategorias()) : '';
+});
+let planilhaLida = null; // guarda a leitura entre a prévia e a confirmação
+tratar('produtos:lerPlanilha', async () => {
+  const r = await dialog.showOpenDialog(janela, { properties: ['openFile'],
+    filters: [{ name: 'Planilha', extensions: ['xlsx', 'csv'] }] });
+  if (r.canceled || !r.filePaths[0]) return null;
+  const linhas = await planilha.lerPlanilhaProdutos(r.filePaths[0]);
+  planilhaLida = linhas;
+  return { arquivo: path.basename(r.filePaths[0]), ...banco.importarProdutos(linhas, false) };
+});
+tratar('produtos:importar', () => {
+  if (!planilhaLida) throw new Error('Escolha a planilha de novo.');
+  const res = banco.importarProdutos(planilhaLida, true);
+  planilhaLida = null;
+  return res;
+});
+tratar('vendas:exportar', async filtro => {
+  const nome = filtro && filtro.de ? `vendas-lisufit-${filtro.de}${filtro.ate && filtro.ate !== filtro.de ? '-a-' + filtro.ate : ''}.xlsx` : `vendas-lisufit-${hojeArquivo()}.xlsx`;
+  const arq = await escolherOndeSalvar(nome);
+  return arq ? planilha.exportarVendas(arq, banco.listarVendas(filtro)) : '';
 });
 
 tratar('impressoras:listar', async () =>
