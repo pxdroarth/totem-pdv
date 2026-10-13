@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex">
+<link rel="icon" href="logo.png">
+<title>Levantamento Lisufit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700;800&display=swap">
+<style>
+/* Layout: uma coluna de leitura (formulário de reunião), seções numeradas na ordem da pauta, barra fixa com progresso e envio */
+:root{
+  --marca:#ff5f15; --marca-forte:#e04e08; --marca-suave:#fff1ea;
+  --bg:#ffffff; --fundo:#f7f5f3; --fg:#1d1a18; --suave:#6b625c; --linha:#e8e2dd;
+  --ok:#2f8a52; --aviso:#a06a00;
+  --display:"Rubik",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --texto:"Rubik",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --marca:#ff7a3d; --marca-forte:#ff9561; --marca-suave:#3a2216;
+  --bg:#171412; --fundo:#211d1a; --fg:#f3eeea; --suave:#b3a89f; --linha:#3a332e;
+  --ok:#5cc286; --aviso:#e0a83a; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --marca:#ff7a3d; --marca-forte:#ff9561; --marca-suave:#3a2216;
+  --bg:#171412; --fundo:#211d1a; --fg:#f3eeea; --suave:#b3a89f; --linha:#3a332e;
+  --ok:#5cc286; --aviso:#e0a83a; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--fundo);color:var(--fg);font-family:var(--texto);font-size:16px;line-height:1.5;padding:0 16px}
+.pagina{max-width:760px;margin:0 auto;padding-block:28px 140px;display:flex;flex-direction:column;gap:20px}
+header.topo{display:flex;flex-direction:column;gap:10px}
+.marca{display:flex;align-items:center;gap:10px;font-family:var(--display);font-weight:800;font-size:1.35rem;letter-spacing:-.01em}
+.marca .ponto{width:14px;height:14px;border-radius:50%;background:var(--marca)}
+.marca small{font-weight:500;font-size:.85rem;color:var(--suave);letter-spacing:.08em;text-transform:uppercase}
+h1{font-family:var(--display);font-size:clamp(1.7rem,4.5vw,2.4rem);line-height:1.15;margin:0;font-weight:700;text-wrap:balance}
+.intro{color:var(--suave);margin:0;max-width:62ch}
+.intro b{color:var(--fg)}
+section.bloco{background:var(--bg);border:1px solid var(--linha);border-radius:14px;padding:22px 20px;display:flex;flex-direction:column;gap:22px}
+.bloco-cab{display:flex;align-items:baseline;gap:12px}
+.bloco-cab .num{font-family:var(--display);font-weight:700;color:var(--marca);font-size:.95rem;font-variant-numeric:tabular-nums}
+.bloco-cab h2{margin:0;font-family:var(--display);font-size:1.25rem;font-weight:600}
+.bloco-cab .contagem{margin-left:auto;font-size:.8rem;color:var(--suave);font-variant-numeric:tabular-nums;white-space:nowrap}
+.pergunta{display:flex;flex-direction:column;gap:8px;min-width:0}
+.pergunta label.titulo,.pergunta .titulo{font-weight:600}
+.pergunta .ajuda{font-size:.88rem;color:var(--suave);margin-top:-4px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:1.5px solid var(--linha);background:var(--bg);color:var(--fg);border-radius:999px;padding:9px 16px;font:inherit;font-size:.95rem;cursor:pointer;min-height:44px}
+.chip:hover{border-color:var(--marca)}
+.chip[aria-pressed="true"]{background:var(--marca);border-color:var(--marca);color:#fff;font-weight:500}
+.chip:focus-visible,input:focus-visible,textarea:focus-visible,button:focus-visible{outline:3px solid var(--marca);outline-offset:2px}
+input[type=text],input[type=date],textarea{width:100%;font:inherit;color:var(--fg);background:var(--bg);border:1.5px solid var(--linha);border-radius:10px;padding:11px 13px;min-height:46px}
+textarea{min-height:96px;resize:vertical}
+input:focus,textarea:focus{border-color:var(--marca);outline:none}
+.outro{margin-top:2px}
+.feito::before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--ok);margin-right:8px;vertical-align:middle}
+.depois{background:var(--marca-suave);border:1px dashed var(--marca);border-radius:14px;padding:20px;display:flex;flex-direction:column;gap:10px}
+.depois h2{margin:0;font-family:var(--display);font-size:1.15rem}
+.depois p{margin:0;color:var(--suave)}
+.colunas{display:flex;flex-wrap:wrap;gap:6px}
+.colunas span{background:var(--bg);border:1px solid var(--linha);border-radius:6px;padding:3px 9px;font-size:.88rem}
+.barra{position:fixed;left:0;right:0;bottom:0;background:var(--bg);border-top:1px solid var(--linha);padding:12px 16px calc(12px + env(safe-area-inset-bottom,0px))}
+.barra-in{max-width:760px;margin:0 auto;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.prog{flex:1 1 220px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.prog-txt{display:flex;justify-content:space-between;gap:10px;font-size:.85rem;color:var(--suave);font-variant-numeric:tabular-nums}
+.prog-trilho{height:8px;border-radius:99px;background:var(--linha);overflow:hidden}
+.prog-trilho div{height:100%;background:var(--marca);width:0;transition:width .3s}
+#status.nuvem{color:var(--ok)}
+#status.local{color:var(--aviso)}
+.btn{font:inherit;font-weight:600;border:none;border-radius:10px;padding:12px 20px;min-height:48px;cursor:pointer;background:var(--marca);color:#fff}
+.btn:hover{background:var(--marca-forte)}
+.copia{display:flex;flex-direction:column;gap:8px}
+.copia textarea{min-height:180px;font-size:.85rem}
+@media (prefers-reduced-motion:reduce){.prog-trilho div{transition:none}}
+@media (max-width:480px){section.bloco{padding:18px 14px}.bloco-cab .contagem{display:none}}
+[hidden]{display:none!important}
+img{max-width:100%}
+body{margin:0}
+.logo{height:56px;width:auto;align-self:flex-start}
+.btn-sec{background:transparent;color:var(--marca);border:1.5px solid var(--marca)}
+.btn-sec:hover{background:var(--marca-suave)}
+.acoes{display:flex;gap:10px;flex-wrap:wrap}
+</style>
+
+</head>
+<body>
+<div class="pagina">
+  <header class="topo">
+    <img class="logo" src="logo.png" alt="Lisufit">
+    <h1>Levantamento das regras do negócio</h1>
+    <p class="intro">Estas perguntas definem como o totem e o sistema da loja vão funcionar no dia a dia. Responda o que já souber; o que estiver em dúvida pode ficar em branco ou marcado como <b>Ainda não sei</b>, e a gente conversa na reunião. As respostas ficam guardadas neste aparelho enquanto você preenche. No final, toque em <b>Enviar pelo WhatsApp</b>.</p>
+  </header>
+  <div id="blocos"></div>
+
+  <aside class="depois">
+    <h2>Depois de fecharmos: a lista de produtos</h2>
+    <p>Com o contrato fechado, vou pedir a planilha dos produtos para cadastrar tudo no sistema antes da instalação. Pode ir separando estas informações de cada produto:</p>
+    <div class="colunas"><span>Nome</span><span>Código de barras</span><span>Preço de venda</span><span>Categoria</span><span>Quantidade em estoque</span><span>Foto (opcional)</span><span>Variações (sabores, tamanhos)</span></div>
+  </aside>
+
+  <div class="copia" id="copia" hidden>
+    <label for="texto-copia" class="titulo"><b>Respostas em texto.</b> Se o botão de copiar não funcionar, selecione o texto abaixo e copie.</label>
+    <textarea id="texto-copia" readonly></textarea>
+  </div>
+</div>
+
+<div class="barra">
+  <div class="barra-in">
+    <div class="prog">
+      <div class="prog-txt"><span id="prog-num">0 de 0 respondidas</span><span id="status">Salvo neste aparelho</span></div>
+      <div class="prog-trilho"><div id="prog-barra"></div></div>
+    </div>
+    <div class="acoes"><button class="btn btn-sec" id="btn-copiar" type="button">Copiar</button><button class="btn" id="btn-whats" type="button">Enviar pelo WhatsApp</button></div>
+  </div>
+</div>
+
+<script>
+const NAO_SEI = 'Ainda não sei';
+const BLOCOS = [
+ {titulo:'A loja e os equipamentos', perguntas:[
+  {id:'pc_loja', t:'Além do totem, vai ter um computador no balcão?', ajuda:'Define se o sistema de gestão roda no próprio totem ou num computador separado.', tipo:'um', op:['Só o totem','Totem e computador no balcão',NAO_SEI]},
+  {id:'internet', t:'Como é a internet da loja?', tipo:'um', op:['Cabo','Wi-Fi','Chip 4G/5G',NAO_SEI]},
+  {id:'horario', t:'Horário de funcionamento', tipo:'texto', ph:'Ex.: seg a sáb, 7h às 21h'},
+  {id:'equipe', t:'Quantas pessoas trabalham no balcão e em quais turnos?', tipo:'texto'},
+  {id:'impressora', t:'Já existe impressora de cupom na loja?', tipo:'um', op:['Sim','Não','Vou comprar'], outro:'Se sim, qual modelo?'},
+ ]},
+ {titulo:'Pagamento', perguntas:[
+  {id:'formas', t:'Quais formas de pagamento o cliente pode escolher no totem?', tipo:'varios', op:['PIX pelo QR Code','Cartão na maquininha','Pagar no balcão (dinheiro ou cartão)']},
+  {id:'pix_tipo', t:'Tipo da chave PIX da loja', tipo:'um', op:['CNPJ','Celular','E-mail','Chave aleatória']},
+  {id:'pix_titular', t:'Nome que aparece como recebedor no PIX', tipo:'texto', ph:'Como está no banco'},
+  {id:'maquininha', t:'Qual maquininha a loja usa ou pretende usar?', tipo:'um', op:['Mercado Pago','Stone','PagSeguro','Cielo','Ainda não tem'], outro:'Outra'},
+  {id:'prazo_balcao', t:'Pedido marcado como "pagar no balcão": quanto tempo espera antes de ser cancelado?', tipo:'um', op:['15 minutos','30 minutos','Até o fim do dia','Nunca cancela sozinho']},
+  {id:'descontos', t:'Vai ter descontos ou promoções?', tipo:'varios', op:['Desconto no PIX','Cupom de desconto','Combos e kits','Programa de fidelidade','Não por enquanto'], outro:'Detalhes'},
+ ]},
+ {titulo:'Nota fiscal', perguntas:[
+  {id:'cnpj', t:'CNPJ da loja', tipo:'texto'},
+  {id:'regime', t:'Regime tributário', tipo:'um', op:['MEI','Simples Nacional','Lucro Presumido',NAO_SEI]},
+  {id:'contador', t:'Contador responsável: nome e contato', ajuda:'É com ele que vamos acertar o cadastro dos produtos (NCM) e o código CSC da Sefaz.', tipo:'texto'},
+  {id:'certificado', t:'A loja já tem certificado digital A1?', tipo:'um', op:['Sim','Não',NAO_SEI]},
+  {id:'cpf_nota', t:'O totem deve perguntar o CPF na nota?', tipo:'um', op:['Sim, sempre perguntar','Não perguntar','Só no balcão']},
+ ]},
+ {titulo:'Produtos e Empório', perguntas:[
+  {id:'categorias', t:'Quais categorias a loja vai vender?', tipo:'varios', op:['Whey e proteínas','Creatina','Pré-treino','Vitaminas','Barrinhas e snacks','Shakes','Smoothies','Sorvetes','Coxinhas e salgados','Carnes congeladas','Bebidas','Acessórios'], outro:'Outras categorias'},
+  {id:'qtd_produtos', t:'Mais ou menos quantos produtos diferentes?', tipo:'um', op:['Até 50','50 a 200','200 a 500','Mais de 500']},
+  {id:'codigo_barras', t:'Os produtos já vêm com código de barras?', tipo:'um', op:['Todos','A maioria','Poucos','Nenhum']},
+  {id:'carnes', t:'Carnes congeladas são vendidas como?', ajuda:'Venda por peso precisa de balança integrada; pacote com preço fixo funciona com código de barras.', tipo:'um', op:['Pacote com preço fixo','Por peso (kg)','Os dois',NAO_SEI]},
+  {id:'sorvete', t:'Como o sorvete é vendido?', tipo:'varios', op:['Pote fechado','Copo ou casquinha montado na hora','Por peso',NAO_SEI]},
+  {id:'salgados', t:'Coxinhas e salgados ficam prontos ou são preparados na hora?', tipo:'um', op:['Prontos na vitrine','Aquecidos ou fritos na hora','Os dois']},
+  {id:'shakes', t:'Shakes e smoothies: sabores, frutas, adicionais e preços', ajuda:'Pode escrever do jeito que estiver no cardápio. Ex.: Smoothie 400ml R$18,90, escolhe 1 sabor de whey e até 2 frutas, açaí +R$2.', tipo:'longo'},
+  {id:'combos', t:'Tem combos ou kits?', tipo:'longo', ph:'Ex.: Whey + coqueteleira por R$X'},
+ ]},
+ {titulo:'Pedidos preparados na hora', perguntas:[
+  {id:'pedido_chega', t:'Depois de pago, como o pedido chega a quem prepara?', tipo:'um', op:['Cupom impresso no balcão','Tela na cozinha',NAO_SEI]},
+  {id:'retirada', t:'Como o cliente recebe o pedido?', tipo:'um', op:['Chamado pelo número da senha','Chamado pelo nome','Entregue na mesa']},
+  {id:'nome_cliente', t:'O totem deve pedir o nome do cliente?', tipo:'um', op:['Sim','Não']},
+  {id:'local_levar', t:'Perguntar se é para comer no local ou levar?', tipo:'um', op:['Sim','Não']},
+ ]},
+ {titulo:'Estoque', perguntas:[
+  {id:'controle', t:'O sistema deve controlar o estoque?', tipo:'um', op:['Sim, de todos os produtos','Só dos produtos de prateleira','Não por enquanto']},
+  {id:'entrada', t:'Quem vai dar entrada nas mercadorias que chegam?', tipo:'texto'},
+  {id:'esgotado', t:'Quando um produto acaba, o que acontece no totem?', tipo:'um', op:['Some do totem','Aparece como esgotado','Continua vendendo']},
+  {id:'alerta', t:'Quer aviso de estoque baixo?', tipo:'um', op:['Sim','Não'], outro:'A partir de quantas unidades?'},
+  {id:'validade', t:'Precisa controlar validade ou lote?', ajuda:'Comum em suplementos e congelados.', tipo:'um', op:['Sim','Não',NAO_SEI]},
+ ]},
+ {titulo:'Acesso, relatórios e gestão', perguntas:[
+  {id:'acesso_admin', t:'Quem pode entrar no painel administrativo?', tipo:'texto', ph:'Nomes ou cargos'},
+  {id:'cancelar', t:'Quem pode cancelar uma venda?', tipo:'um', op:['Qualquer funcionário','Só a gerente ou a dona']},
+  {id:'email_relatorio', t:'E-mail(s) que recebem o relatório de vendas', tipo:'texto'},
+  {id:'freq_relatorio', t:'Com que frequência quer receber o relatório?', tipo:'varios', op:['Todo dia','Toda semana','Todo mês']},
+  {id:'gestora', t:'A gestora usa algum sistema ou planilha hoje? Qual?', tipo:'texto'},
+ ]},
+ {titulo:'Prazos', perguntas:[
+  {id:'inauguracao', t:'Data em que o totem precisa estar funcionando', tipo:'data'},
+  {id:'obs', t:'Mais alguma regra, dúvida ou ideia?', tipo:'longo'},
+ ]},
+];
+const TODAS = BLOCOS.flatMap(b=>b.perguntas);
+const CHAVE_LOCAL = 'lisufit-levantamento';
+let resp = {}, editadoEm = 0;
+
+try{ const s = JSON.parse(localStorage.getItem(CHAVE_LOCAL)||'null'); if(s){ resp = s.resp||{}; editadoEm = s.editadoEm||0; } }catch(e){}
+
+const el = (tag, attrs={}, ...filhos) => { const n = document.createElement(tag); for(const [k,v] of Object.entries(attrs)){ if(k==='class') n.className=v; else if(k.startsWith('on')) n.addEventListener(k.slice(2),v); else n.setAttribute(k,v);} for(const f of filhos){ if(f!=null) n.append(f);} return n; };
+const respondida = p => { const v = resp[p.id]; return Array.isArray(v) ? v.length>0 : !!(v && String(v).trim()); };
+
+function render(){
+  const raiz = document.getElementById('blocos'); raiz.replaceChildren();
+  BLOCOS.forEach((b,bi)=>{
+    const sec = el('section',{class:'bloco','aria-labelledby':'b'+bi});
+    sec.append(el('div',{class:'bloco-cab'}, el('span',{class:'num'},String(bi+1).padStart(2,'0')), el('h2',{id:'b'+bi},b.titulo), el('span',{class:'contagem','data-bloco':bi})));
+    b.perguntas.forEach(p=>sec.append(renderPergunta(p)));
+    raiz.append(sec);
+  });
+  atualizarProgresso();
+}
+
+function renderPergunta(p){
+  const box = el('div',{class:'pergunta','data-p':p.id});
+  const tituloId = 't_'+p.id;
+  if(p.tipo==='um'||p.tipo==='varios'){
+    box.append(el('div',{class:'titulo',id:tituloId},p.t));
+    if(p.ajuda) box.append(el('div',{class:'ajuda'},p.ajuda));
+    const chips = el('div',{class:'chips',role:'group','aria-labelledby':tituloId});
+    p.op.forEach(o=>{
+      const marcado = p.tipo==='um' ? resp[p.id]===o : (resp[p.id]||[]).includes(o);
+      chips.append(el('button',{type:'button',class:'chip','aria-pressed':String(marcado),onclick:()=>{
+        if(p.tipo==='um'){ resp[p.id] = resp[p.id]===o ? '' : o; }
+        else { const a = new Set(resp[p.id]||[]); a.has(o)?a.delete(o):a.add(o); resp[p.id]=[...a]; }
+        mudou(); const novo = renderPergunta(p); box.replaceWith(novo);
+      }},o));
+    });
+    box.append(chips);
+    if(p.outro){
+      const id = p.id+'_outro';
+      box.append(el('input',{type:'text',class:'outro',id,placeholder:p.outro,'aria-label':p.outro}));
+      const inp = box.querySelector('#'+CSS.escape(id)); inp.value = resp[id]||''; inp.addEventListener('input',()=>{resp[id]=inp.value; mudou();});
+    }
+  } else {
+    box.append(el('label',{class:'titulo',for:'f_'+p.id},p.t));
+    if(p.ajuda) box.append(el('div',{class:'ajuda'},p.ajuda));
+    const campo = p.tipo==='longo' ? el('textarea',{id:'f_'+p.id}) : el('input',{id:'f_'+p.id,type:p.tipo==='data'?'date':'text'});
+    if(p.ph) campo.placeholder = p.ph;
+    campo.value = resp[p.id]||'';
+    campo.addEventListener('input',()=>{ resp[p.id]=campo.value; mudou(); });
+    box.append(campo);
+  }
+  return box;
+}
+
+function atualizarProgresso(){
+  const feitas = TODAS.filter(respondida).length;
+  document.getElementById('prog-num').textContent = `${feitas} de ${TODAS.length} respondidas`;
+  document.getElementById('prog-barra').style.width = (100*feitas/TODAS.length)+'%';
+  BLOCOS.forEach((b,bi)=>{ const n=b.perguntas.filter(respondida).length; const c=document.querySelector(`[data-bloco="${bi}"]`); if(c){ c.textContent=`${n}/${b.perguntas.length}`; c.classList.toggle('feito', n===b.perguntas.length);} });
+}
+
+function mudou(){
+  editadoEm = Date.now();
+  try{ localStorage.setItem(CHAVE_LOCAL, JSON.stringify({resp, editadoEm})); }catch(e){}
+  atualizarProgresso();
+}
+function setStatus(txt, cls){ const s=document.getElementById('status'); s.textContent=txt; s.className=cls; }
+
+function textoRespostas(){
+  const fmt = v => Array.isArray(v) ? v.join(', ') : (v||'').trim();
+  let t = '*Levantamento Lisufit — regras do negócio*\n';
+  BLOCOS.forEach((b,bi)=>{
+    t += `\n*${bi+1}. ${b.titulo}*\n`;
+    b.perguntas.forEach(p=>{
+      let v = fmt(resp[p.id]); const o = p.outro ? fmt(resp[p.id+'_outro']) : '';
+      if(o) v = v ? `${v} (${o})` : o;
+      t += `• ${p.t}\n   ${v || '—'}\n`;
+    });
+  });
+  return t;
+}
+document.getElementById('btn-copiar').addEventListener('click',()=>{
+  const t = textoRespostas(); const area = document.getElementById('texto-copia'); const btn = document.getElementById('btn-copiar');
+  area.value = t;
+  const ok = () => { btn.textContent='Copiado!'; setTimeout(()=>btn.textContent='Copiar',2500); };
+  const falhou = () => { document.getElementById('copia').hidden=false; area.focus(); area.select(); area.scrollIntoView({block:'center'}); };
+  try{ navigator.clipboard.writeText(t).then(ok, falhou); }catch(e){ falhou(); }
+});
+
+render();
+setStatus('Guardado neste aparelho','local');
+
+// Número do WhatsApp que recebe as respostas (DDI+DDD+número, só dígitos). Vazio = a pessoa escolhe o contato.
+const WHATSAPP = '';
+document.getElementById('btn-whats').addEventListener('click',()=>{
+  const feitas = TODAS.filter(respondida).length;
+  if(feitas===0){ document.getElementById('prog-num').textContent='Responda pelo menos uma pergunta antes de enviar'; return; }
+  const url = 'https://wa.me/' + WHATSAPP + '?text=' + encodeURIComponent(textoRespostas());
+  window.open(url, '_blank', 'noopener');
+});
+</script>
+</body>
+</html>
