@@ -1,0 +1,317 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; img-src 'self' data: file:; font-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'">
+  <title>Lisufit — Autoatendimento</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- ===== TELA INICIAL ===== -->
+<section id="tela-inicio" class="tela ativa">
+  <div class="inicio">
+    <div class="inicio-centro">
+      <div class="logo" id="logo-loja"><img id="logo-img" src="assets/logo.png" alt="Lisufit"><span id="logo-texto">LISUFIT</span></div>
+      <h1 class="inicio-frase">Peça e pague aqui mesmo.</h1>
+      <p class="inicio-sub">Suplementos, smoothies, shakes e refeições.</p>
+    </div>
+    <p class="inicio-scan"><i data-icone="scan" data-tam="26"></i> Já está com o produto na mão? Passe o código de barras no leitor.</p>
+    <button class="faixa-comecar" id="btn-comecar">Toque para começar</button>
+  </div>
+</section>
+
+<!-- ===== LOJA (catálogo + pedido) ===== -->
+<section id="tela-loja" class="tela">
+  <div class="loja">
+    <header class="topo">
+      <img class="topo-marca" src="assets/logo.png" alt="">
+      <span class="sr-only" id="topo-logo">LISUFIT</span>
+      <label class="campo-busca"><i data-icone="busca" data-tam="24"></i>
+        <input id="busca" type="search" placeholder="Buscar produto" autocomplete="off" aria-label="Buscar produto"></label>
+      <button class="btn btn-contorno" id="btn-cancelar-compra">Cancelar pedido</button>
+    </header>
+    <nav id="categorias" class="categorias" aria-label="Categorias"></nav>
+    <main class="catalogo">
+      <h2 id="titulo-categoria">Todos os produtos</h2>
+      <div id="grade-produtos" class="grade"></div>
+    </main>
+    <footer class="barra-pedido">
+      <button class="sacola-btn" id="btn-ver-pedido" aria-label="Ver meu pedido">
+        <i data-icone="sacola" data-tam="30"></i><b id="qtd-itens">0</b>
+      </button>
+      <button class="btn btn-contorno btn-alto" id="btn-ver-pedido-2">Ver pedido</button>
+      <span class="espaco"></span>
+      <button class="btn-finalizar" id="btn-finalizar" disabled>
+        <span>Finalizar pedido</span><strong id="total-carrinho">R$ 0,00</strong>
+      </button>
+    </footer>
+  </div>
+
+  <!-- gaveta do pedido -->
+  <div class="gaveta" id="gaveta-pedido">
+    <div class="gaveta-fundo" data-fechar-gaveta></div>
+    <aside class="gaveta-painel" aria-label="Meu pedido">
+      <header><h2>Meu pedido</h2><button class="btn-icone" data-fechar-gaveta aria-label="Fechar"><i data-icone="fechar" data-tam="28"></i></button></header>
+      <ul id="lista-carrinho"></ul>
+      <footer>
+        <div class="total"><span>Total</span><strong id="total-gaveta">R$ 0,00</strong></div>
+        <button class="btn btn-primario btn-largo" id="btn-finalizar-gaveta">Finalizar pedido</button>
+        <button class="btn btn-contorno btn-largo" data-fechar-gaveta>Continuar comprando</button>
+      </footer>
+    </aside>
+  </div>
+</section>
+
+<!-- ===== ESCOLHA DO PAGAMENTO ===== -->
+<section id="tela-pagamento" class="tela">
+  <div class="etapa">
+    <header class="etapa-topo">
+      <button class="btn-voltar" id="btn-voltar-carrinho"><i data-icone="voltar"></i> Voltar ao pedido</button>
+      <ol class="fluxo" aria-label="Etapas"><li class="feito">Pedido</li><li class="atual">Pagamento</li><li class="">Pronto</li></ol>
+      <p class="etapa-total">Total <strong id="valor-pagamento">R$ 0,00</strong></p>
+    </header>
+    <div class="etapa-corpo">
+      <h1>Como você quer pagar?</h1>
+      <div class="opcoes-pagamento">
+        <button class="opcao" data-forma="pix"><span class="opcao-ico"><i data-icone="pix" data-tam="40"></i></span><b>PIX</b><small>Pague com o app do banco pelo QR Code</small></button>
+        <button class="opcao" data-forma="cartao"><span class="opcao-ico"><i data-icone="cartao" data-tam="40"></i></span><b>Cartão</b><small>Crédito ou débito na maquininha ao lado</small></button>
+        <button class="opcao" data-forma="caixa"><span class="opcao-ico"><i data-icone="caixa" data-tam="40"></i></span><b>Pagar no caixa</b><small>Dinheiro ou outra forma, com o atendente</small></button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== PIX ===== -->
+<section id="tela-pix" class="tela">
+  <div class="etapa">
+    <header class="etapa-topo">
+      <button class="btn-voltar" data-voltar="pagamento"><i data-icone="voltar"></i> Trocar forma de pagamento</button>
+      <ol class="fluxo" aria-label="Etapas"><li class="feito">Pedido</li><li class="atual">Pagamento</li><li class="">Pronto</li></ol>
+      <p class="etapa-total">Total <strong id="valor-pix">R$ 0,00</strong></p>
+    </header>
+    <div class="etapa-corpo pix-layout">
+      <div class="qr-moldura"><img id="qr-pix" class="qr" alt="QR Code PIX"></div>
+      <div class="pix-info">
+        <h1>Pague com PIX</h1>
+        <ol class="passos">
+          <li><span>Abra o app do seu banco e escolha <b>PIX</b> › <b>Ler QR Code</b></span></li>
+          <li><span>Aponte a câmera para o código. O valor já vem preenchido.</span></li>
+          <li><span>Depois de pagar, mostre o comprovante ao atendente</span></li>
+        </ol>
+        <details class="copia-cola"><summary>Usar PIX Copia e Cola</summary><code id="pix-payload"></code></details>
+        <button class="btn btn-primario btn-alto" id="btn-pix-pago">Já paguei</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== CARTÃO ===== -->
+<section id="tela-cartao" class="tela">
+  <div class="etapa">
+    <header class="etapa-topo">
+      <button class="btn-voltar" data-voltar="pagamento"><i data-icone="voltar"></i> Trocar forma de pagamento</button>
+      <ol class="fluxo" aria-label="Etapas"><li class="feito">Pedido</li><li class="atual">Pagamento</li><li class="">Pronto</li></ol>
+      <p class="etapa-total">Total <strong id="valor-cartao">R$ 0,00</strong></p>
+    </header>
+    <div class="etapa-corpo cartao-layout">
+      <span class="cartao-ico"><i data-icone="cartao" data-tam="88"></i></span>
+      <div>
+        <h1>Pague na maquininha</h1>
+        <ol class="passos">
+          <li><span>Pegue a maquininha ao lado do totem</span></li>
+          <li><span>Confira se o valor é o mesmo do total desta tela</span></li>
+          <li><span>Insira ou aproxime o cartão e aguarde a aprovação</span></li>
+        </ol>
+        <button class="btn btn-primario btn-alto" id="btn-cartao-pago">Pagamento aprovado</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== CONCLUÍDO ===== -->
+<section id="tela-fim" class="tela">
+  <div class="etapa">
+    <header class="etapa-topo etapa-topo-fim"><ol class="fluxo" aria-label="Etapas"><li class="feito">Pedido</li><li class="feito">Pagamento</li><li class="atual">Pronto</li></ol></header>
+    <div class="etapa-corpo fim">
+      <div class="check"><i data-icone="check" data-tam="60"></i></div>
+      <h1 id="fim-titulo">Compra concluída!</h1>
+      <p class="numero-pedido" id="fim-pedido"></p>
+      <p class="fim-msg" id="fim-msg">Retire seu cupom. Obrigado!</p>
+      <button class="btn btn-primario btn-alto" id="btn-nova-compra">Nova compra</button>
+    </div>
+  </div>
+</section>
+
+<!-- ===== ADMIN ===== -->
+<section id="tela-admin" class="tela">
+  <div class="admin">
+    <header class="admin-topo">
+      <h1>Painel da loja</h1>
+      <nav class="abas">
+        <button class="aba ativa" data-aba="produtos">Produtos</button>
+        <button class="aba" data-aba="categorias">Categorias</button>
+        <button class="aba" data-aba="vendas">Vendas</button>
+        <button class="aba" data-aba="config">Configurações</button>
+      </nav>
+      <button class="btn btn-fantasma" id="btn-sair-admin">Voltar ao totem</button>
+    </header>
+
+    <div class="aba-conteudo ativa" id="aba-produtos">
+      <div class="barra">
+        <input id="busca-admin" type="search" placeholder="Buscar por nome ou código...">
+        <select id="filtro-categoria-admin"><option value="">Todas as categorias</option></select>
+        <button class="btn btn-primario" id="btn-novo-produto">+ Novo produto</button>
+      </div>
+      <table class="tabela">
+        <thead><tr><th></th><th>Produto</th><th>Código de barras</th><th>Categoria</th><th>Preço</th><th>Estoque</th><th></th></tr></thead>
+        <tbody id="tabela-produtos"></tbody>
+      </table>
+    </div>
+
+    <div class="aba-conteudo" id="aba-categorias">
+      <div class="barra">
+        <p class="ajuda">As categorias aparecem no totem agrupadas pela <b>seção</b> (ex.: Suplementos, Empório), na ordem desta lista.
+          Categoria sem produto disponível não aparece para o cliente.</p>
+        <span class="espaco"></span>
+        <button class="btn btn-primario" id="btn-nova-categoria">+ Nova categoria</button>
+      </div>
+      <table class="tabela">
+        <thead><tr><th>Ordem</th><th></th><th>Categoria</th><th>Seção</th><th>Produtos</th><th>No totem</th><th></th></tr></thead>
+        <tbody id="tabela-categorias"></tbody>
+      </table>
+    </div>
+
+    <div class="aba-conteudo" id="aba-vendas">
+      <div class="barra">
+        <label>De <input type="date" id="vendas-de"></label>
+        <label>Até <input type="date" id="vendas-ate"></label>
+        <button class="btn" id="btn-filtrar-vendas">Filtrar</button>
+      </div>
+      <div class="cards-resumo" id="resumo-vendas"></div>
+      <h3>Pedidos aguardando pagamento no caixa</h3>
+      <table class="tabela"><tbody id="tabela-aguardando"></tbody></table>
+      <h3>Mais vendidos no período</h3>
+      <table class="tabela"><tbody id="tabela-top"></tbody></table>
+      <h3>Vendas</h3>
+      <table class="tabela">
+        <thead><tr><th>Nº</th><th>Data</th><th>Itens</th><th>Pagamento</th><th>Status</th><th>Total</th><th></th></tr></thead>
+        <tbody id="tabela-vendas"></tbody>
+      </table>
+    </div>
+
+    <div class="aba-conteudo" id="aba-config">
+      <form id="form-config" class="form-config">
+        <fieldset><legend>Loja</legend>
+          <label>Nome da loja<input name="nomeLoja"></label>
+          <label>CNPJ<input name="cnpj"></label>
+          <label>Endereço (aparece no cupom)<input name="endereco"></label>
+          <label>Mensagem no fim do cupom<input name="mensagemCupom"></label>
+        </fieldset>
+        <fieldset><legend>PIX</legend>
+          <label>Chave PIX (CNPJ, e-mail, telefone ou aleatória)<input name="pixChave"></label>
+          <label>Nome do recebedor (como está no banco)<input name="pixNome" maxlength="25"></label>
+          <label>Cidade<input name="pixCidade" maxlength="15"></label>
+        </fieldset>
+        <fieldset><legend>Segurança e pagamento</legend>
+          <label>PIN do admin<input name="pinAdmin" type="password" inputmode="numeric"></label>
+          <label>PIN do atendente (confirma PIX/cartão)<input name="pinAtendente" type="password" inputmode="numeric"></label>
+          <label class="check-label"><input type="checkbox" name="confirmarPagamentoComPin"> Exigir PIN do atendente para confirmar PIX e cartão</label>
+          <label>Voltar à tela inicial após inatividade (segundos)<input name="tempoInatividadeSeg" type="number" min="30"></label>
+        </fieldset>
+        <fieldset><legend>Impressão do cupom</legend>
+          <label class="check-label"><input type="checkbox" name="imprimirCupom"> Imprimir cupom ao finalizar</label>
+          <label>Impressora<select name="impressoraCupom" id="sel-impressora"></select></label>
+        </fieldset>
+        <fieldset><legend>Nota fiscal</legend>
+          <label>Integração
+            <select name="fiscalModo">
+              <option value="desativado">Desativada (emitir manualmente no equipamento)</option>
+              <option value="pasta">Gravar venda em pasta para o emissor fiscal</option>
+            </select>
+          </label>
+          <label>Pasta de integração
+            <span class="linha"><input name="fiscalPasta" readonly><button type="button" class="btn" id="btn-pasta-fiscal">Escolher</button></span>
+          </label>
+        </fieldset>
+        <div class="acoes">
+          <button type="submit" class="btn btn-primario">Salvar configurações</button>
+          <button type="button" class="btn" id="btn-backup">Fazer backup dos dados</button>
+          <button type="button" class="btn btn-perigo" id="btn-fechar-sistema">Fechar o sistema</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</section>
+
+<!-- ===== MODAIS ===== -->
+<div id="modal-pin" class="modal">
+  <div class="modal-caixa pin-caixa">
+    <h2 id="pin-titulo">Digite o PIN</h2>
+    <div id="pin-display" class="pin-display"></div>
+    <div class="teclado" id="teclado-pin"></div>
+    <button class="btn btn-fantasma" id="pin-cancelar">Cancelar</button>
+  </div>
+</div>
+
+<div id="modal-produto" class="modal">
+  <form class="modal-caixa form-produto" id="form-produto">
+    <h2 id="produto-titulo">Produto</h2>
+    <input type="hidden" name="produtoId">
+    <label>Nome<input name="nome" required></label>
+    <label>Código de barras (passe no leitor)<input name="codigoBarras"></label>
+    <div class="linha">
+      <label>Preço (R$)<input name="preco" inputmode="decimal" required></label>
+      <label>Estoque<input name="estoque" type="number"></label>
+    </div>
+    <div>
+      <label class="check-label"><input type="checkbox" name="controlarEstoque" checked> Controlar estoque</label>
+      <p class="ajuda dica-campo">Desmarque para itens feitos na hora, como smoothies e shakes — eles nunca ficam esgotados.</p>
+    </div>
+    <label>Categoria
+      <span class="linha"><select name="categoria" id="sel-categoria-produto" required></select>
+      <button type="button" class="btn" id="btn-categoria-rapida">+ Nova</button></span>
+    </label>
+    <label class="check-label"><input type="checkbox" name="ativo" checked> Visível no totem</label>
+    <div class="linha imagem-linha">
+      <img id="produto-preview" alt="">
+      <button type="button" class="btn" id="btn-imagem">Escolher foto</button>
+      <button type="button" class="btn btn-fantasma" id="btn-remover-imagem">Remover foto</button>
+    </div>
+    <div class="acoes">
+      <button type="button" class="btn btn-perigo" id="btn-excluir-produto">Excluir</button>
+      <span class="espaco"></span>
+      <button type="button" class="btn btn-fantasma" id="btn-cancelar-produto">Cancelar</button>
+      <button type="submit" class="btn btn-primario">Salvar</button>
+    </div>
+  </form>
+</div>
+
+<div id="modal-categoria" class="modal">
+  <form class="modal-caixa form-produto" id="form-categoria">
+    <h2 id="categoria-titulo">Categoria</h2>
+    <input type="hidden" name="categoriaId">
+    <label>Nome (aparece no totem)<input name="nome" required maxlength="24" placeholder="Ex.: Smoothies"></label>
+    <label>Seção<input name="secao" list="lista-secoes" required maxlength="20" placeholder="Ex.: Empório"></label>
+    <datalist id="lista-secoes"></datalist>
+    <label>Ícone</label>
+    <div class="grade-icones" id="grade-icones"></div>
+    <label class="check-label"><input type="checkbox" name="ativo" checked> Mostrar no totem</label>
+    <div class="acoes">
+      <button type="button" class="btn btn-perigo" id="btn-excluir-categoria">Excluir</button>
+      <span class="espaco"></span>
+      <button type="button" class="btn btn-fantasma" id="btn-cancelar-categoria">Cancelar</button>
+      <button type="submit" class="btn btn-primario">Salvar</button>
+    </div>
+  </form>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script src="icons.js"></script>
+<script src="util.js"></script>
+<script src="app.js"></script>
+<script src="admin.js"></script>
+</body>
+</html>

@@ -1,0 +1,30 @@
+{
+  "name": "pdv-suplementos",
+  "productName": "Lisufit PDV",
+  "version": "1.0.0",
+  "description": "PDV de autoatendimento offline para loja de suplementos (Windows)",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron . --dev",
+    "kiosk": "electron .",
+    "dist": "electron-builder --win nsis"
+  },
+  "dependencies": {
+    "qrcode": "^1.5.4"
+  },
+  "devDependencies": {
+    "electron": "^44.7.0",
+    "electron-builder": "^26.0.0"
+  },
+  "build": {
+    "appId": "br.loja.pdvsuplementos",
+    "productName": "Lisufit PDV",
+    "files": ["src/**/*", "renderer/**/*", "package.json"],
+    "win": { "target": "nsis" },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true
+    }
+  }
+}

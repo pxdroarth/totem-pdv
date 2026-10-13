@@ -1,0 +1,16 @@
+# dependências e builds
+node_modules/
+dist/
+out/
+
+# dados locais e backups (ficam em %APPDATA%, mas por garantia)
+dados.json
+dados.json.tmp
+backup-pdv-*.json
+imagens/
+
+# sistema
+.DS_Store
+Thumbs.db
+*.log
+.env
