@@ -523,3 +523,115 @@ body[data-perfil="atendente"] #btn-exportar-vendas { display: none; }
 .lista-atendentes li { display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding: .5rem .75rem; background: var(--superficie); border-radius: var(--raio-p); }
 .lista-atendentes li.inativo span { color: var(--desativado); }
 .lista-atendentes li.vazio { color: var(--texto-2); }
+
+/* ---------- nome do cliente e comer aqui/levar (totem) ---------- */
+.cliente-caixa { width: min(60rem, 96vw); padding: 0; display: flex; flex-direction: column; max-height: 94vh; overflow: hidden; }
+.cliente-topo { padding: 1.5rem 1.75rem 1rem; border-bottom: 1px solid var(--linha); }
+.cliente-topo h2 { font-size: 1.7rem; }
+.cliente-bloco { padding: 1.25rem 1.75rem; display: flex; flex-direction: column; gap: .9rem; overflow-y: auto; }
+.cliente-bloco + .cliente-bloco { border-top: 1px solid var(--linha); }
+.cliente-bloco[hidden] { display: none; }
+.cliente-bloco h3 { margin: 0; font-size: 1.25rem; }
+.nome-display { min-height: 4rem; display: flex; align-items: center; padding: 0 1.25rem; border: 2px solid var(--marca);
+  border-radius: var(--raio); font-size: 2rem; font-weight: 700; letter-spacing: .01em; background: var(--fundo); }
+.nome-vazio { color: var(--desativado); font-weight: 500; font-size: 1.3rem; }
+.cursor { display: inline-block; width: 3px; height: 2.2rem; margin-left: 3px; background: var(--marca); animation: piscar 1s steps(1) infinite; }
+@keyframes piscar { 50% { opacity: 0; } }
+.teclado-letras { display: flex; flex-direction: column; gap: .5rem; align-items: center; }
+.linha-teclas { display: flex; gap: .5rem; justify-content: center; width: 100%; }
+.tecla-letra { flex: 0 1 4.6rem; height: 4rem; border: 0; border-radius: var(--raio-p); background: var(--superficie);
+  font-size: 1.45rem; font-weight: 700; cursor: pointer; display: grid; place-items: center; }
+.tecla-letra:active { background: var(--superficie-2); transform: scale(.95); }
+.tecla-espaco { flex: 0 1 26rem; font-size: 1.05rem; font-weight: 600; color: var(--texto-2); }
+.tecla-apagar { flex: 0 1 8rem; }
+.escolha-local { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.opcao-local { min-height: 7.5rem; border: 2px solid var(--linha); border-radius: var(--raio-g); background: var(--fundo); cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .6rem; font-size: 1.35rem; font-weight: 700; }
+.opcao-local:active { transform: scale(.98); }
+.opcao-local.ativo { border-color: var(--marca); background: var(--marca-suave); color: var(--marca-escura); }
+.cliente-caixa .opcoes-rodape .acoes { justify-content: space-between; flex-wrap: nowrap; }
+.cliente-caixa #btn-cliente-continuar { flex: 1; max-width: 30rem; }
+@media (max-width: 1440px), (max-height: 820px) {
+  .tecla-letra { height: 3.3rem; flex-basis: 4rem; font-size: 1.25rem; }
+  .opcao-local { min-height: 5.5rem; }
+  .cliente-bloco { padding: 1rem 1.75rem; }
+}
+
+/* =========================================================
+   TELA DE PEDIDOS (preparo) — renderer/pedidos.html
+   ========================================================= */
+body.kds { background: var(--superficie); display: flex; flex-direction: column; height: 100vh; }
+.kds-topo { display: flex; align-items: center; gap: 1rem; padding: .8rem 1.5rem; background: var(--fundo); border-bottom: 1px solid var(--linha); }
+.kds-logo { height: 2.6rem; width: auto; }
+.kds-topo h1 { font-size: 1.6rem; }
+.kds-relogio { font-size: 1.6rem; font-weight: 700; font-variant-numeric: tabular-nums; min-width: 4.5rem; text-align: right; }
+.kds-corpo { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(16rem, 24rem); }
+.kds-coluna { min-height: 0; overflow-y: auto; padding: 1.25rem 1.5rem; display: flex; flex-direction: column; gap: 1rem; }
+.kds-coluna h2 { font-size: 1.3rem; display: flex; align-items: center; gap: .6rem; }
+.kds-contador { display: inline-grid; place-items: center; min-width: 2rem; height: 2rem; padding: 0 .5rem; border-radius: 999px;
+  background: var(--tinta); color: var(--fundo); font-size: 1rem; font-variant-numeric: tabular-nums; }
+.kds-prontos { background: var(--fundo); border-left: 1px solid var(--linha); }
+.kds-prontos .kds-contador { background: var(--verde); }
+.kds-grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(19rem, 1fr)); gap: 1rem; align-items: start; }
+.kds-card { background: var(--fundo); border-radius: var(--raio-g); border: 3px solid transparent; display: flex; flex-direction: column; overflow: hidden; }
+.kds-card.atencao { border-color: #e8b33a; }
+.kds-card.atrasado { border-color: var(--perigo); }
+.kds-card-topo { display: flex; align-items: center; gap: .9rem; padding: 1rem 1.1rem .75rem; border-bottom: 1px dashed var(--linha); }
+.kds-senha { font-size: 2.6rem; font-weight: 800; line-height: 1; color: var(--marca); font-variant-numeric: tabular-nums; }
+.kds-quem { display: flex; flex-direction: column; gap: .2rem; min-width: 0; flex: 1; }
+.kds-quem b { font-size: 1.2rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kds-local { align-self: flex-start; font-size: .8rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+  padding: .15rem .55rem; border-radius: 999px; background: var(--superficie); color: var(--texto-2); }
+.kds-local.levar { background: var(--tinta); color: var(--fundo); }
+.kds-tempo { font-weight: 700; color: var(--texto-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.kds-card.atencao .kds-tempo { color: #9a6b00; }
+.kds-card.atrasado .kds-tempo { color: var(--perigo); }
+.kds-itens { list-style: none; padding: .75rem 1.1rem 1rem; display: flex; flex-direction: column; gap: .7rem; font-size: 1.15rem; }
+.kds-itens b { color: var(--marca-escura); }
+.kds-opcoes { margin: .25rem 0 0 1.6rem; font-size: 1rem; color: var(--tinta); line-height: 1.35; padding-left: .6rem; border-left: 3px solid var(--ouro-suave); }
+.kds-btn-pronto { margin-top: auto; min-height: 4rem; border: 0; background: var(--verde); color: #fff; font-size: 1.15rem; font-weight: 700;
+  display: flex; align-items: center; justify-content: center; gap: .5rem; cursor: pointer; }
+.kds-btn-pronto:active { filter: brightness(.92); }
+.kds-lista-prontos { display: flex; flex-direction: column; gap: .75rem; }
+.kds-chamada { display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; gap: .2rem 1rem; align-items: center;
+  padding: .9rem 1rem; border-radius: var(--raio); background: var(--superficie); }
+.kds-chamada.recente { background: #e5f4ea; box-shadow: inset 0 0 0 3px var(--verde); }
+.kds-senha-grande { grid-row: span 2; font-size: 3.2rem; font-weight: 800; line-height: 1; color: var(--verde); font-variant-numeric: tabular-nums; }
+.kds-nome { font-size: 1.2rem; font-weight: 700; display: flex; flex-direction: column; min-width: 0; }
+.kds-nome small { font-size: .8rem; font-weight: 700; text-transform: uppercase; color: var(--texto-2); letter-spacing: .04em; }
+.kds-acoes-pronto { display: flex; gap: .4rem; }
+.kds-vazio { color: var(--texto-2); font-size: 1.1rem; padding: 2rem 0; text-align: center; grid-column: 1 / -1; }
+.kds-vazio small { font-size: .95rem; }
+
+/* ---------- atualização do sistema (admin) ---------- */
+.versao-atual { color: var(--texto-2); font-size: .95rem; }
+.versao-atual b { color: var(--tinta); }
+.lista-novidades { margin: .3rem 0 0; padding-left: 1.2rem; display: flex; flex-direction: column; gap: .25rem; max-height: 10rem; overflow-y: auto; }
+#btn-voltar-versao[hidden], #btn-atualizar[hidden] { display: none; }
+
+/* ---------- atualização do sistema (admin) ---------- */
+.versao-atual { color: var(--texto-2); font-size: .95rem; }
+.versao-atual b { color: var(--tinta); }
+.lista-novidades { margin: .3rem 0 0; padding-left: 1.2rem; display: flex; flex-direction: column; gap: .25rem; max-height: 10rem; overflow-y: auto; }
+#btn-voltar-versao[hidden], #btn-atualizar[hidden] { display: none; }
+/* nome do cliente: uma rolagem só (se precisar) e rodapé sempre visível; teclas compactas em telas menores */
+.tecla-letra { height: 3.4rem; }
+.nome-display { min-height: 3.5rem; }
+.opcao-local { min-height: 5.5rem; flex-direction: row; gap: 1rem; }
+.cliente-bloco { padding: 1rem 1.75rem; }
+.cliente-caixa { overflow-y: auto; }
+.cliente-bloco { overflow: visible; flex-shrink: 0; }
+.cliente-caixa .opcoes-rodape { position: sticky; bottom: 0; background: var(--fundo); margin-top: auto; }
+@media (max-width: 1440px), (max-height: 820px) {
+  .cliente-topo { padding: 1rem 1.75rem .75rem; }
+  .cliente-topo h2 { font-size: 1.45rem; }
+  .cliente-bloco { padding: .8rem 1.75rem; gap: .6rem; }
+  .nome-display { min-height: 3.2rem; font-size: 1.7rem; }
+  .teclado-letras, .linha-teclas { gap: .4rem; }
+  .tecla-letra { height: 2.95rem; }
+  .tecla-espaco { flex-basis: 22rem; }
+  .tecla-apagar { flex-basis: 7rem; }
+  .opcao-local { min-height: 4.6rem; flex-direction: row; gap: .8rem; }
+  .cliente-caixa .opcoes-rodape { padding: .6rem 1.75rem 1rem; }
+  .cliente-caixa .btn-alto { min-height: 3.6rem; }
+}

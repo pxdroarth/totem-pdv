@@ -18,6 +18,9 @@ const CONFIG_PADRAO = {
   tempoInatividadeSeg: 90,
   mensagemCupom: 'Obrigado pela preferência!',
   quandoEsgotar: 'esgotado',      // 'esgotado' (aparece esgotado) | 'ocultar' (some do totem) | 'vender' (deixa vender)
+  pedirNomeCliente: false,        // totem pergunta o nome do cliente antes de pagar
+  perguntarLocal: false,          // totem pergunta "comer aqui ou levar"
+  abrirTelaPedidos: false,        // abre a tela de pedidos (2º monitor) junto com o sistema
   imprimirViaPreparo: true,       // imprime uma 2ª via com a senha para quem prepara os itens feitos na hora
   horarioFechamento: '22:00',     // fecha o caixa sozinho neste horário se ninguém fechar ('' = só manual)
   atendentePodeCancelar: false,   // atendente pode cancelar venda já paga? (pedido não pago ele sempre pode)
@@ -126,6 +129,15 @@ function resolverEscolhas(produto, escolhas) {
     if (itens.length) partes.push(`${g.nome}: ${itens.map(i => i.nome).join(', ')}`);
   }
   return { adicionalCentavos, descricao: partes.join('; ') };
+}
+
+// nome digitado no totem: só letras e espaço, até 20 caracteres, "joão silva" -> "João Silva"
+function limparCliente(c) {
+  if (!c || typeof c !== 'object') return null;
+  const nome = String(c.nome || '').replace(/[^\p{L} ]/gu, '').replace(/\s+/g, ' ').trim().slice(0, 20)
+    .toLowerCase().replace(/(^|\s)\p{L}/gu, l => l.toUpperCase());
+  const local = ['aqui', 'levar'].includes(c.local) ? c.local : '';
+  return nome || local ? { nome, local } : null;
 }
 
 class Banco {
@@ -412,7 +424,7 @@ class Banco {
     this._salvar();
   }
 
-  registrarVenda({ itens, formaPagamento, status, por }) {
+  registrarVenda({ itens, formaPagamento, status, por, cliente }) {
     if (!Array.isArray(itens) || !itens.length) throw new Error('Carrinho vazio.');
     const linhas = itens.map(({ id, qtd, escolhas }) => {
       const p = this.dados.produtos.find(x => x.id === id);
@@ -437,10 +449,40 @@ class Banco {
       fiscal: null,
       historico: [{ acao: status === 'aguardando_caixa' ? 'pedido' : 'paga', por: por || 'Totem', em: new Date().toISOString() }]
     };
+    const cli = limparCliente(cliente);
+    if (cli) venda.cliente = cli;
+    this._entrarNaFila(venda);
     if (venda.status === 'paga') this._baixarEstoque(venda);
     this.dados.vendas.push(venda);
     this._salvar();
     return venda;
+  }
+
+  // pedido pago com item feito na hora vai para a tela de pedidos
+  _entrarNaFila(venda) {
+    if (venda.status === 'paga' && !venda.preparoStatus && venda.itens.some(i => i.preparo)) {
+      venda.preparoStatus = 'fila';
+      venda.preparoDesde = new Date().toISOString();
+    }
+  }
+
+  listarPreparo(agora = new Date()) {
+    const limite = agora - 12 * 3600 * 1000; // pedido esquecido há mais de 12h sai da tela
+    return this.dados.vendas
+      .filter(v => v.status === 'paga' && ['fila', 'pronto'].includes(v.preparoStatus) && new Date(v.preparoDesde || v.data) >= limite)
+      .map(v => ({ numero: v.numero, status: v.preparoStatus, desde: v.preparoDesde || v.data, prontoEm: v.preparoProntoEm || null,
+        cliente: v.cliente || null, itens: v.itens.filter(i => i.preparo).map(i => ({ qtd: i.qtd, nome: i.nome, opcoes: i.opcoes || '' })) }));
+  }
+
+  marcarPreparo(numero, status) {
+    if (!['fila', 'pronto', 'entregue'].includes(status)) throw new Error('Situação inválida.');
+    const v = this.dados.vendas.find(x => x.numero === numero);
+    if (!v || !v.preparoStatus) throw new Error('Pedido não encontrado.');
+    v.preparoStatus = status;
+    if (status === 'pronto') v.preparoProntoEm = new Date().toISOString();
+    if (status === 'entregue') v.preparoEntregueEm = new Date().toISOString();
+    this._salvar();
+    return v;
   }
 
   _baixarEstoque(venda) {
@@ -460,7 +502,7 @@ class Banco {
       v.historico.push({ acao: mudancas.status === 'paga' ? 'paga' : mudancas.status === 'cancelada' ? 'cancelada' : mudancas.status,
         por: por || 'Painel', em: new Date().toISOString() });
     }
-    if (antes !== 'paga' && v.status === 'paga') this._baixarEstoque(v);
+    if (antes !== 'paga' && v.status === 'paga') { this._baixarEstoque(v); this._entrarNaFila(v); }
     if (antes === 'paga' && v.status === 'cancelada') {
       for (const l of v.itens) {
         const p = this.dados.produtos.find(x => x.id === l.id);

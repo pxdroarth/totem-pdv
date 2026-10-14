@@ -438,6 +438,12 @@ $('#btn-fechar-caixa').onclick = async () => {
     $('#modal-fechamento').classList.add('aberto');
   } catch (err) { toast(err.message, 'erro'); }
 };
+$('#btn-abrir-pedidos').onclick = async () => {
+  try {
+    const onde = await pdv.abrirTelaPedidos();
+    toast(onde === 'segundo-monitor' ? 'Tela de pedidos aberta no 2º monitor' : onde === 'ja-aberta' ? 'A tela de pedidos já está aberta' : 'Tela de pedidos aberta (conecte um 2º monitor para ela ir para lá sozinha)', 'ok');
+  } catch (err) { toast(err.message, 'erro'); }
+};
 $('#btn-fechamento-cancelar').onclick = () => $('#modal-fechamento').classList.remove('aberto');
 $('#btn-fechamento-confirmar').onclick = async () => {
   try {
@@ -485,10 +491,14 @@ async function carregarConfig() {
   $('#info-backup').textContent = (c.ultimoBackup ? `Último backup: ${new Date(c.ultimoBackup).toLocaleString('pt-BR')}. ` : 'Nenhum backup feito ainda. ') +
     `Pasta: ${c.pastaBackupEfetiva}`;
   await renderAtendentes();
+  verificarAtualizacao(); // em segundo plano: consulta o GitHub
   f.confirmarPagamentoComPin.checked = !!c.confirmarPagamentoComPin;
   f.imprimirCupom.checked = !!c.imprimirCupom;
   f.quandoEsgotar.value = c.quandoEsgotar || 'esgotado';
   f.imprimirViaPreparo.checked = c.imprimirViaPreparo !== false;
+  f.pedirNomeCliente.checked = !!c.pedirNomeCliente;
+  f.perguntarLocal.checked = !!c.perguntarLocal;
+  f.abrirTelaPedidos.checked = !!c.abrirTelaPedidos;
   f.cancelarAguardandoMin.value = String(c.cancelarAguardandoMin || 0);
   f.fiscalModo.value = c.fiscal?.modo || 'desativado';
   f.fiscalPasta.value = c.fiscal?.pastaIntegracao || '';
@@ -516,6 +526,7 @@ $('#form-config').onsubmit = async e => {
       tempoInatividadeSeg: Math.max(30, Number(f.tempoInatividadeSeg.value) || 90),
       imprimirCupom: f.imprimirCupom.checked, impressoraCupom: f.impressoraCupom.value,
       quandoEsgotar: f.quandoEsgotar.value, imprimirViaPreparo: f.imprimirViaPreparo.checked,
+      pedirNomeCliente: f.pedirNomeCliente.checked, perguntarLocal: f.perguntarLocal.checked, abrirTelaPedidos: f.abrirTelaPedidos.checked,
       cancelarAguardandoMin: Number(f.cancelarAguardandoMin.value) || 0,
       fiscal: { modo: f.fiscalModo.value, pastaIntegracao: f.fiscalPasta.value }
     });
@@ -578,6 +589,48 @@ $('#btn-backup-agora').onclick = async () => {
   try { const arq = await pdv.backupAgora(); toast('Backup salvo em ' + arq, 'ok'); await carregarConfig(); }
   catch (err) { toast(err.message, 'erro'); }
 };
+
+// ---------- atualização do sistema ----------
+const dataCurta = iso => new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+async function verificarAtualizacao() {
+  const btn = $('#btn-procurar-atualizacao');
+  btn.disabled = true; btn.textContent = 'Procurando…';
+  try {
+    const v = await pdv.verificarAtualizacao();
+    if (!v.suportado) {
+      $('#versao-atual').textContent = v.motivo;
+      $('#novidades').innerHTML = ''; $('#btn-atualizar').hidden = true; $('#btn-voltar-versao').hidden = true;
+      return;
+    }
+    $('#versao-atual').innerHTML = `Versão instalada: <b>${esc(v.atual.curto)}</b> de ${dataCurta(v.atual.data)} — ${esc(v.atual.msg)}`;
+    $('#novidades').innerHTML = v.erroRede ? `<p class="aviso-fechamento">${esc(v.erroRede)}</p>`
+      : v.novidades.length ? `<p><b>${v.novidades.length} novidade(s) para instalar:</b></p><ul class="lista-novidades">${v.novidades.map(n =>
+        `<li>${esc(n.msg)} <small class="ajuda">${dataCurta(n.data)}</small></li>`).join('')}</ul>`
+      : '<p class="ajuda">O sistema está na versão mais nova.</p>';
+    $('#btn-atualizar').hidden = !v.novidades.length || !!v.erroRede;
+    $('#btn-atualizar').disabled = $('#btn-voltar-versao').disabled = false;
+    const vb = $('#btn-voltar-versao');
+    vb.hidden = !v.anterior;
+    if (v.anterior) vb.textContent = `Voltar para a versão anterior (${v.anterior.curto} de ${dataCurta(v.anterior.data)})`;
+  } catch (err) { $('#versao-atual').textContent = err.message; }
+  finally { btn.disabled = false; btn.textContent = 'Procurar atualização'; }
+}
+async function trocarVersao(acao, pergunta) {
+  if (!confirm(pergunta)) return;
+  $('#btn-atualizar').disabled = $('#btn-voltar-versao').disabled = true;
+  toast('Atualizando… não desligue o computador', 'ok');
+  try {
+    const r = await acao();
+    toast(`Pronto: versão ${r.para.curto}. Reiniciando o sistema…`, 'ok');
+    $('#versao-atual').innerHTML = `Versão instalada: <b>${esc(r.para.curto)}</b> — ${esc(r.para.msg)}. Reiniciando…`;
+  } catch (err) {
+    toast(err.message, 'erro');
+    $('#btn-atualizar').disabled = $('#btn-voltar-versao').disabled = false;
+  }
+}
+$('#btn-procurar-atualizacao').onclick = verificarAtualizacao;
+$('#btn-atualizar').onclick = () => trocarVersao(pdv.atualizarSistema, 'Instalar a versão nova agora? O sistema vai reiniciar.');
+$('#btn-voltar-versao').onclick = () => trocarVersao(pdv.voltarVersao, 'Voltar para a versão anterior? O sistema vai reiniciar.');
 
 $('#btn-pasta-fiscal').onclick = async () => {
   const p = await pdv.escolherPasta();

@@ -200,6 +200,7 @@
         <button class="btn" id="btn-filtrar-vendas">Filtrar</button>
         <span class="espaco"></span>
         <button class="btn" id="btn-exportar-vendas">Exportar planilha do período</button>
+        <button class="btn" id="btn-abrir-pedidos">Tela de pedidos</button>
         <button class="btn btn-primario" id="btn-fechar-caixa">Fechar o caixa de hoje</button>
       </div>
       <div class="cards-resumo" id="resumo-vendas"></div>
@@ -267,6 +268,9 @@
               <option value="vender">Continua vendendo (estoque fica negativo)</option>
             </select>
           </label>
+          <label class="check-label"><input type="checkbox" name="pedirNomeCliente"> Totem pergunta o nome do cliente</label>
+          <label class="check-label"><input type="checkbox" name="perguntarLocal"> Totem pergunta se é para comer aqui ou levar</label>
+          <label class="check-label"><input type="checkbox" name="abrirTelaPedidos"> Abrir a tela de pedidos junto com o sistema (2º monitor)</label>
           <label class="check-label"><input type="checkbox" name="imprimirViaPreparo"> Imprimir via de preparo com a senha (itens feitos na hora)</label>
           <label>Pedido "pagar no balcão" que não foi pago
             <select name="cancelarAguardandoMin">
@@ -277,6 +281,16 @@
               <option value="-1">Cancela sozinho no dia seguinte</option>
             </select>
           </label>
+        </fieldset>
+        <fieldset><legend>Atualização do sistema</legend>
+          <p class="versao-atual" id="versao-atual">Versão instalada: verificando…</p>
+          <div class="novidades" id="novidades"></div>
+          <div class="acoes">
+            <button type="button" class="btn" id="btn-procurar-atualizacao">Procurar atualização</button>
+            <button type="button" class="btn btn-primario" id="btn-atualizar" hidden>Atualizar agora</button>
+          </div>
+          <button type="button" class="btn btn-fantasma btn-pequeno" id="btn-voltar-versao" hidden></button>
+          <p class="ajuda dica-campo">Antes de trocar de versão, os dados da loja são copiados para a pasta de backup. O sistema reinicia sozinho.</p>
         </fieldset>
         <fieldset><legend>Nota fiscal</legend>
           <label>Integração
@@ -358,6 +372,31 @@
       <button type="button" class="btn btn-fantasma" id="btn-importar-cancelar">Cancelar</button>
       <button type="button" class="btn btn-primario" id="btn-importar-confirmar">Importar</button>
     </div>
+  </div>
+</div>
+
+<div id="modal-cliente" class="modal modal-cliente">
+  <div class="modal-caixa cliente-caixa" role="dialog" aria-labelledby="cliente-titulo">
+    <header class="cliente-topo"><p class="opcoes-sub">Quase lá</p><h2 id="cliente-titulo">Só mais um detalhe</h2></header>
+    <section class="cliente-bloco" id="cliente-bloco-nome">
+      <h3>Como podemos te chamar?</h3>
+      <div class="nome-display" id="cliente-nome" aria-live="polite"></div>
+      <div class="teclado-letras" id="teclado-letras"></div>
+    </section>
+    <section class="cliente-bloco" id="cliente-bloco-local">
+      <h3>Vai comer aqui ou levar?</h3>
+      <div class="escolha-local">
+        <button type="button" class="opcao-local" data-local="aqui"><i data-icone="utensils" data-tam="40"></i><span>Comer aqui</span></button>
+        <button type="button" class="opcao-local" data-local="levar"><i data-icone="bag" data-tam="40"></i><span>Para levar</span></button>
+      </div>
+    </section>
+    <footer class="opcoes-rodape">
+      <p class="opcoes-aviso" id="cliente-aviso"></p>
+      <div class="acoes">
+        <button class="btn btn-contorno btn-alto" id="btn-cliente-voltar">Voltar</button>
+        <button class="btn btn-primario btn-alto" id="btn-cliente-continuar" disabled>Ir para o pagamento</button>
+      </div>
+    </footer>
   </div>
 </div>
 

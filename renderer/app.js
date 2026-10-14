@@ -7,6 +7,7 @@ const estado = {
   // (o mesmo produto com sabores diferentes vira linhas diferentes)
   carrinho: new Map(),
   categoria: 'Todos',
+  cliente: null, // { nome, local } quando o totem pergunta antes de pagar
   pixTxid: ''
 };
 
@@ -133,6 +134,7 @@ function renderCarrinho() {
 
 function limparCompra() {
   estado.carrinho.clear();
+  estado.cliente = null;
   $('#busca').value = '';
   estado.categoria = 'Todos';
   renderCategorias(); renderProdutos(); renderCarrinho();
@@ -221,7 +223,7 @@ async function confirmarComPin() {
 async function finalizar(formaPagamento, pin = '') {
   const status = formaPagamento === 'caixa' ? 'aguardando_caixa' : 'paga';
   try {
-    const { venda, avisos } = await pdv.registrarVenda({ itens: itensVenda(), formaPagamento, status, pin });
+    const { venda, avisos } = await pdv.registrarVenda({ itens: itensVenda(), formaPagamento, status, pin, cliente: estado.cliente });
     avisos.forEach(a => console.warn(a));
     const temPreparo = venda.itens.some(i => i.preparo);
     if (status === 'aguardando_caixa') {
@@ -232,7 +234,8 @@ async function finalizar(formaPagamento, pin = '') {
     } else if (temPreparo) {
       $('#fim-titulo').textContent = 'Pedido confirmado!';
       $('#fim-pedido').textContent = `Senha ${venda.numero}`;
-      $('#fim-msg').textContent = 'Retire seu cupom e aguarde ser chamado(a) para pegar o pedido.';
+      const nome = venda.cliente?.nome;
+      $('#fim-msg').textContent = (nome ? `${nome}, retire` : 'Retire') + ' seu cupom e aguarde ser chamado(a) para pegar o pedido.';
     } else {
       $('#fim-titulo').textContent = 'Compra concluída!';
       $('#fim-pedido').textContent = '';
@@ -268,6 +271,7 @@ setInterval(() => {
   if ($('#modal-pin').classList.contains('aberto')) return;
   if (Date.now() - ultimaAcao > (estado.config.tempoInatividadeSeg || 90) * 1000) {
     fecharOpcoes();
+    fecharCliente();
     limparCompra();
     fecharGaveta();
     mostrarTela('inicio');
@@ -277,7 +281,7 @@ setInterval(() => {
 // ---------- eventos ----------
 $('#btn-comecar').onclick = () => mostrarTela('loja');
 $('#btn-nova-compra').onclick = () => mostrarTela('inicio');
-$('#btn-cancelar-compra').onclick = () => { fecharOpcoes(); limparCompra(); fecharGaveta(); mostrarTela('inicio'); };
+$('#btn-cancelar-compra').onclick = () => { fecharOpcoes(); fecharCliente(); limparCompra(); fecharGaveta(); mostrarTela('inicio'); };
 $('#btn-voltar-carrinho').onclick = () => mostrarTela('loja');
 $$('[data-voltar]').forEach(b => (b.onclick = () => mostrarTela(b.dataset.voltar)));
 
@@ -304,8 +308,68 @@ $$('[data-fechar-gaveta]').forEach(b => (b.onclick = fecharGaveta));
 const irParaPagamento = () => {
   if (!estado.carrinho.size) return;
   fecharGaveta();
+  if ((estado.config.pedirNomeCliente || estado.config.perguntarLocal) && !estado.cliente) return abrirCliente();
   $('#valor-pagamento').textContent = reais(totalCarrinho());
   mostrarTela('pagamento');
+};
+
+// ---------- nome do cliente e comer aqui/levar (opcional) ----------
+let clienteRascunho = { nome: '', local: '' };
+const TECLAS = ['QWERTYUIOP', 'ASDFGHJKLÇ', 'ZXCVBNM'];
+function abrirCliente() {
+  clienteRascunho = { nome: '', local: '' };
+  $('#cliente-bloco-nome').hidden = !estado.config.pedirNomeCliente;
+  $('#cliente-bloco-local').hidden = !estado.config.perguntarLocal;
+  $('#teclado-letras').innerHTML = TECLAS.map(l => `<div class="linha-teclas">${[...l].map(k =>
+    `<button type="button" class="tecla-letra" data-letra="${k}">${k}</button>`).join('')}</div>`).join('') +
+    `<div class="linha-teclas"><button type="button" class="tecla-letra tecla-espaco" data-letra=" ">espaço</button>
+     <button type="button" class="tecla-letra tecla-apagar" data-apagar aria-label="Apagar">${icone('voltar', 26)}</button></div>`;
+  renderCliente();
+  $('#modal-cliente').classList.add('aberto');
+}
+const fecharCliente = () => $('#modal-cliente').classList.remove('aberto');
+function clienteValido() {
+  const faltando = [];
+  if (estado.config.pedirNomeCliente && clienteRascunho.nome.trim().length < 2) faltando.push('seu nome');
+  if (estado.config.perguntarLocal && !clienteRascunho.local) faltando.push('comer aqui ou levar');
+  return faltando;
+}
+function renderCliente() {
+  const n = clienteRascunho.nome;
+  $('#cliente-nome').innerHTML = n ? esc(n) + '<span class="cursor"></span>' : '<span class="nome-vazio">Toque nas letras</span>';
+  $$('.opcao-local').forEach(b => b.classList.toggle('ativo', b.dataset.local === clienteRascunho.local));
+  const faltando = clienteValido();
+  $('#btn-cliente-continuar').disabled = faltando.length > 0;
+  $('#cliente-aviso').textContent = faltando.length ? `Falta: ${faltando.join(' e ')}` : '';
+}
+function digitar(letra) {
+  let n = clienteRascunho.nome;
+  if (letra === null) n = n.slice(0, -1);
+  else if (letra === ' ') { if (n && !n.endsWith(' ')) n += ' '; }
+  else if (n.length < 20) n += (n === '' || n.endsWith(' ')) ? letra : letra.toLowerCase();
+  clienteRascunho.nome = n;
+  renderCliente();
+}
+$('#teclado-letras').onclick = e => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  digitar(b.dataset.apagar !== undefined ? null : b.dataset.letra);
+};
+// teclado físico também funciona (útil no balcão e nos testes)
+document.addEventListener('keydown', e => {
+  if (!$('#modal-cliente').classList.contains('aberto') || !estado.config.pedirNomeCliente) return;
+  if (e.key === 'Backspace') digitar(null);
+  else if (/^[\p{L} ]$/u.test(e.key)) digitar(e.key.toUpperCase());
+  else return;
+  e.preventDefault();
+});
+$$('.opcao-local').forEach(b => (b.onclick = () => { clienteRascunho.local = b.dataset.local; renderCliente(); }));
+$('#btn-cliente-voltar').onclick = fecharCliente;
+$('#btn-cliente-continuar').onclick = () => {
+  if (clienteValido().length) return;
+  estado.cliente = { nome: clienteRascunho.nome.trim(), local: clienteRascunho.local };
+  fecharCliente();
+  irParaPagamento();
 };
 $('#btn-finalizar').onclick = irParaPagamento;
 $('#btn-finalizar-gaveta').onclick = irParaPagamento;
@@ -322,7 +386,7 @@ $('#btn-cartao-pago').onclick = async () => { const pin = await confirmarComPin(
 ouvirLeitor(codigo => {
   const tela = document.body.dataset.tela;
   if (!['inicio', 'loja', 'fim'].includes(tela)) return;
-  if ($('#modal-opcoes').classList.contains('aberto')) return;
+  if ($('#modal-opcoes').classList.contains('aberto') || $('#modal-cliente').classList.contains('aberto')) return;
   const p = visiveis().find(x => x.codigoBarras === codigo);
   if (!p) return toast(`Produto não cadastrado (${codigo}). Chame um atendente.`, 'erro');
   if (tela !== 'loja') mostrarTela('loja');

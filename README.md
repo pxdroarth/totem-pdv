@@ -17,15 +17,27 @@ fácil de editar. Roda no Dell com Windows em tela cheia travada (modo quiosque)
 - Volta sozinho para a tela inicial após inatividade
 
 ## Instalar e rodar (no Windows)
-1. Instale o **Node.js LTS**: https://nodejs.org
-2. Copie a pasta `pdv-suplementos` para o computador (ex.: `C:\pdv-suplementos`)
-3. Abra o **Prompt de Comando** nessa pasta e rode:
+**Recomendado para o totem: rodar pela pasta do GitHub.** Assim dá para atualizar pelo botão do painel e voltar de versão se precisar.
+1. Instale o **Node.js LTS** (https://nodejs.org) e o **Git** (https://git-scm.com).
+2. No Prompt de Comando:
    ```
+   cd C:\
+   git clone https://github.com/pxdroarth/lisufit-pdv.git
+   cd lisufit-pdv
    npm install
-   npm start        (modo desenvolvimento: janela normal + DevTools)
-   npm run kiosk    (modo totem: tela cheia travada)
    ```
-4. Para gerar o **instalador .exe**: `npm run dist` → o instalador fica em `dist\`
+3. Para abrir em modo totem, dê dois cliques em **`iniciar-totem.bat`**.
+4. Para abrir sozinho quando ligar o PC, aperte Win+R, digite `shell:startup` e coloque ali um atalho para o `iniciar-totem.bat`.
+
+Outros comandos: `npm start` abre em modo desenvolvimento (janela normal com DevTools). `npm run dist` gera o instalador .exe em `dist\`, mas com o instalador o botão de atualizar não funciona.
+
+## Atualizar o sistema (1 clique)
+- Você sobe a versão nova no GitHub (`git push`). No totem, abra **Admin › Configurações › Atualização do sistema**.
+- A tela mostra a versão instalada e a lista do que mudou (as mensagens dos commits). **Atualizar agora** copia os dados, baixa a versão nova e reinicia.
+- **Voltar para a versão anterior** desfaz a última troca, se algo não ficar bom. Dá para desfazer a volta também.
+- Se as bibliotecas mudaram, ele roda o `npm install` sozinho. Se isso falhar, continua na versão que estava.
+- Se alguém mexeu nos arquivos da pasta à mão, a atualização é cancelada para não apagar nada.
+- Os dados da loja ficam em outra pasta (`%APPDATA%`), então trocar de versão não mexe neles. Mesmo assim, uma cópia é feita antes, em `backups\antes-da-atualizacao-*.json`.
 
 ### Abrir o painel admin
 - Teclado: **Ctrl + Shift + A**
@@ -41,7 +53,7 @@ fácil de editar. Roda no Dell com Windows em tela cheia travada (modo quiosque)
 5. Em Produtos, apague os produtos de exemplo e cadastre os seus (dá para passar o código no leitor direto no campo)
 
 ### Abrir sozinho quando ligar o PC
-Depois de instalar com o `.exe`, aperte `Win + R`, digite `shell:startup` e coloque ali um atalho do "Lisufit PDV".
+Aperte `Win + R`, digite `shell:startup` e coloque ali um atalho do `iniciar-totem.bat` (ou do "Lisufit PDV", se usou o instalador .exe).
 
 ## Identidade visual (Lisufit)
 - **Logo**: salve como `renderer/assets/logo.png` (fundo transparente). Sem esse arquivo, aparece o nome em texto.
@@ -75,6 +87,17 @@ Painel admin → Produtos → Editar → **Variações (opcional)**:
 ## Estoque
 - Cada produto tem **estoque mínimo** (padrão 3). Abaixo dele, aparece o aviso vermelho no painel e o filtro "Estoque baixo".
 - Em Configurações › Pedidos e estoque, defina o que acontece quando o produto acaba: aparece como esgotado, some do totem ou continua vendendo.
+
+## Nome do cliente e comer aqui/levar
+- Em Configurações › Pedidos e estoque, ligue "Totem pergunta o nome do cliente" e/ou "comer aqui ou levar".
+- Antes de pagar, o totem mostra um teclado na tela para o nome e dois botões grandes (Comer aqui / Para levar).
+- O nome e o "para levar" saem no cupom, na via de preparo, na tela final ("Pedro, retire seu cupom…") e na tela de pedidos.
+
+## Tela de pedidos (preparo)
+- Aba Vendas › **Tela de pedidos** abre uma janela para quem prepara. Com um 2º monitor ou TV ligado, ela vai para lá em tela cheia. Para abrir sempre junto com o sistema, há uma opção nas Configurações.
+- Aparecem os pedidos **pagos** que têm item feito na hora, com senha, nome, "para levar" e as opções (sabor, frutas). Toca um aviso quando chega pedido novo.
+- O cartão fica amarelo depois de 6 minutos e vermelho depois de 10.
+- **Pronto** chama a senha: ela vai para "Prontos para retirar", com som e destaque. **Entregue** tira da tela e **Voltar** devolve para preparando.
 
 ## Senha e via de preparo
 - Pedido com item **feito na hora** recebe uma **senha** (o número da venda). Ela aparece na tela final e no cupom do cliente.

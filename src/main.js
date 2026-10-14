@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, globalShortcut } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, globalShortcut, screen } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const QRCode = require('qrcode');
@@ -6,6 +6,7 @@ const { Banco } = require('./db');
 const { gerarPix } = require('./pix');
 const fiscal = require('./fiscal');
 const planilha = require('./planilha');
+const { Atualizador } = require('./atualizador');
 
 const DEV = process.argv.includes('--dev');
 let janela;
@@ -41,9 +42,42 @@ function criarJanela() {
   }
 }
 
+// ---------- tela de pedidos (preparo) ----------
+// Abre no 2º monitor/TV em tela cheia; sem 2º monitor, abre como janela normal.
+let janelaPedidos = null;
+function abrirTelaPedidos() {
+  if (janelaPedidos && !janelaPedidos.isDestroyed()) { janelaPedidos.show(); janelaPedidos.focus(); return 'ja-aberta'; }
+  const principal = screen.getPrimaryDisplay();
+  const outra = screen.getAllDisplays().find(d => d.id !== principal.id);
+  const area = (outra || principal).workArea;
+  janelaPedidos = new BrowserWindow({
+    x: area.x + 30, y: area.y + 30, width: Math.min(1280, area.width - 60), height: Math.min(800, area.height - 60),
+    autoHideMenuBar: true, backgroundColor: '#ffffff', title: 'Pedidos — Lisufit', show: false,
+    webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false,
+      autoplayPolicy: 'no-user-gesture-required' } // aviso sonoro sem precisar tocar na tela antes
+  });
+  janelaPedidos.once('ready-to-show', () => { if (outra) janelaPedidos.setFullScreen(true); janelaPedidos.show(); });
+  janelaPedidos.on('closed', () => { janelaPedidos = null; });
+  janelaPedidos.loadFile(path.join(__dirname, '..', 'renderer', 'pedidos.html'));
+  return outra ? 'segundo-monitor' : 'mesma-tela';
+}
+
+let atualizador;
 app.whenReady().then(() => {
   banco = new Banco(app.getPath('userData'));
+  atualizador = new Atualizador({
+    arquivoEstado: path.join(app.getPath('userData'), 'atualizacao.json'),
+    empacotado: app.isPackaged,
+    // cópia dos dados antes de trocar de versão (separada dos backups diários)
+    fazerBackup: motivo => {
+      const pasta = pastaBackup();
+      fs.mkdirSync(pasta, { recursive: true });
+      const carimbo = new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-');
+      fs.copyFileSync(banco.arquivo, path.join(pasta, `${motivo}-${carimbo}.json`));
+    }
+  });
   criarJanela();
+  if (banco.getConfig().abrirTelaPedidos) abrirTelaPedidos();
   // a cada minuto: cancela pedidos esquecidos, fecha o caixa no horário e garante o backup do dia
   const rotina = () => {
     try { banco.cancelarAguardandoAntigos(); } catch (e) { console.error(e); }
@@ -103,6 +137,8 @@ function htmlCupom(venda, cfg) {
     `<tr><td colspan="2">${esc(i.nome)}${i.opcoes ? `<br><small>${esc(i.opcoes)}</small>` : ''}</td></tr>
      <tr><td>${i.qtd} x ${reais(i.precoCentavos)}</td><td class="d">${reais(i.totalCentavos)}</td></tr>`).join('');
   const temPreparo = venda.itens.some(i => i.preparo);
+  const cli = venda.cliente;
+  const linhaCliente = cli ? `<p class="c"><b>${esc(cli.nome || '')}</b>${cli.nome && cli.local ? ' · ' : ''}${cli.local === 'levar' ? 'PARA LEVAR' : cli.local === 'aqui' ? 'COMER AQUI' : ''}</p>` : '';
   const caixa = venda.status === 'aguardando_caixa'
     ? `<div class="grande">PEDIDO Nº ${venda.numero}</div><p class="c">Apresente este ticket no caixa para pagar.${temPreparo ? '<br>Seu pedido será preparado após o pagamento.' : ''}</p>`
     : temPreparo ? `<div class="grande">SENHA ${venda.numero}</div><p class="c">Aguarde ser chamado(a) para retirar.</p>` : '';
@@ -114,7 +150,7 @@ function htmlCupom(venda, cfg) {
   </style></head><body>
     <div class="c"><b>${esc(cfg.nomeLoja)}</b><br>${esc(cfg.endereco)}<br>${cfg.cnpj ? 'CNPJ ' + esc(cfg.cnpj) : ''}</div>
     <hr><div class="c">CUPOM NÃO FISCAL</div><hr>
-    ${caixa}
+    ${caixa}${linhaCliente}
     <table>${linhas}</table><hr>
     <table><tr><td><b>TOTAL</b></td><td class="d"><b>${reais(venda.totalCentavos)}</b></td></tr>
     <tr><td>Pagamento</td><td class="d">${formas[venda.formaPagamento] || ''}</td></tr></table><hr>
@@ -130,9 +166,11 @@ function htmlPreparo(venda) {
   return `<!doctype html><html><head><meta charset="utf-8"><style>
     @page { margin: 0; } body { font-family: monospace; font-size: 14px; width: 72mm; margin: 2mm; }
     .c { text-align: center; } .senha { font-size: 34px; font-weight: bold; text-align: center; margin: 4px 0; }
-    .item { margin: 8px 0; } hr { border: 0; border-top: 1px dashed #000; }
+    .item { margin: 8px 0; } .nome { font-size: 20px; font-weight: bold; } .local { font-size: 16px; font-weight: bold; margin-top: 2px; } hr { border: 0; border-top: 1px dashed #000; }
   </style></head><body>
     <div class="c"><b>PREPARO</b></div><div class="senha">SENHA ${venda.numero}</div>
+    ${venda.cliente?.nome ? `<div class="c nome">${esc(venda.cliente.nome)}</div>` : ''}
+    ${venda.cliente?.local ? `<div class="c local">${venda.cliente.local === 'levar' ? '*** PARA LEVAR ***' : 'COMER AQUI'}</div>` : ''}
     <div class="c">${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</div><hr>
     ${itens}<hr></body></html>`;
 }
@@ -263,6 +301,20 @@ tratar('venda:atualizar', logado(async (numero, mudancas) => {
   }
   return { venda: v, avisos };
 }));
+
+// ---------- atualização ----------
+const reiniciar = () => {
+  if (process.env.PDV_SEM_REINICIAR) return; // usado nos testes automáticos
+  setTimeout(() => { app.relaunch(); app.exit(0); }, 1500);
+};
+tratar('atualizacao:verificar', soAdmin(() => atualizador.verificar()));
+tratar('atualizacao:aplicar', soAdmin(async () => { const r = await atualizador.atualizar(); reiniciar(); return r; }));
+tratar('atualizacao:voltar', soAdmin(async () => { const r = await atualizador.voltar(); reiniciar(); return r; }));
+
+// ---------- tela de pedidos ----------
+tratar('preparo:listar', () => banco.listarPreparo());
+tratar('preparo:marcar', (numero, status) => { banco.marcarPreparo(numero, status); return true; });
+tratar('pedidos:abrir', logado(() => abrirTelaPedidos()));
 
 // ---------- fechamento do dia ----------
 // o fechamento manual é sempre do dia de hoje; se já foi fechado, as vendas de agora ficam para amanhã

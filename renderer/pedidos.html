@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; img-src 'self' data: file:; font-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'">
+  <title>Pedidos — Lisufit</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="kds">
+
+<header class="kds-topo">
+  <img class="kds-logo" src="assets/logo.png" alt="Lisufit">
+  <h1>Pedidos</h1>
+  <span class="espaco"></span>
+  <button type="button" class="btn btn-pequeno" id="btn-som"></button>
+  <span class="kds-relogio" id="kds-relogio"></span>
+</header>
+
+<main class="kds-corpo">
+  <section class="kds-coluna kds-preparando" aria-labelledby="titulo-fila">
+    <h2 id="titulo-fila">Preparando <span class="kds-contador" id="qtd-fila">0</span></h2>
+    <div class="kds-grade" id="lista-fila"></div>
+  </section>
+  <section class="kds-coluna kds-prontos" aria-labelledby="titulo-prontos">
+    <h2 id="titulo-prontos">Prontos para retirar <span class="kds-contador" id="qtd-prontos">0</span></h2>
+    <div class="kds-lista-prontos" id="lista-prontos"></div>
+  </section>
+</main>
+
+<div id="toast" class="toast"></div>
+<script src="icons.js"></script>
+<script src="util.js"></script>
+<script src="pedidos.js"></script>
+</body>
+</html>
