@@ -491,6 +491,7 @@ async function carregarConfig() {
   $('#info-backup').textContent = (c.ultimoBackup ? `Último backup: ${new Date(c.ultimoBackup).toLocaleString('pt-BR')}. ` : 'Nenhum backup feito ainda. ') +
     `Pasta: ${c.pastaBackupEfetiva}`;
   await renderAtendentes();
+  await carregarGateways(c.pagamentos || {});
   verificarAtualizacao(); // em segundo plano: consulta o GitHub
   f.confirmarPagamentoComPin.checked = !!c.confirmarPagamentoComPin;
   f.imprimirCupom.checked = !!c.imprimirCupom;
@@ -521,6 +522,7 @@ $('#form-config').onsubmit = async e => {
       nomeLoja: f.nomeLoja.value, cnpj: f.cnpj.value, endereco: f.endereco.value, mensagemCupom: f.mensagemCupom.value,
       pixChave: f.pixChave.value.trim(), pixNome: f.pixNome.value, pixCidade: f.pixCidade.value,
       pinAdmin: f.pinAdmin.value,
+      pagamentos: lerGateways(),
       horarioFechamento: f.horarioFechamento.value, atendentePodeCancelar: f.atendentePodeCancelar.checked, backupAutomatico: f.backupAutomatico.checked, pastaBackup: f.pastaBackup.value,
       confirmarPagamentoComPin: f.confirmarPagamentoComPin.checked,
       tempoInatividadeSeg: Math.max(30, Number(f.tempoInatividadeSeg.value) || 90),
@@ -588,6 +590,57 @@ $('#btn-pasta-backup').onclick = async () => {
 $('#btn-backup-agora').onclick = async () => {
   try { const arq = await pdv.backupAgora(); toast('Backup salvo em ' + arq, 'ok'); await carregarConfig(); }
   catch (err) { toast(err.message, 'erro'); }
+};
+
+// ---------- gateway de pagamento ----------
+// Os campos de cada gateway vêm do próprio arquivo dele (src/pagamentos/provedores/*.js)
+let provedoresPag = [], credenciaisPag = {};
+async function carregarGateways(pag) {
+  provedoresPag = await pdv.provedoresPagamento();
+  credenciaisPag = JSON.parse(JSON.stringify(pag.credenciais || {}));
+  const opcoes = forma => provedoresPag.filter(p => p.suporta[forma])
+    .map(p => `<option value="${esc(p.id)}">${esc(p.nome)}</option>`).join('');
+  $('#sel-provedor-pix').innerHTML = opcoes('pix');
+  $('#sel-provedor-cartao').innerHTML = opcoes('cartao');
+  $('#sel-provedor-pix').value = pag.provedorPix || 'manual';
+  $('#sel-provedor-cartao').value = pag.provedorCartao || 'manual';
+  $('#form-config').permitirManualSeFalhar.checked = pag.permitirManualSeFalhar !== false;
+  renderCamposGateway();
+}
+const gatewaysEscolhidos = () => [...new Set([$('#sel-provedor-pix').value, $('#sel-provedor-cartao').value])]
+  .map(id => provedoresPag.find(p => p.id === id)).filter(p => p && !p.manual);
+function guardarCamposGateway() {
+  $$('#campos-gateway [data-prov]').forEach(el => {
+    (credenciaisPag[el.dataset.prov] = credenciaisPag[el.dataset.prov] || {})[el.dataset.chave] = el.value.trim();
+  });
+}
+function renderCamposGateway() {
+  const lista = gatewaysEscolhidos();
+  $('#campos-gateway').innerHTML = lista.map(p => `
+    <div class="gateway-grupo"><b>${esc(p.nome)}</b>${p.descricao ? `<p class="ajuda">${esc(p.descricao)}</p>` : ''}
+      ${p.campos.map(c => {
+        const v = credenciaisPag[p.id]?.[c.chave] ?? c.padrao ?? '';
+        const attrs = `data-prov="${esc(p.id)}" data-chave="${esc(c.chave)}"`;
+        const campo = c.tipo === 'opcoes'
+          ? `<select ${attrs}>${c.opcoes.map(([val, txt]) => `<option value="${esc(val)}" ${val === v ? 'selected' : ''}>${esc(txt)}</option>`).join('')}</select>`
+          : `<input ${attrs} type="${c.tipo === 'senha' ? 'password' : c.tipo === 'numero' ? 'number' : 'text'}" value="${esc(v)}" autocomplete="off">`;
+        return `<label>${esc(c.rotulo)}${campo}${c.ajuda ? `<small class="ajuda">${esc(c.ajuda)}</small>` : ''}</label>`;
+      }).join('')}
+    </div>`).join('');
+  $('#btn-testar-gateway').hidden = !lista.length;
+}
+function lerGateways() {
+  guardarCamposGateway();
+  return { provedorPix: $('#sel-provedor-pix').value, provedorCartao: $('#sel-provedor-cartao').value,
+    permitirManualSeFalhar: $('#form-config').permitirManualSeFalhar.checked, credenciais: credenciaisPag };
+}
+$('#sel-provedor-pix').onchange = $('#sel-provedor-cartao').onchange = () => { guardarCamposGateway(); renderCamposGateway(); };
+$('#btn-testar-gateway').onclick = async () => {
+  guardarCamposGateway();
+  for (const p of gatewaysEscolhidos()) {
+    try { const r = await pdv.testarProvedor(p.id, credenciaisPag[p.id] || {}); toast(`${p.nome}: ${r.mensagem || 'conexão ok'}`, 'ok'); }
+    catch (err) { toast(`${p.nome}: ${err.message}`, 'erro'); return; }
+  }
 };
 
 // ---------- atualização do sistema ----------

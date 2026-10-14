@@ -7,6 +7,7 @@ const { gerarPix } = require('./pix');
 const fiscal = require('./fiscal');
 const planilha = require('./planilha');
 const { Atualizador } = require('./atualizador');
+const { Pagamentos } = require('./pagamentos');
 
 const DEV = process.argv.includes('--dev');
 let janela;
@@ -62,9 +63,10 @@ function abrirTelaPedidos() {
   return outra ? 'segundo-monitor' : 'mesma-tela';
 }
 
-let atualizador;
+let atualizador, pagamentos;
 app.whenReady().then(() => {
   banco = new Banco(app.getPath('userData'));
+  pagamentos = new Pagamentos({ getConfig: () => banco.getConfig() });
   atualizador = new Atualizador({
     arquivoEstado: path.join(app.getPath('userData'), 'atualizacao.json'),
     empacotado: app.isPackaged,
@@ -153,7 +155,8 @@ function htmlCupom(venda, cfg) {
     ${caixa}${linhaCliente}
     <table>${linhas}</table><hr>
     <table><tr><td><b>TOTAL</b></td><td class="d"><b>${reais(venda.totalCentavos)}</b></td></tr>
-    <tr><td>Pagamento</td><td class="d">${formas[venda.formaPagamento] || ''}</td></tr></table><hr>
+    <tr><td>Pagamento</td><td class="d">${formas[venda.formaPagamento] || ''}</td></tr>
+    ${venda.pagamento?.nsu ? `<tr><td colspan="2"><small>${esc([venda.pagamento.bandeira, 'NSU ' + venda.pagamento.nsu, venda.pagamento.autorizacao ? 'Aut. ' + venda.pagamento.autorizacao : ''].filter(Boolean).join(' · '))}</small></td></tr>` : ''}</table><hr>
     <div class="c">Venda ${venda.numero} — ${new Date(venda.data).toLocaleString('pt-BR')}<br>${esc(cfg.mensagemCupom)}</div>
   </body></html>`;
 }
@@ -223,8 +226,12 @@ async function imprimirHtml(html, cfg) {
 
 // ---------- IPC ----------
 tratar('config:get', () => {
-  const { pinAdmin, ...publica } = banco.getConfig();
-  return publica; // a tela do cliente nunca recebe os PINs
+  const { pinAdmin, pagamentos: pag, ...publica } = banco.getConfig();
+  // a tela do cliente nunca recebe PINs nem credenciais de gateway
+  const pix = pagamentos.provedorDe('pix'), cartao = pagamentos.provedorDe('cartao');
+  publica.pagamentos = { pix: pix.id, cartao: cartao.id, permitirManualSeFalhar: pag?.permitirManualSeFalhar !== false,
+    modoTeste: [pix.id, cartao.id].includes('simulador') };
+  return publica;
 });
 tratar('config:getAdmin', soAdmin(() => ({ ...banco.getConfig(), pastaBackupEfetiva: pastaBackup(), ultimoBackup: banco.dados.ultimoBackup || '' })));
 tratar('config:salvar', soAdmin(cfg => banco.salvarConfig(cfg)));
@@ -269,15 +276,28 @@ tratar('pix:gerar', async (valorCentavos, txid) => {
   return { payload, qr };
 });
 
-tratar('venda:registrar', async ({ pin, ...dadosVenda }) => {
-  // PIX/cartão confirmados no totem: o PIN de quem confirmou fica registrado na venda
-  let por = 'Totem';
-  if (pin) {
+tratar('venda:registrar', async ({ pin, transacaoId, ...dadosVenda }) => {
+  // PIX/cartão: ou o gateway aprovou (transacaoId), ou o atendente confirmou com o PIN
+  let por = 'Totem', pagamento = null;
+  const forma = dadosVenda.formaPagamento;
+  if (dadosVenda.status !== 'aguardando_caixa' && ['pix', 'cartao'].includes(forma)) {
+    const prov = pagamentos.provedorDe(forma);
+    if (transacaoId) {
+      pagamento = pagamentos.consumirAprovada(transacaoId, forma, banco.calcularTotal(dadosVenda.itens));
+      por = `Automático (${pagamento.provedorNome})`;
+    } else if (!prov.manual) {
+      if (banco.getConfig().pagamentos?.permitirManualSeFalhar === false)
+        throw new Error('Este pagamento precisa ser confirmado pelo sistema de pagamento.');
+      if (!pin) throw new Error('Peça a um atendente para confirmar o pagamento.');
+      pagamento = { provedor: 'manual', provedorNome: 'Confirmado pelo atendente (gateway indisponível)' };
+    }
+  }
+  if (pin && !transacaoId) {
     const quem = banco.identificarPin(pin);
     if (!quem) throw new Error('PIN incorreto');
     por = quem.nome;
   }
-  const venda = banco.registrarVenda({ ...dadosVenda, por });
+  const venda = banco.registrarVenda({ ...dadosVenda, por, pagamento });
   const avisos = [];
   if (venda.status === 'paga') {
     try { venda.fiscal = await fiscal.emitir(venda, banco.getConfig()); banco.atualizarVenda(venda.numero, { fiscal: venda.fiscal }); }
@@ -301,6 +321,17 @@ tratar('venda:atualizar', logado(async (numero, mudancas) => {
   }
   return { venda: v, avisos };
 }));
+
+// ---------- gateway de pagamento ----------
+tratar('pagamento:iniciar', async (forma, itens) => {
+  const total = banco.calcularTotal(itens);
+  const t = await pagamentos.iniciar(forma, total, `${banco.getConfig().nomeLoja || 'Lisufit'} - pedido no totem`);
+  return { ...t, qr: t.qrTexto ? await QRCode.toDataURL(t.qrTexto, { width: 420, margin: 1 }) : '' };
+});
+tratar('pagamento:status', id => pagamentos.status(id));
+tratar('pagamento:cancelar', id => pagamentos.cancelar(id));
+tratar('pagamentos:provedores', soAdmin(() => pagamentos.listar()));
+tratar('pagamentos:testar', soAdmin((id, credenciais) => pagamentos.testar(id, credenciais)));
 
 // ---------- atualização ----------
 const reiniciar = () => {

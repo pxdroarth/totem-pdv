@@ -27,7 +27,9 @@ const CONFIG_PADRAO = {
   backupAutomatico: true,         // cópia diária dos dados (mantém os últimos 30 dias)
   pastaBackup: '',                // vazio = pasta "backups" junto dos dados; pode apontar para OneDrive/Google Drive
   cancelarAguardandoMin: 0,       // cancela pedidos "pagar no balcão" não pagos após X minutos (0 = nunca, -1 = no dia seguinte)
-  fiscal: { modo: 'desativado', pastaIntegracao: '' }
+  fiscal: { modo: 'desativado', pastaIntegracao: '' },
+  // gateway de pagamento por forma; 'manual' = QR fixo/maquininha avulsa com PIN (ver src/pagamentos)
+  pagamentos: { provedorPix: 'manual', provedorCartao: 'manual', permitirManualSeFalhar: true, credenciais: {} }
 };
 
 const PRODUTOS_EXEMPLO = [
@@ -151,7 +153,8 @@ class Banco {
   _carregar() {
     if (fs.existsSync(this.arquivo)) {
       const d = JSON.parse(fs.readFileSync(this.arquivo, 'utf8'));
-      d.config = { ...CONFIG_PADRAO, ...d.config, fiscal: { ...CONFIG_PADRAO.fiscal, ...(d.config || {}).fiscal } };
+      d.config = { ...CONFIG_PADRAO, ...d.config, fiscal: { ...CONFIG_PADRAO.fiscal, ...(d.config || {}).fiscal },
+        pagamentos: { ...CONFIG_PADRAO.pagamentos, ...(d.config || {}).pagamentos } };
       if (!Array.isArray(d.categorias)) this._migrarCategorias(d);
       let mudou = false;
       // bases antigas: o PIN único de atendente vira o primeiro atendente cadastrado
@@ -424,9 +427,14 @@ class Banco {
     this._salvar();
   }
 
-  registrarVenda({ itens, formaPagamento, status, por, cliente }) {
+  // total calculado aqui (preços do cadastro), nunca confiando no valor vindo da tela
+  calcularTotal(itens) {
+    return this._montarLinhas(itens).reduce((s, l) => s + l.totalCentavos, 0);
+  }
+
+  _montarLinhas(itens) {
     if (!Array.isArray(itens) || !itens.length) throw new Error('Carrinho vazio.');
-    const linhas = itens.map(({ id, qtd, escolhas }) => {
+    return itens.map(({ id, qtd, escolhas }) => {
       const p = this.dados.produtos.find(x => x.id === id);
       if (!p) throw new Error('Produto não encontrado.');
       const q = Math.max(1, Math.round(qtd));
@@ -438,6 +446,10 @@ class Banco {
         ...(p.controlarEstoque === false ? { preparo: true } : {}), // feito na hora: vai para a via de preparo
         ...(descricao ? { opcoes: descricao, escolhas } : {}) };
     });
+  }
+
+  registrarVenda({ itens, formaPagamento, status, por, cliente, pagamento }) {
+    const linhas = this._montarLinhas(itens);
     const venda = {
       numero: this.dados.proximoNumero++,
       data: new Date().toISOString(),
@@ -449,6 +461,7 @@ class Banco {
       fiscal: null,
       historico: [{ acao: status === 'aguardando_caixa' ? 'pedido' : 'paga', por: por || 'Totem', em: new Date().toISOString() }]
     };
+    if (pagamento) venda.pagamento = pagamento; // dados do gateway: transação, NSU, autorização, bandeira
     const cli = limparCliente(cliente);
     if (cli) venda.cliente = cli;
     this._entrarNaFila(venda);

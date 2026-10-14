@@ -94,14 +94,21 @@
     <div class="etapa-corpo pix-layout">
       <div class="qr-moldura"><img id="qr-pix" class="qr" alt="QR Code PIX"></div>
       <div class="pix-info">
+        <span class="selo-teste" data-modo-teste hidden>Modo teste: nenhum valor é cobrado</span>
         <h1>Pague com PIX</h1>
         <ol class="passos">
           <li><span>Abra o app do seu banco e escolha <b>PIX</b> › <b>Ler QR Code</b></span></li>
           <li><span>Aponte a câmera para o código. O valor já vem preenchido.</span></li>
-          <li><span>Depois de pagar, mostre o comprovante ao atendente</span></li>
+          <li class="so-manual"><span>Depois de pagar, mostre o comprovante ao atendente</span></li>
+          <li class="so-auto"><span>Pronto: esta tela confirma sozinha quando o pagamento cair</span></li>
         </ol>
         <details class="copia-cola"><summary>Usar PIX Copia e Cola</summary><code id="pix-payload"></code></details>
-        <button class="btn btn-primario btn-alto" id="btn-pix-pago">Já paguei</button>
+        <div class="status-pagamento so-auto" id="pix-status" role="status" aria-live="polite"></div>
+        <button class="btn btn-primario btn-alto so-manual" id="btn-pix-pago">Já paguei</button>
+        <div class="acoes so-auto">
+          <button class="btn btn-primario btn-alto" id="btn-pix-tentar" hidden>Gerar outro QR Code</button>
+          <button class="btn btn-fantasma" id="btn-pix-ajuda" data-ajuda-pagamento hidden>Paguei e não confirmou? Chamar atendente</button>
+        </div>
       </div>
     </div>
   </div>
@@ -118,13 +125,24 @@
     <div class="etapa-corpo cartao-layout">
       <span class="cartao-ico"><i data-icone="cartao" data-tam="88"></i></span>
       <div>
+        <span class="selo-teste" data-modo-teste hidden>Modo teste: nenhum valor é cobrado</span>
         <h1>Pague na maquininha</h1>
-        <ol class="passos">
+        <ol class="passos so-manual">
           <li><span>Pegue a maquininha ao lado do totem</span></li>
           <li><span>Confira se o valor é o mesmo do total desta tela</span></li>
           <li><span>Insira ou aproxime o cartão e aguarde a aprovação</span></li>
         </ol>
-        <button class="btn btn-primario btn-alto" id="btn-cartao-pago">Pagamento aprovado</button>
+        <ol class="passos so-auto">
+          <li><span>O valor já foi enviado para a <b>maquininha ao lado</b></span></li>
+          <li><span>Insira ou aproxime o cartão e siga as instruções nela</span></li>
+          <li><span>Pronto: esta tela confirma sozinha</span></li>
+        </ol>
+        <div class="status-pagamento so-auto" id="cartao-status" role="status" aria-live="polite"></div>
+        <button class="btn btn-primario btn-alto so-manual" id="btn-cartao-pago">Pagamento aprovado</button>
+        <div class="acoes so-auto">
+          <button class="btn btn-primario btn-alto" id="btn-cartao-tentar" hidden>Mandar de novo para a maquininha</button>
+          <button class="btn btn-fantasma" id="btn-cartao-ajuda" data-ajuda-pagamento hidden>Problema na maquininha? Chamar atendente</button>
+        </div>
       </div>
     </div>
   </div>
@@ -228,7 +246,15 @@
           <label>Endereço (aparece no cupom)<input name="endereco"></label>
           <label>Mensagem no fim do cupom<input name="mensagemCupom"></label>
         </fieldset>
-        <fieldset><legend>PIX</legend>
+        <fieldset><legend>Gateway de pagamento</legend>
+          <p class="ajuda">Quem confirma o PIX e o cartão. <b>Manual</b> é o modo sem integração: QR fixo e maquininha avulsa, com o atendente confirmando por PIN. Com um gateway, o totem confirma sozinho.</p>
+          <label>PIX<select name="provedorPix" id="sel-provedor-pix"></select></label>
+          <label>Cartão (maquininha)<select name="provedorCartao" id="sel-provedor-cartao"></select></label>
+          <div class="campos-gateway" id="campos-gateway"></div>
+          <label class="check-label"><input type="checkbox" name="permitirManualSeFalhar"> Se o gateway falhar, o atendente pode confirmar com PIN</label>
+          <button type="button" class="btn" id="btn-testar-gateway" hidden>Testar conexão</button>
+        </fieldset>
+        <fieldset><legend>PIX com QR fixo (modo manual)</legend>
           <label>Chave PIX (CNPJ, e-mail, telefone ou aleatória)<input name="pixChave"></label>
           <label>Nome do recebedor (como está no banco)<input name="pixNome" maxlength="25"></label>
           <label>Cidade<input name="pixCidade" maxlength="15"></label>

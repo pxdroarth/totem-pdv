@@ -77,6 +77,14 @@ Painel admin → Produtos → Editar → **Variações (opcional)**:
 - No totem, tocar (ou passar no leitor) um produto com variações abre a tela "Monte do seu jeito"; o botão só libera quando os grupos obrigatórios estão escolhidos.
 - O preço final é recalculado no sistema na hora da venda; as escolhas saem no cupom e no relatório.
 
+## Gateway de pagamento (plugável)
+- Em **Configurações › Gateway de pagamento** você escolhe quem confirma o **PIX** e quem confirma o **cartão**. Podem ser gateways diferentes.
+- **Manual** (padrão) funciona como sempre: QR fixo e maquininha avulsa, com o atendente confirmando por PIN.
+- Com um gateway, o PIX sai com QR dinâmico e o valor do cartão vai direto para a maquininha. A tela confirma sozinha, sem PIN.
+- Se o pagamento for recusado ou o tempo acabar, o cliente pode tentar de novo. Se o gateway estiver fora do ar, o totem volta para o modo manual (dá para desligar isso).
+- O **Simulador** aprova ou recusa sozinho e serve para testar e demonstrar para os donos. Enquanto estiver ligado, aparece o selo "Modo teste".
+- Para integrar Mercado Pago, Stone, PagBank, Cielo etc.: **um arquivo novo** em `src/pagamentos/provedores/`. Veja `docs/INTEGRAR-GATEWAY.md`.
+
 ## Planilhas (Excel)
 - **Produtos › Exportar planilha** gera um `.xlsx` com todos os produtos. Ele serve de modelo: a loja edita no Excel (preço, estoque, produtos novos) e usa **Importar planilha**.
 - Antes de gravar, a importação mostra uma prévia com o que é novo, o que vai ser atualizado e quais linhas têm erro, informando o número da linha.

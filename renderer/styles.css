@@ -50,6 +50,7 @@ button { -webkit-tap-highlight-color: transparent; }
 img { display: block; }
 .ico { display: block; flex-shrink: 0; }
 [data-icone] { display: inline-flex; vertical-align: middle; }
+[hidden] { display: none !important; } /* hidden sempre vence o display das classes */
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 :focus-visible { outline: 3px solid var(--marca); outline-offset: 3px; }
 
@@ -635,3 +636,24 @@ body.kds { background: var(--superficie); display: flex; flex-direction: column;
   .cliente-caixa .opcoes-rodape { padding: .6rem 1.75rem 1rem; }
   .cliente-caixa .btn-alto { min-height: 3.6rem; }
 }
+
+/* ---------- pagamento pelo gateway (PIX e cartão) ---------- */
+.tela:not([data-modo="auto"]) .so-auto { display: none !important; }
+.tela[data-modo="auto"] .so-manual { display: none !important; }
+.selo-teste { align-self: flex-start; display: inline-block; padding: .3rem .8rem; border-radius: 999px; background: #fff4d6; color: #8a6100;
+  font-weight: 700; font-size: .85rem; letter-spacing: .02em; border: 1px dashed #d9a520; margin-bottom: .25rem; }
+.selo-teste[hidden] { display: none; }
+.status-pagamento { display: flex; align-items: center; gap: .8rem; min-height: 4rem; padding: .9rem 1.2rem; border-radius: var(--raio);
+  background: var(--superficie); font-size: 1.2rem; font-weight: 700; }
+.status-pagamento small { font-weight: 600; color: var(--texto-2); font-variant-numeric: tabular-nums; margin-left: .4rem; }
+.status-pagamento.aprovado { background: #e5f4ea; color: #1f6b3b; }
+.status-pagamento.falhou { background: #fdecea; color: var(--perigo); }
+.girando { width: 1.6rem; height: 1.6rem; border-radius: 50%; border: 3px solid var(--superficie-2); border-top-color: var(--marca);
+  animation: girar .9s linear infinite; flex-shrink: 0; }
+@keyframes girar { to { transform: rotate(360deg); } }
+.qr:not([src]) { visibility: hidden; }
+.campos-gateway { display: flex; flex-direction: column; gap: .75rem; }
+.campos-gateway:empty { display: none; }
+.gateway-grupo { display: flex; flex-direction: column; gap: .6rem; padding: .9rem; border-radius: var(--raio-p); background: var(--superficie); }
+.gateway-grupo input, .gateway-grupo select { min-height: 3rem; background: var(--fundo); border: 1px solid var(--linha); border-radius: var(--raio-p); padding: 0 .9rem; font: inherit; width: 100%; }
+#btn-testar-gateway[hidden] { display: none; }

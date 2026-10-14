@@ -21,6 +21,7 @@ async function carregarDados() {
   renderCategorias();
   renderProdutos();
   renderCarrinho();
+  $$('[data-modo-teste]').forEach(e => (e.hidden = !estado.config.pagamentos?.modoTeste));
 }
 
 // Produto aparece no totem se estiver ativo e a categoria dele não estiver oculta
@@ -220,10 +221,10 @@ async function confirmarComPin() {
   return pin;
 }
 
-async function finalizar(formaPagamento, pin = '') {
+async function finalizar(formaPagamento, pin = '', transacaoId = '') {
   const status = formaPagamento === 'caixa' ? 'aguardando_caixa' : 'paga';
   try {
-    const { venda, avisos } = await pdv.registrarVenda({ itens: itensVenda(), formaPagamento, status, pin, cliente: estado.cliente });
+    const { venda, avisos } = await pdv.registrarVenda({ itens: itensVenda(), formaPagamento, status, pin, transacaoId, cliente: estado.cliente });
     avisos.forEach(a => console.warn(a));
     const temPreparo = venda.itens.some(i => i.preparo);
     if (status === 'aguardando_caixa') {
@@ -250,7 +251,97 @@ async function finalizar(formaPagamento, pin = '') {
   }
 }
 
-async function abrirPix() {
+// ---------- pagamento pelo gateway (confirmação automática) ----------
+// O gateway escolhido em Configurações cria a cobrança; a tela consulta a cada 2 s e
+// finaliza sozinha quando aprova. Sem gateway (modo manual) tudo funciona como antes.
+let pagAtual = null, pagTimer = null;
+const usaGateway = forma => (estado.config.pagamentos?.[forma] || 'manual') !== 'manual';
+const manualPermitido = () => estado.config.pagamentos?.permitirManualSeFalhar !== false;
+const TEXTO_FINAL = { recusado: 'Pagamento recusado', cancelado: 'Pagamento cancelado', expirado: 'O tempo para pagar acabou', erro: 'O sistema de pagamento não respondeu' };
+
+function statusPag(forma, tipo, html) {
+  const el = $(`#${forma}-status`);
+  el.className = 'status-pagamento so-auto ' + tipo;
+  el.innerHTML = (tipo === 'esperando' ? '<span class="girando" aria-hidden="true"></span>' : '') + `<span>${html}</span>`;
+  $(`#btn-${forma}-tentar`).hidden = !['falhou'].includes(tipo);
+  $(`#btn-${forma}-ajuda`).hidden = !manualPermitido() || tipo === 'aprovado';
+}
+
+async function cancelarPagamentoAtual() {
+  clearTimeout(pagTimer);
+  if (!pagAtual) return;
+  const id = pagAtual.id; pagAtual = null;
+  await pdv.cancelarPagamento(id).catch(() => {});
+}
+
+async function iniciarGateway(forma) {
+  await cancelarPagamentoAtual();
+  const tela = $(`#tela-${forma}`);
+  tela.dataset.modo = 'auto';
+  $(`#valor-${forma}`).textContent = reais(totalCarrinho());
+  if (forma === 'pix') { $('#qr-pix').removeAttribute('src'); $('#pix-payload').textContent = ''; }
+  mostrarTela(forma);
+  statusPag(forma, 'esperando', forma === 'pix' ? 'Gerando o QR Code…' : 'Enviando o valor para a maquininha…');
+  try {
+    const t = await pdv.iniciarPagamento(forma, itensVenda());
+    if (forma === 'pix') { $('#qr-pix').src = t.qr; $('#pix-payload').textContent = t.qrTexto; }
+    pagAtual = { id: t.id, forma, expiraEm: t.expiraEm };
+    statusPag(forma, 'esperando', 'Aguardando o pagamento…');
+    acompanharPagamento();
+  } catch (e) {
+    // gateway fora do ar: cai para o modo manual (se a loja permitir)
+    if (manualPermitido()) {
+      toast('Sistema de pagamento indisponível agora. Um atendente confirma o pagamento.', 'erro');
+      return forma === 'pix' ? abrirPix(true) : abrirCartaoManual();
+    }
+    statusPag(forma, 'falhou', 'Não consegui falar com o sistema de pagamento. Tente de novo ou escolha outra forma.');
+  }
+}
+
+function acompanharPagamento() {
+  clearTimeout(pagTimer);
+  pagTimer = setTimeout(async () => {
+    if (!pagAtual) return;
+    const { id, forma, expiraEm } = pagAtual;
+    let s;
+    try { s = await pdv.statusPagamento(id); } catch { return acompanharPagamento(); }
+    if (!pagAtual || pagAtual.id !== id) return;
+    if (s.status === 'pendente') {
+      const resta = Math.max(0, Math.round((expiraEm - Date.now()) / 1000));
+      statusPag(forma, 'esperando', `Aguardando o pagamento… <small>${Math.floor(resta / 60)}:${String(resta % 60).padStart(2, '0')}</small>`);
+      return acompanharPagamento();
+    }
+    pagAtual = null;
+    if (s.status === 'aprovado') {
+      statusPag(forma, 'aprovado', 'Pagamento aprovado!');
+      return finalizar(forma, '', id);
+    }
+    statusPag(forma, 'falhou', TEXTO_FINAL[s.status] + (s.detalhe ? `: ${esc(s.detalhe)}` : '.'));
+  }, 2000);
+}
+
+// cliente diz que pagou mas não confirmou (ou a maquininha travou): atendente confirma com PIN
+$$('[data-ajuda-pagamento]').forEach(b => (b.onclick = async () => {
+  const forma = document.body.dataset.tela;
+  const pin = await pedirPin('Atendente: confirme o pagamento');
+  if (pin === null) return;
+  if (!(await pdv.verificarPinAtendente(pin))) return toast('PIN incorreto', 'erro');
+  await cancelarPagamentoAtual();
+  finalizar(forma, pin);
+}));
+$('#btn-pix-tentar').onclick = () => iniciarGateway('pix');
+$('#btn-cartao-tentar').onclick = () => iniciarGateway('cartao');
+$$('#tela-pix [data-voltar], #tela-cartao [data-voltar]').forEach(b => b.addEventListener('click', cancelarPagamentoAtual));
+
+function abrirCartaoManual() {
+  $('#tela-cartao').dataset.modo = 'manual';
+  $('#valor-cartao').textContent = reais(totalCarrinho());
+  mostrarTela('cartao');
+}
+
+async function abrirPix(forcarManual = false) {
+  if (!forcarManual && usaGateway('pix')) return iniciarGateway('pix');
+  $('#tela-pix').dataset.modo = 'manual';
   const total = totalCarrinho();
   estado.pixTxid = 'PDV' + Date.now().toString(36).toUpperCase();
   try {
@@ -269,7 +360,10 @@ setInterval(() => {
   const tela = document.body.dataset.tela;
   if (['inicio', 'admin', 'fim'].includes(tela)) return;
   if ($('#modal-pin').classList.contains('aberto')) return;
+  // cliente pagando pelo celular não toca na tela: espera a cobrança vencer antes de reiniciar
+  if (pagAtual && Date.now() < pagAtual.expiraEm) return;
   if (Date.now() - ultimaAcao > (estado.config.tempoInatividadeSeg || 90) * 1000) {
+    cancelarPagamentoAtual();
     fecharOpcoes();
     fecharCliente();
     limparCompra();
@@ -376,7 +470,7 @@ $('#btn-finalizar-gaveta').onclick = irParaPagamento;
 $$('.opcao').forEach(b => (b.onclick = () => {
   const forma = b.dataset.forma;
   if (forma === 'pix') abrirPix();
-  if (forma === 'cartao') { $('#valor-cartao').textContent = reais(totalCarrinho()); mostrarTela('cartao'); }
+  if (forma === 'cartao') usaGateway('cartao') ? iniciarGateway('cartao') : abrirCartaoManual();
   if (forma === 'caixa') finalizar('caixa');
 }));
 $('#btn-pix-pago').onclick = async () => { const pin = await confirmarComPin(); if (pin !== null) finalizar('pix', pin); };
