@@ -30,7 +30,8 @@ fácil de editar. Roda no Dell com Windows em tela cheia travada (modo quiosque)
 ### Abrir o painel admin
 - Teclado: **Ctrl + Shift + A**
 - Tela de toque: **toque 5 vezes no logo** da tela inicial
-- PIN padrão do admin: **1234** · PIN padrão do atendente: **0000** → **troque em Configurações!**
+- PIN padrão do admin: **1234** · atendente de exemplo: **0000** → **troque em Configurações!** (cadastre um atendente para cada funcionário e apague o de exemplo)
+- O mesmo atalho serve para o atendente: com o PIN dele, o painel abre só com Vendas e o fechamento do caixa.
 
 ### Primeira configuração (painel admin → Configurações)
 1. Nome da loja, CNPJ e endereço (saem no cupom)
@@ -80,8 +81,16 @@ Painel admin → Produtos → Editar → **Variações (opcional)**:
 - Quando o pedido é pago, sai uma **via de preparo** com a senha, os itens e as opções (sabor, frutas). No "pagar no balcão", a via só sai quando o atendente marca como pago.
 - Pedidos "pagar no balcão" esquecidos podem ser cancelados sozinhos (15 min, 30 min, 1 h ou no dia seguinte). O padrão é nunca cancelar.
 
+## Atendentes e fechamento do caixa
+- **Atendentes** (Configurações › Atendentes): cada funcionário tem nome e PIN próprio. O PIN é guardado embaralhado (hash), nunca em texto.
+- Fica registrado na venda quem confirmou o PIX ou o cartão, quem marcou como pago e quem cancelou. Para ver, passe o mouse em "por Fulano" na lista de vendas.
+- Atendente pode cancelar pedido não pago. Venda já paga só o admin cancela, a não ser que a opção "Atendente pode cancelar venda já paga" esteja ligada.
+- **Fechar o caixa de hoje** (aba Vendas) mostra os totais de PIX, cartão e balcão, aceita uma observação, imprime o fechamento e faz backup.
+- Se ninguém fechar, o caixa fecha sozinho no horário configurado (padrão 22:00). Se o computador estava desligado, o dia esquecido é fechado quando o sistema abrir.
+- Vendas feitas depois do fechamento entram no dia seguinte.
+
 ## Onde ficam os dados
-`%APPDATA%\Lisufit PDV\dados.json` (e as fotos em `imagens\`). Use o botão **Fazer backup** com frequência (pendrive).
+`%APPDATA%\Lisufit PDV\dados.json` (e as fotos em `imagens\`). O **backup automático** grava uma cópia por dia em `backups\` (guarda 30 dias). Em Configurações dá para apontar a pasta para o OneDrive ou o Google Drive, assim a cópia também vai para a nuvem.
 
 ## Estrutura do código
 ```

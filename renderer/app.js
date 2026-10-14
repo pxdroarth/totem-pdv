@@ -209,18 +209,19 @@ $('#btn-opcoes-adicionar').onclick = () => {
   adicionarLinha(p, escolhas, adicional, descricao);
 };
 
+// devolve o PIN digitado (fica registrado quem confirmou), '' se não precisa de PIN, ou null se cancelou/errou
 async function confirmarComPin() {
-  if (!estado.config.confirmarPagamentoComPin) return true;
+  if (!estado.config.confirmarPagamentoComPin) return '';
   const pin = await pedirPin('Atendente: confirme o pagamento');
-  if (pin === null) return false;
-  if (!(await pdv.verificarPinAtendente(pin))) { toast('PIN incorreto', 'erro'); return false; }
-  return true;
+  if (pin === null) return null;
+  if (!(await pdv.verificarPinAtendente(pin))) { toast('PIN incorreto', 'erro'); return null; }
+  return pin;
 }
 
-async function finalizar(formaPagamento) {
+async function finalizar(formaPagamento, pin = '') {
   const status = formaPagamento === 'caixa' ? 'aguardando_caixa' : 'paga';
   try {
-    const { venda, avisos } = await pdv.registrarVenda({ itens: itensVenda(), formaPagamento, status });
+    const { venda, avisos } = await pdv.registrarVenda({ itens: itensVenda(), formaPagamento, status, pin });
     avisos.forEach(a => console.warn(a));
     const temPreparo = venda.itens.some(i => i.preparo);
     if (status === 'aguardando_caixa') {
@@ -314,8 +315,8 @@ $$('.opcao').forEach(b => (b.onclick = () => {
   if (forma === 'cartao') { $('#valor-cartao').textContent = reais(totalCarrinho()); mostrarTela('cartao'); }
   if (forma === 'caixa') finalizar('caixa');
 }));
-$('#btn-pix-pago').onclick = async () => { if (await confirmarComPin()) finalizar('pix'); };
-$('#btn-cartao-pago').onclick = async () => { if (await confirmarComPin()) finalizar('cartao'); };
+$('#btn-pix-pago').onclick = async () => { const pin = await confirmarComPin(); if (pin !== null) finalizar('pix', pin); };
+$('#btn-cartao-pago').onclick = async () => { const pin = await confirmarComPin(); if (pin !== null) finalizar('cartao', pin); };
 
 // Leitor de código de barras: em qualquer tela do cliente, adiciona ao carrinho
 ouvirLeitor(codigo => {

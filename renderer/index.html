@@ -155,6 +155,7 @@
         <button class="aba" data-aba="vendas">Vendas</button>
         <button class="aba" data-aba="config">Configurações</button>
       </nav>
+      <span class="painel-quem" id="painel-quem"></span>
       <button class="btn btn-fantasma" id="btn-sair-admin">Voltar ao totem</button>
     </header>
 
@@ -199,6 +200,7 @@
         <button class="btn" id="btn-filtrar-vendas">Filtrar</button>
         <span class="espaco"></span>
         <button class="btn" id="btn-exportar-vendas">Exportar planilha do período</button>
+        <button class="btn btn-primario" id="btn-fechar-caixa">Fechar o caixa de hoje</button>
       </div>
       <div class="cards-resumo" id="resumo-vendas"></div>
       <h3>Pedidos aguardando pagamento no caixa</h3>
@@ -209,6 +211,11 @@
       <table class="tabela">
         <thead><tr><th>Nº</th><th>Data</th><th>Itens</th><th>Pagamento</th><th>Status</th><th>Total</th><th></th></tr></thead>
         <tbody id="tabela-vendas"></tbody>
+      </table>
+      <h3>Fechamentos de caixa</h3>
+      <table class="tabela">
+        <thead><tr><th>Dia</th><th>Total</th><th>PIX</th><th>Cartão</th><th>Balcão</th><th>Vendas</th><th>Fechado por</th><th></th></tr></thead>
+        <tbody id="tabela-fechamentos"></tbody>
       </table>
     </div>
 
@@ -227,13 +234,30 @@
         </fieldset>
         <fieldset><legend>Segurança e pagamento</legend>
           <label>PIN do admin<input name="pinAdmin" type="password" inputmode="numeric"></label>
-          <label>PIN do atendente (confirma PIX/cartão)<input name="pinAtendente" type="password" inputmode="numeric"></label>
           <label class="check-label"><input type="checkbox" name="confirmarPagamentoComPin"> Exigir PIN do atendente para confirmar PIX e cartão</label>
           <label>Voltar à tela inicial após inatividade (segundos)<input name="tempoInatividadeSeg" type="number" min="30"></label>
         </fieldset>
         <fieldset><legend>Impressão do cupom</legend>
           <label class="check-label"><input type="checkbox" name="imprimirCupom"> Imprimir cupom ao finalizar</label>
           <label>Impressora<select name="impressoraCupom" id="sel-impressora"></select></label>
+        </fieldset>
+        <fieldset><legend>Atendentes</legend>
+          <p class="ajuda">Cada atendente tem o próprio PIN. Ele confirma PIX e cartão no totem e entra no painel só com as vendas e o fechamento do caixa. Fica registrado quem confirmou, pagou ou cancelou cada venda.</p>
+          <ul class="lista-atendentes" id="lista-atendentes"></ul>
+          <button type="button" class="btn" id="btn-novo-atendente">+ Adicionar atendente</button>
+          <label class="check-label"><input type="checkbox" name="atendentePodeCancelar"> Atendente pode cancelar venda já paga</label>
+        </fieldset>
+        <fieldset><legend>Fechamento e backup</legend>
+          <label>Fechar o caixa sozinho às (se ninguém fechar)
+            <input name="horarioFechamento" type="time">
+          </label>
+          <p class="ajuda dica-campo">Deixe em branco para fechar só manualmente. Dia que ficou sem fechar é fechado sozinho quando o sistema abrir.</p>
+          <label class="check-label"><input type="checkbox" name="backupAutomatico"> Backup automático todo dia (guarda os últimos 30)</label>
+          <label>Pasta do backup
+            <span class="linha"><input name="pastaBackup" readonly placeholder="Pasta padrão do sistema"><button type="button" class="btn" id="btn-pasta-backup">Escolher</button></span>
+          </label>
+          <p class="ajuda dica-campo" id="info-backup"></p>
+          <button type="button" class="btn" id="btn-backup-agora">Fazer backup agora</button>
         </fieldset>
         <fieldset><legend>Pedidos e estoque</legend>
           <label>Quando um produto acaba
@@ -291,6 +315,37 @@
       </div>
     </footer>
   </div>
+</div>
+
+<div id="modal-fechamento" class="modal">
+  <div class="modal-caixa fechamento-caixa" role="dialog" aria-labelledby="fechamento-titulo">
+    <h2 id="fechamento-titulo">Fechar o caixa</h2>
+    <p class="ajuda" id="fechamento-dia"></p>
+    <div class="cards-resumo" id="fechamento-resumo"></div>
+    <p class="aviso-fechamento" id="fechamento-aviso" hidden></p>
+    <label class="campo-obs">Observação (opcional)<input id="fechamento-obs" placeholder="Ex.: troco conferido, R$ 5,00 a menos no dinheiro"></label>
+    <div class="acoes">
+      <button type="button" class="btn btn-fantasma" id="btn-fechamento-cancelar">Cancelar</button>
+      <button type="button" class="btn btn-primario" id="btn-fechamento-confirmar">Fechar o caixa</button>
+    </div>
+  </div>
+</div>
+
+<div id="modal-atendente" class="modal">
+  <form class="modal-caixa form-produto atendente-caixa" id="form-atendente">
+    <h2 id="atendente-titulo">Atendente</h2>
+    <input type="hidden" name="atendenteId">
+    <label>Nome<input name="nome" required maxlength="30"></label>
+    <label>PIN (4 a 8 números)<input name="pin" type="password" inputmode="numeric" maxlength="8" autocomplete="off"></label>
+    <p class="ajuda dica-campo" id="atendente-dica-pin"></p>
+    <label class="check-label"><input type="checkbox" name="ativo" checked> Ativo (pode usar o PIN)</label>
+    <div class="acoes">
+      <button type="button" class="btn btn-perigo" id="btn-excluir-atendente">Excluir</button>
+      <span class="espaco"></span>
+      <button type="button" class="btn btn-fantasma" id="btn-cancelar-atendente">Cancelar</button>
+      <button type="submit" class="btn btn-primario">Salvar</button>
+    </div>
+  </form>
 </div>
 
 <div id="modal-importar" class="modal">

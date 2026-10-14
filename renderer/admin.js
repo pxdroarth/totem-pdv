@@ -5,16 +5,23 @@ let produtoEditando = null;
 let categoriaEditando = null;
 let aoSalvarCategoria = null; // usado quando a categoria é criada de dentro do cadastro de produto
 
+// O PIN diz quem entrou: admin vê tudo; atendente vê só Vendas e o fechamento do caixa
+let quemEstaNoPainel = null;
 async function abrirAdmin() {
   if (document.body.dataset.tela === 'admin') return;
-  const pin = await pedirPin('PIN do administrador');
+  const pin = await pedirPin('Digite seu PIN');
   if (pin === null) return;
-  if (!(await pdv.verificarPinAdmin(pin))) return toast('PIN incorreto', 'erro');
+  try { quemEstaNoPainel = await pdv.entrarPainel(pin); }
+  catch { return toast('PIN incorreto', 'erro'); }
+  document.body.dataset.perfil = quemEstaNoPainel.perfil;
+  $('#painel-quem').textContent = quemEstaNoPainel.nome;
+  $('.admin-topo h1').textContent = quemEstaNoPainel.perfil === 'admin' ? 'Painel da loja' : 'Caixa';
   mostrarTela('admin');
-  trocarAba('produtos');
+  trocarAba(quemEstaNoPainel.perfil === 'admin' ? 'produtos' : 'vendas');
 }
 
 function trocarAba(nome) {
+  if (quemEstaNoPainel?.perfil !== 'admin' && nome !== 'vendas') nome = 'vendas';
   $$('.aba').forEach(a => a.classList.toggle('ativa', a.dataset.aba === nome));
   $$('.aba-conteudo').forEach(c => c.classList.toggle('ativa', c.id === 'aba-' + nome));
   if (nome === 'produtos') renderTabelaProdutos();
@@ -387,11 +394,59 @@ async function carregarVendas() {
     <tr class="${v.status === 'cancelada' ? 'inativo' : ''}">
       <td>${v.numero}</td><td>${new Date(v.data).toLocaleString('pt-BR')}</td>
       <td>${v.itens.reduce((s, i) => s + i.qtd, 0)}</td><td>${formas[v.formaPagamento]}</td>
-      <td>${statusNome[v.status]}${v.canceladaAutomaticamente ? ' <small class="ajuda">(automático)</small>' : ''}</td><td>${reais(v.totalCentavos)}</td>
+      <td>${statusNome[v.status]}${quemFez(v)}</td><td>${reais(v.totalCentavos)}</td>
       <td><button class="btn btn-pequeno" data-reimprimir="${v.numero}">Reimprimir</button>
-      ${v.status === 'paga' ? `<button class="btn btn-pequeno btn-perigo" data-cancelar="${v.numero}">Cancelar</button>` : ''}</td>
+      ${v.status === 'paga' && podeCancelarPaga() ? `<button class="btn btn-pequeno btn-perigo" data-cancelar="${v.numero}">Cancelar</button>` : ''}</td>
     </tr>`).join('') || '<tr><td class="vazio" colspan="7">Sem vendas no período.</td></tr>';
+  await carregarFechamentos();
 }
+
+// "por Ana" embaixo da situação; passando o mouse mostra o histórico completo
+const podeCancelarPaga = () => quemEstaNoPainel?.perfil === 'admin' || !!estado.config.atendentePodeCancelar;
+const acoesNome = { pedido: 'Pedido criado', paga: 'Pago', cancelada: 'Cancelado' };
+function quemFez(v) {
+  const h = v.historico || [];
+  if (!h.length) return '';
+  const ult = h[h.length - 1];
+  const tudo = h.map(x => `${acoesNome[x.acao] || x.acao} — ${x.por} — ${new Date(x.em).toLocaleString('pt-BR')}`).join('\n');
+  return `<br><small class="ajuda" title="${esc(tudo)}">por ${esc(ult.por)}</small>`;
+}
+
+async function carregarFechamentos() {
+  const lista = await pdv.fechamentos();
+  $('#tabela-fechamentos').innerHTML = lista.length ? lista.slice(0, 31).map(f => `
+    <tr><td><b>${f.dia.split('-').reverse().join('/')}</b>${f.tipo === 'automatico' ? ' <small class="ajuda">(automático)</small>' : ''}</td>
+      <td><b>${reais(f.totalCentavos)}</b></td><td>${reais(f.pixCentavos)}</td><td>${reais(f.cartaoCentavos)}</td><td>${reais(f.caixaCentavos)}</td>
+      <td>${f.vendasPagas}${f.canceladas ? ` <small class="ajuda">(${f.canceladas} canc.)</small>` : ''}</td>
+      <td>${esc(f.por)}${f.observacao ? `<br><small class="ajuda">${esc(f.observacao)}</small>` : ''}</td>
+      <td><button class="btn btn-pequeno" data-imprimir-fechamento="${f.id}">Imprimir</button></td></tr>`).join('')
+    : '<tr><td class="vazio" colspan="8">Nenhum caixa fechado ainda.</td></tr>';
+}
+
+$('#btn-fechar-caixa').onclick = async () => {
+  try {
+    const r = await pdv.resumoFechamento();
+    $('#fechamento-dia').textContent = `Dia ${r.dia.split('-').reverse().join('/')} — fechado por ${quemEstaNoPainel?.nome || ''}`;
+    $('#fechamento-resumo').innerHTML = [
+      ['Total pago', reais(r.totalCentavos)], ['PIX', reais(r.pixCentavos)], ['Cartão', reais(r.cartaoCentavos)],
+      ['Pago no balcão', reais(r.caixaCentavos)], ['Vendas pagas', r.vendasPagas], ['Canceladas', r.canceladas]
+    ].map(([t, v]) => `<div class="card-resumo"><small>${t}</small><strong>${v}</strong></div>`).join('');
+    const aviso = $('#fechamento-aviso');
+    aviso.hidden = !r.aguardando;
+    aviso.textContent = r.aguardando ? `Atenção: ${r.aguardando} pedido(s) ainda aguardando pagamento no balcão. Resolva antes ou eles ficam fora do total.` : '';
+    $('#fechamento-obs').value = '';
+    $('#modal-fechamento').classList.add('aberto');
+  } catch (err) { toast(err.message, 'erro'); }
+};
+$('#btn-fechamento-cancelar').onclick = () => $('#modal-fechamento').classList.remove('aberto');
+$('#btn-fechamento-confirmar').onclick = async () => {
+  try {
+    const { avisos } = await pdv.fecharCaixa($('#fechamento-obs').value);
+    $('#modal-fechamento').classList.remove('aberto');
+    toast(avisos.length ? 'Caixa fechado (não consegui imprimir)' : 'Caixa fechado e impresso', avisos.length ? 'erro' : 'ok');
+    await carregarVendas();
+  } catch (err) { toast(err.message, 'erro'); }
+};
 
 $('#btn-filtrar-vendas').onclick = carregarVendas;
 $('#aba-vendas').onclick = async e => {
@@ -405,6 +460,10 @@ $('#aba-vendas').onclick = async e => {
       if (!confirm(`Cancelar a venda ${b.dataset.cancelar}? O estoque será devolvido se ela estava paga.`)) return;
       await pdv.atualizarVenda(Number(b.dataset.cancelar), { status: 'cancelada' });
       toast('Venda cancelada');
+    } else if (b.dataset.imprimirFechamento) {
+      await pdv.imprimirFechamento(b.dataset.imprimirFechamento);
+      toast('Enviado para a impressora', 'ok');
+      return;
     } else if (b.dataset.reimprimir) {
       await pdv.reimprimir(Number(b.dataset.reimprimir));
       toast('Enviado para a impressora', 'ok');
@@ -420,7 +479,12 @@ async function carregarConfig() {
   const c = await pdv.configAdmin();
   const f = $('#form-config');
   ['nomeLoja', 'cnpj', 'endereco', 'mensagemCupom', 'pixChave', 'pixNome', 'pixCidade',
-    'pinAdmin', 'pinAtendente', 'tempoInatividadeSeg'].forEach(k => (f[k].value = c[k] ?? ''));
+    'pinAdmin', 'tempoInatividadeSeg', 'horarioFechamento', 'pastaBackup'].forEach(k => (f[k].value = c[k] ?? ''));
+  f.backupAutomatico.checked = c.backupAutomatico !== false;
+  f.atendentePodeCancelar.checked = !!c.atendentePodeCancelar;
+  $('#info-backup').textContent = (c.ultimoBackup ? `Último backup: ${new Date(c.ultimoBackup).toLocaleString('pt-BR')}. ` : 'Nenhum backup feito ainda. ') +
+    `Pasta: ${c.pastaBackupEfetiva}`;
+  await renderAtendentes();
   f.confirmarPagamentoComPin.checked = !!c.confirmarPagamentoComPin;
   f.imprimirCupom.checked = !!c.imprimirCupom;
   f.quandoEsgotar.value = c.quandoEsgotar || 'esgotado';
@@ -439,15 +503,15 @@ async function carregarConfig() {
 $('#form-config').onsubmit = async e => {
   e.preventDefault();
   const f = e.target;
-  if (!/^\d{4,8}$/.test(f.pinAdmin.value) || !/^\d{4,8}$/.test(f.pinAtendente.value))
-    return toast('Os PINs devem ter de 4 a 8 números.', 'erro');
+  if (!/^\d{4,8}$/.test(f.pinAdmin.value)) return toast('O PIN do admin deve ter de 4 a 8 números.', 'erro');
   if (f.fiscalModo.value === 'pasta' && !f.fiscalPasta.value)
     return toast('Escolha a pasta de integração fiscal.', 'erro');
   try {
     await pdv.salvarConfig({
       nomeLoja: f.nomeLoja.value, cnpj: f.cnpj.value, endereco: f.endereco.value, mensagemCupom: f.mensagemCupom.value,
       pixChave: f.pixChave.value.trim(), pixNome: f.pixNome.value, pixCidade: f.pixCidade.value,
-      pinAdmin: f.pinAdmin.value, pinAtendente: f.pinAtendente.value,
+      pinAdmin: f.pinAdmin.value,
+      horarioFechamento: f.horarioFechamento.value, atendentePodeCancelar: f.atendentePodeCancelar.checked, backupAutomatico: f.backupAutomatico.checked, pastaBackup: f.pastaBackup.value,
       confirmarPagamentoComPin: f.confirmarPagamentoComPin.checked,
       tempoInatividadeSeg: Math.max(30, Number(f.tempoInatividadeSeg.value) || 90),
       imprimirCupom: f.imprimirCupom.checked, impressoraCupom: f.impressoraCupom.value,
@@ -459,6 +523,62 @@ $('#form-config').onsubmit = async e => {
     toast('Configurações salvas', 'ok');
   } catch (err) { toast(err.message, 'erro'); }
 };
+// ---------- atendentes ----------
+let atendenteEditando = null;
+async function renderAtendentes() {
+  const lista = await pdv.atendentes();
+  $('#lista-atendentes').innerHTML = lista.length ? lista.map(a => `
+    <li class="${a.ativo ? '' : 'inativo'}"><span>${esc(a.nome)}${a.ativo ? '' : ' <small class="ajuda">(inativo)</small>'}</span>
+      <button type="button" class="btn btn-pequeno" data-editar-atendente="${a.id}">Editar</button></li>`).join('')
+    : '<li class="vazio">Nenhum atendente. Só o PIN do admin confirma pagamentos.</li>';
+  $('#lista-atendentes').dataset.json = JSON.stringify(lista);
+}
+function abrirAtendente(a) {
+  atendenteEditando = a;
+  const f = $('#form-atendente');
+  f.atendenteId.value = a?.id || '';
+  f.nome.value = a?.nome || '';
+  f.pin.value = '';
+  f.pin.required = !a;
+  f.ativo.checked = a ? a.ativo : true;
+  $('#atendente-titulo').textContent = a ? 'Editar atendente' : 'Novo atendente';
+  $('#atendente-dica-pin').textContent = a ? 'Deixe em branco para manter o PIN atual.' : 'Cada atendente precisa de um PIN diferente.';
+  $('#btn-excluir-atendente').style.visibility = a ? 'visible' : 'hidden';
+  $('#modal-atendente').classList.add('aberto');
+  setTimeout(() => f.nome.focus(), 50);
+}
+const fecharAtendente = () => $('#modal-atendente').classList.remove('aberto');
+$('#btn-novo-atendente').onclick = () => abrirAtendente(null);
+$('#lista-atendentes').onclick = e => {
+  const b = e.target.closest('[data-editar-atendente]');
+  if (b) abrirAtendente(JSON.parse($('#lista-atendentes').dataset.json).find(a => a.id === b.dataset.editarAtendente));
+};
+$('#form-atendente').onsubmit = async e => {
+  e.preventDefault();
+  const f = e.target;
+  try {
+    await pdv.salvarAtendente({ id: f.atendenteId.value || undefined, nome: f.nome.value, pin: f.pin.value || undefined, ativo: f.ativo.checked });
+    fecharAtendente();
+    toast('Atendente salvo', 'ok');
+    await renderAtendentes();
+  } catch (err) { toast(err.message, 'erro'); }
+};
+$('#btn-cancelar-atendente').onclick = fecharAtendente;
+$('#btn-excluir-atendente').onclick = async () => {
+  if (!atendenteEditando || !confirm(`Excluir ${atendenteEditando.nome}? As vendas antigas continuam com o nome registrado.`)) return;
+  await pdv.excluirAtendente(atendenteEditando.id);
+  fecharAtendente();
+  await renderAtendentes();
+};
+$('#btn-pasta-backup').onclick = async () => {
+  const p = await pdv.escolherPasta();
+  if (p) $('#form-config').pastaBackup.value = p;
+};
+$('#btn-backup-agora').onclick = async () => {
+  try { const arq = await pdv.backupAgora(); toast('Backup salvo em ' + arq, 'ok'); await carregarConfig(); }
+  catch (err) { toast(err.message, 'erro'); }
+};
+
 $('#btn-pasta-fiscal').onclick = async () => {
   const p = await pdv.escolherPasta();
   if (p) $('#form-config').fiscalPasta.value = p;
@@ -470,4 +590,10 @@ $('#btn-backup').onclick = async () => {
 $('#btn-fechar-sistema').onclick = () => { if (confirm('Fechar o PDV?')) pdv.sair(); };
 
 $$('.aba').forEach(a => (a.onclick = () => trocarAba(a.dataset.aba)));
-$('#btn-sair-admin').onclick = () => { carregarDados(); mostrarTela('inicio'); };
+$('#btn-sair-admin').onclick = async () => {
+  await pdv.sairPainel();
+  quemEstaNoPainel = null;
+  delete document.body.dataset.perfil;
+  carregarDados();
+  mostrarTela('inicio');
+};

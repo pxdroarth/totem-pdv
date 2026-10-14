@@ -12,7 +12,6 @@ const CONFIG_PADRAO = {
   pixNome: '',
   pixCidade: '',
   pinAdmin: '1234',
-  pinAtendente: '0000',
   confirmarPagamentoComPin: true,
   impressoraCupom: '',
   imprimirCupom: true,
@@ -20,6 +19,10 @@ const CONFIG_PADRAO = {
   mensagemCupom: 'Obrigado pela preferência!',
   quandoEsgotar: 'esgotado',      // 'esgotado' (aparece esgotado) | 'ocultar' (some do totem) | 'vender' (deixa vender)
   imprimirViaPreparo: true,       // imprime uma 2ª via com a senha para quem prepara os itens feitos na hora
+  horarioFechamento: '22:00',     // fecha o caixa sozinho neste horário se ninguém fechar ('' = só manual)
+  atendentePodeCancelar: false,   // atendente pode cancelar venda já paga? (pedido não pago ele sempre pode)
+  backupAutomatico: true,         // cópia diária dos dados (mantém os últimos 30 dias)
+  pastaBackup: '',                // vazio = pasta "backups" junto dos dados; pode apontar para OneDrive/Google Drive
   cancelarAguardandoMin: 0,       // cancela pedidos "pagar no balcão" não pagos após X minutos (0 = nunca, -1 = no dia seguinte)
   fiscal: { modo: 'desativado', pastaIntegracao: '' }
 };
@@ -65,6 +68,18 @@ const CATEGORIAS_PADRAO = [
   ['Congelados', 'Empório', 'snowflake'],
   ['Carnes', 'Empório', 'beef']
 ];
+
+// PIN dos atendentes nunca fica em texto puro: guarda "sal:hash" (scrypt)
+function hashPin(pin, sal = crypto.randomBytes(8).toString('hex')) {
+  return sal + ':' + crypto.scryptSync(String(pin), sal, 32).toString('hex');
+}
+function conferePin(pin, guardado) {
+  if (!guardado || !pin) return false;
+  const [sal, h] = guardado.split(':');
+  const a = Buffer.from(h, 'hex'), b = crypto.scryptSync(String(pin), sal, 32);
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+const pinValido = pin => /^\d{4,8}$/.test(String(pin || ''));
 
 const normalizar = t => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
 
@@ -126,6 +141,15 @@ class Banco {
       const d = JSON.parse(fs.readFileSync(this.arquivo, 'utf8'));
       d.config = { ...CONFIG_PADRAO, ...d.config, fiscal: { ...CONFIG_PADRAO.fiscal, ...(d.config || {}).fiscal } };
       if (!Array.isArray(d.categorias)) this._migrarCategorias(d);
+      let mudou = false;
+      // bases antigas: o PIN único de atendente vira o primeiro atendente cadastrado
+      if (!Array.isArray(d.atendentes)) {
+        d.atendentes = [{ id: crypto.randomUUID(), nome: 'Atendente', pinHash: hashPin(d.config.pinAtendente || '0000'), ativo: true }];
+        mudou = true;
+      }
+      if ('pinAtendente' in d.config) { delete d.config.pinAtendente; mudou = true; }
+      if (!Array.isArray(d.fechamentos)) { d.fechamentos = []; mudou = true; }
+      if (mudou) { this.dados = d; this._salvar(); }
       return d;
     }
     const d = {
@@ -139,6 +163,8 @@ class Banco {
         id: crypto.randomUUID(), nome, secao, icone, ordem, ativo: true
       })),
       vendas: [],
+      atendentes: [{ id: crypto.randomUUID(), nome: 'Atendente', pinHash: hashPin('0000'), ativo: true }],
+      fechamentos: [],
       proximoNumero: 1
     };
     this.dados = d;
@@ -176,9 +202,126 @@ class Banco {
 
   getConfig() { return this.dados.config; }
   salvarConfig(cfg) {
+    if (cfg.pinAdmin !== undefined) {
+      if (!pinValido(cfg.pinAdmin)) throw new Error('O PIN do admin deve ter de 4 a 8 números.');
+      const dono = this.dados.atendentes.find(a => a.ativo && conferePin(cfg.pinAdmin, a.pinHash));
+      if (dono) throw new Error(`O PIN do admin não pode ser igual ao de ${dono.nome}.`);
+    }
     this.dados.config = { ...this.dados.config, ...cfg };
     this._salvar();
     return this.dados.config;
+  }
+
+  // ---------- atendentes ----------
+  getAtendentes() {
+    return this.dados.atendentes.map(({ pinHash, ...a }) => a);
+  }
+
+  salvarAtendente({ id, nome, pin, ativo }) {
+    nome = String(nome || '').trim();
+    if (!nome) throw new Error('Informe o nome do atendente.');
+    const existente = this.dados.atendentes.find(a => a.id === id);
+    if (!existente && !pin) throw new Error('Defina um PIN para o novo atendente.');
+    if (pin) {
+      if (!pinValido(pin)) throw new Error('O PIN deve ter de 4 a 8 números.');
+      if (pin === this.dados.config.pinAdmin) throw new Error('Esse PIN é o do admin. Escolha outro.');
+      const outro = this.dados.atendentes.find(a => a.id !== id && a.ativo && conferePin(pin, a.pinHash));
+      if (outro) throw new Error('Esse PIN já é de outro atendente. Cada um precisa de um PIN diferente.');
+    }
+    const dup = this.dados.atendentes.find(a => a.id !== id && normalizar(a.nome) === normalizar(nome));
+    if (dup) throw new Error(`Já existe um atendente chamado ${dup.nome}.`);
+    if (existente) {
+      existente.nome = nome;
+      existente.ativo = ativo !== false;
+      if (pin) existente.pinHash = hashPin(pin);
+    } else {
+      this.dados.atendentes.push({ id: crypto.randomUUID(), nome, pinHash: hashPin(pin), ativo: ativo !== false });
+    }
+    this._salvar();
+    return this.getAtendentes();
+  }
+
+  excluirAtendente(id) {
+    this.dados.atendentes = this.dados.atendentes.filter(a => a.id !== id);
+    this._salvar();
+  }
+
+  // quem é o dono deste PIN? admin, um atendente ativo ou ninguém
+  identificarPin(pin) {
+    if (!pin) return null;
+    if (pin === this.dados.config.pinAdmin) return { id: 'admin', nome: 'Administrador', perfil: 'admin' };
+    const a = this.dados.atendentes.find(x => x.ativo && conferePin(pin, x.pinHash));
+    return a ? { id: a.id, nome: a.nome, perfil: 'atendente' } : null;
+  }
+
+  // ---------- fechamento do dia ----------
+  // depois que o dia foi fechado, as vendas novas entram no dia seguinte
+  diaOperacional(agora = new Date()) {
+    const hoje = diaLocal(agora);
+    if (!this.dados.fechamentos.some(f => f.dia === hoje)) return hoje;
+    const amanha = new Date(agora); amanha.setDate(amanha.getDate() + 1);
+    return diaLocal(amanha);
+  }
+
+  resumoDia(dia) {
+    const vendas = this.dados.vendas.filter(v => (v.dia || v.data.slice(0, 10)) === dia);
+    const pagas = vendas.filter(v => v.status === 'paga');
+    const soma = arr => arr.reduce((s, v) => s + v.totalCentavos, 0);
+    const porForma = f => soma(pagas.filter(v => v.formaPagamento === f));
+    return {
+      dia,
+      totalCentavos: soma(pagas),
+      pixCentavos: porForma('pix'), cartaoCentavos: porForma('cartao'), caixaCentavos: porForma('caixa'),
+      vendasPagas: pagas.length,
+      canceladas: vendas.filter(v => v.status === 'cancelada').length,
+      aguardando: vendas.filter(v => v.status === 'aguardando_caixa').length,
+      primeiraVenda: vendas.length ? Math.min(...vendas.map(v => v.numero)) : null,
+      ultimaVenda: vendas.length ? Math.max(...vendas.map(v => v.numero)) : null
+    };
+  }
+
+  fecharDia({ dia, tipo = 'manual', por = '', observacao = '' }) {
+    dia = dia || diaLocal();
+    if (this.dados.fechamentos.some(f => f.dia === dia)) throw new Error(`O caixa de ${dia.split('-').reverse().join('/')} já foi fechado.`);
+    const f = { id: crypto.randomUUID(), ...this.resumoDia(dia), tipo, por, observacao: String(observacao || '').trim(),
+      em: new Date().toISOString() };
+    this.dados.fechamentos.push(f);
+    this._salvar();
+    return f;
+  }
+
+  getFechamentos() {
+    return [...this.dados.fechamentos].sort((a, b) => b.dia.localeCompare(a.dia));
+  }
+
+  // dias que precisam fechar sozinhos: dias passados com venda e sem fechamento,
+  // e hoje, se já passou do horário configurado
+  diasParaFecharSozinho(agora = new Date()) {
+    const hoje = diaLocal(agora);
+    const fechados = new Set(this.dados.fechamentos.map(f => f.dia));
+    const dias = new Set(this.dados.vendas.map(v => v.dia || v.data.slice(0, 10)).filter(d => d < hoje && !fechados.has(d)));
+    const h = this.dados.config.horarioFechamento;
+    if (/^\d{2}:\d{2}$/.test(h || '')) {
+      const [hh, mm] = h.split(':').map(Number);
+      if (agora.getHours() * 60 + agora.getMinutes() >= hh * 60 + mm && !fechados.has(hoje)) dias.add(hoje);
+    }
+    return [...dias].sort();
+  }
+
+  // ---------- backup ----------
+  backupAutomatico(pasta, manter = 30, agora = new Date()) {
+    fs.mkdirSync(pasta, { recursive: true });
+    const destino = path.join(pasta, `backup-pdv-${diaLocal(agora)}.json`);
+    this.dados.ultimoBackup = agora.toISOString();
+    this._salvar();
+    fs.copyFileSync(this.arquivo, destino);
+    const antigos = fs.readdirSync(pasta).filter(n => /^backup-pdv-\d{4}-\d{2}-\d{2}\.json$/.test(n)).sort().reverse().slice(manter);
+    for (const n of antigos) fs.unlinkSync(path.join(pasta, n));
+    return destino;
+  }
+
+  precisaBackupHoje(agora = new Date()) {
+    return !this.dados.ultimoBackup || diaLocal(new Date(this.dados.ultimoBackup)) !== diaLocal(agora);
   }
 
   // ---------- categorias ----------
@@ -269,7 +412,7 @@ class Banco {
     this._salvar();
   }
 
-  registrarVenda({ itens, formaPagamento, status }) {
+  registrarVenda({ itens, formaPagamento, status, por }) {
     if (!Array.isArray(itens) || !itens.length) throw new Error('Carrinho vazio.');
     const linhas = itens.map(({ id, qtd, escolhas }) => {
       const p = this.dados.produtos.find(x => x.id === id);
@@ -286,12 +429,13 @@ class Banco {
     const venda = {
       numero: this.dados.proximoNumero++,
       data: new Date().toISOString(),
-      dia: diaLocal(),             // data no fuso do computador (para relatórios)
+      dia: this.diaOperacional(),  // data no fuso do computador; depois do fechamento vai para o dia seguinte
       itens: linhas,
       totalCentavos: linhas.reduce((s, l) => s + l.totalCentavos, 0),
       formaPagamento,              // 'pix' | 'cartao' | 'caixa'
       status: status || 'paga',    // 'paga' | 'aguardando_caixa' | 'cancelada'
-      fiscal: null
+      fiscal: null,
+      historico: [{ acao: status === 'aguardando_caixa' ? 'pedido' : 'paga', por: por || 'Totem', em: new Date().toISOString() }]
     };
     if (venda.status === 'paga') this._baixarEstoque(venda);
     this.dados.vendas.push(venda);
@@ -306,11 +450,16 @@ class Banco {
     }
   }
 
-  atualizarVenda(numero, mudancas) {
+  atualizarVenda(numero, mudancas, por) {
     const v = this.dados.vendas.find(x => x.numero === numero);
     if (!v) throw new Error('Venda não encontrada.');
     const antes = v.status;
     Object.assign(v, mudancas);
+    if (mudancas.status && mudancas.status !== antes) {
+      v.historico = v.historico || [];
+      v.historico.push({ acao: mudancas.status === 'paga' ? 'paga' : mudancas.status === 'cancelada' ? 'cancelada' : mudancas.status,
+        por: por || 'Painel', em: new Date().toISOString() });
+    }
     if (antes !== 'paga' && v.status === 'paga') this._baixarEstoque(v);
     if (antes === 'paga' && v.status === 'cancelada') {
       for (const l of v.itens) {
@@ -329,7 +478,10 @@ class Banco {
     const hoje = diaLocal(agora);
     const vencidas = this.dados.vendas.filter(v => v.status === 'aguardando_caixa' &&
       (min === -1 ? (v.dia || v.data.slice(0, 10)) < hoje : agora - new Date(v.data) > min * 60000));
-    for (const v of vencidas) { v.status = 'cancelada'; v.canceladaAutomaticamente = true; }
+    for (const v of vencidas) {
+      v.status = 'cancelada'; v.canceladaAutomaticamente = true;
+      (v.historico = v.historico || []).push({ acao: 'cancelada', por: 'Sistema (automático)', em: agora.toISOString() });
+    }
     if (vencidas.length) this._salvar();
     return vencidas.map(v => v.numero);
   }

@@ -44,16 +44,47 @@ function criarJanela() {
 app.whenReady().then(() => {
   banco = new Banco(app.getPath('userData'));
   criarJanela();
-  // pedidos "pagar no balcão" esquecidos são cancelados conforme a configuração
-  const verificarAntigos = () => { try { banco.cancelarAguardandoAntigos(); } catch (e) { console.error(e); } };
-  verificarAntigos();
-  setInterval(verificarAntigos, 60 * 1000);
+  // a cada minuto: cancela pedidos esquecidos, fecha o caixa no horário e garante o backup do dia
+  const rotina = () => {
+    try { banco.cancelarAguardandoAntigos(); } catch (e) { console.error(e); }
+    try {
+      for (const dia of banco.diasParaFecharSozinho()) {
+        const f = banco.fecharDia({ dia, tipo: 'automatico', por: 'Sistema (automático)' });
+        imprimirFechamento(f).catch(() => {});
+        fazerBackup(true);
+      }
+    } catch (e) { console.error(e); }
+    if (banco.precisaBackupHoje()) fazerBackup();
+  };
+  rotina();
+  setInterval(rotina, 60 * 1000);
   // Atalho escondido para abrir o painel admin (pede PIN)
   globalShortcut.register('CommandOrControl+Shift+A', () => janela.webContents.send('abrir-admin'));
 });
 
 app.on('will-quit', () => globalShortcut.unregisterAll());
 app.on('window-all-closed', () => app.quit());
+
+// ---------- backup ----------
+const pastaBackup = () => banco.getConfig().pastaBackup || path.join(app.getPath('userData'), 'backups');
+function fazerBackup(forcar = false) {
+  const cfg = banco.getConfig();
+  if (!cfg.backupAutomatico) return '';
+  if (!forcar && !banco.precisaBackupHoje()) return '';
+  try { return banco.backupAutomatico(pastaBackup()); }
+  catch (e) { console.error('Backup falhou:', e.message); return ''; }
+}
+
+// ---------- quem está no painel ----------
+let sessao = null; // { id, nome, perfil: 'admin' | 'atendente' }
+const soAdmin = fn => (...args) => {
+  if (!sessao || sessao.perfil !== 'admin') throw new Error('Só o administrador pode fazer isso.');
+  return fn(...args);
+};
+const logado = fn => (...args) => {
+  if (!sessao) throw new Error('Entre no painel com seu PIN.');
+  return fn(...args);
+};
 
 // ---------- helpers ----------
 function tratar(canal, fn) {
@@ -112,6 +143,29 @@ async function imprimirPreparo(venda) {
   return imprimirHtml(htmlPreparo(venda), cfg);
 }
 
+function htmlFechamento(f, cfg) {
+  const esc = s => String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+  const linha = (t, v) => `<tr><td>${t}</td><td class="d">${v}</td></tr>`;
+  return `<!doctype html><html><head><meta charset="utf-8"><style>
+    @page { margin: 0; } body { font-family: monospace; font-size: 12px; width: 72mm; margin: 2mm; }
+    .c { text-align: center; } .d { text-align: right; } table { width: 100%; border-collapse: collapse; }
+    hr { border: 0; border-top: 1px dashed #000; } .t td { font-weight: bold; font-size: 14px; }
+  </style></head><body>
+    <div class="c"><b>${esc(cfg.nomeLoja)}</b><br>FECHAMENTO DE CAIXA<br>${f.dia.split('-').reverse().join('/')}</div><hr>
+    <table>${linha('PIX', reais(f.pixCentavos))}${linha('Cartão', reais(f.cartaoCentavos))}${linha('Pago no balcão', reais(f.caixaCentavos))}</table><hr>
+    <table class="t">${linha('TOTAL', reais(f.totalCentavos))}</table><hr>
+    <table>${linha('Vendas pagas', f.vendasPagas)}${linha('Canceladas', f.canceladas)}${linha('Aguardando pagamento', f.aguardando)}
+    ${f.primeiraVenda ? linha('Vendas nº', `${f.primeiraVenda} a ${f.ultimaVenda}`) : ''}</table><hr>
+    <div>Fechado por: ${esc(f.por)}<br>${new Date(f.em).toLocaleString('pt-BR')}${f.observacao ? '<br>Obs.: ' + esc(f.observacao) : ''}</div>
+  </body></html>`;
+}
+
+async function imprimirFechamento(f) {
+  const cfg = banco.getConfig();
+  if (!cfg.imprimirCupom) return 'impressão desativada';
+  return imprimirHtml(htmlFechamento(f, cfg), cfg);
+}
+
 async function imprimirCupom(venda) {
   const cfg = banco.getConfig();
   if (!cfg.imprimirCupom) return 'impressão desativada';
@@ -131,25 +185,33 @@ async function imprimirHtml(html, cfg) {
 
 // ---------- IPC ----------
 tratar('config:get', () => {
-  const { pinAdmin, pinAtendente, ...publica } = banco.getConfig();
+  const { pinAdmin, ...publica } = banco.getConfig();
   return publica; // a tela do cliente nunca recebe os PINs
 });
-tratar('config:getAdmin', () => banco.getConfig());
-tratar('config:salvar', cfg => banco.salvarConfig(cfg));
+tratar('config:getAdmin', soAdmin(() => ({ ...banco.getConfig(), pastaBackupEfetiva: pastaBackup(), ultimoBackup: banco.dados.ultimoBackup || '' })));
+tratar('config:salvar', soAdmin(cfg => banco.salvarConfig(cfg)));
 
-tratar('admin:verificarPin', pin => pin === banco.getConfig().pinAdmin);
-tratar('atendente:verificarPin', pin => {
-  const c = banco.getConfig();
-  return pin === c.pinAtendente || pin === c.pinAdmin;
+// entrar no painel: o PIN diz quem é (admin vê tudo; atendente só Vendas e fechamento)
+tratar('painel:entrar', pin => {
+  const quem = banco.identificarPin(pin);
+  if (!quem) throw new Error('PIN incorreto');
+  sessao = quem;
+  return quem;
 });
+tratar('painel:sair', () => { sessao = null; });
+tratar('atendente:verificarPin', pin => !!banco.identificarPin(pin));
+
+tratar('atendentes:listar', soAdmin(() => banco.getAtendentes()));
+tratar('atendentes:salvar', soAdmin(a => banco.salvarAtendente(a)));
+tratar('atendentes:excluir', soAdmin(id => banco.excluirAtendente(id)));
 
 tratar('categorias:listar', () => banco.getCategorias());
-tratar('categorias:salvar', c => banco.salvarCategoria(c));
-tratar('categorias:excluir', id => banco.excluirCategoria(id));
-tratar('categorias:mover', (id, direcao) => banco.moverCategoria(id, direcao));
+tratar('categorias:salvar', soAdmin(c => banco.salvarCategoria(c)));
+tratar('categorias:excluir', soAdmin(id => banco.excluirCategoria(id)));
+tratar('categorias:mover', soAdmin((id, direcao) => banco.moverCategoria(id, direcao)));
 tratar('produtos:listar', () => banco.getProdutos());
-tratar('produtos:salvar', p => banco.salvarProduto(p));
-tratar('produtos:excluir', id => banco.excluirProduto(id));
+tratar('produtos:salvar', soAdmin(p => banco.salvarProduto(p)));
+tratar('produtos:excluir', soAdmin(id => banco.excluirProduto(id)));
 
 tratar('produtos:escolherImagem', async () => {
   const r = await dialog.showOpenDialog(janela, {
@@ -169,8 +231,15 @@ tratar('pix:gerar', async (valorCentavos, txid) => {
   return { payload, qr };
 });
 
-tratar('venda:registrar', async dadosVenda => {
-  const venda = banco.registrarVenda(dadosVenda);
+tratar('venda:registrar', async ({ pin, ...dadosVenda }) => {
+  // PIX/cartão confirmados no totem: o PIN de quem confirmou fica registrado na venda
+  let por = 'Totem';
+  if (pin) {
+    const quem = banco.identificarPin(pin);
+    if (!quem) throw new Error('PIN incorreto');
+    por = quem.nome;
+  }
+  const venda = banco.registrarVenda({ ...dadosVenda, por });
   const avisos = [];
   if (venda.status === 'paga') {
     try { venda.fiscal = await fiscal.emitir(venda, banco.getConfig()); banco.atualizarVenda(venda.numero, { fiscal: venda.fiscal }); }
@@ -181,8 +250,11 @@ tratar('venda:registrar', async dadosVenda => {
   return { venda, avisos };
 });
 
-tratar('venda:atualizar', async (numero, mudancas) => {
-  const v = banco.atualizarVenda(numero, mudancas);
+tratar('venda:atualizar', logado(async (numero, mudancas) => {
+  const atual = banco.listarVendas().find(x => x.numero === numero);
+  if (mudancas.status === 'cancelada' && atual?.status === 'paga' && sessao.perfil !== 'admin' && !banco.getConfig().atendentePodeCancelar)
+    throw new Error('Só o administrador pode cancelar uma venda já paga.');
+  const v = banco.atualizarVenda(numero, { status: mudancas.status }, sessao.nome);
   const avisos = [];
   if (mudancas.status === 'paga') {
     try { await imprimirPreparo(v); } catch (e) { avisos.push('Preparo: ' + e.message); }
@@ -190,9 +262,38 @@ tratar('venda:atualizar', async (numero, mudancas) => {
     catch (e) { avisos.push('Fiscal: ' + e.message); }
   }
   return { venda: v, avisos };
-});
+}));
 
-tratar('vendas:listar', filtro => banco.listarVendas(filtro));
+// ---------- fechamento do dia ----------
+// o fechamento manual é sempre do dia de hoje; se já foi fechado, as vendas de agora ficam para amanhã
+function diaParaFechar() {
+  const hoje = banco.diaOperacional();
+  const d = new Date(), p = n => String(n).padStart(2, '0');
+  if (hoje !== `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`)
+    throw new Error('O caixa de hoje já foi fechado. As vendas de agora entram no fechamento de amanhã.');
+  return hoje;
+}
+tratar('fechamento:resumo', logado(() => banco.resumoDia(diaParaFechar())));
+tratar('fechamento:fechar', logado(async observacao => {
+  const f = banco.fecharDia({ dia: diaParaFechar(), tipo: 'manual', por: sessao.nome, observacao });
+  const avisos = [];
+  try { await imprimirFechamento(f); } catch (e) { avisos.push(e.message); }
+  const backup = fazerBackup(true);
+  return { fechamento: f, backup, avisos };
+}));
+tratar('fechamentos:listar', logado(() => banco.getFechamentos()));
+tratar('fechamento:imprimir', logado(id => {
+  const f = banco.getFechamentos().find(x => x.id === id);
+  if (!f) throw new Error('Fechamento não encontrado.');
+  return imprimirFechamento(f);
+}));
+tratar('backup:agora', soAdmin(() => {
+  const arq = fazerBackup(true);
+  if (!arq) throw new Error('Ative o backup automático nas Configurações.');
+  return arq;
+}));
+
+tratar('vendas:listar', logado(filtro => banco.listarVendas(filtro)));
 tratar('vendas:reimprimir', numero => {
   const v = banco.listarVendas().find(x => x.numero === numero);
   if (!v) throw new Error('Venda não encontrada.');
@@ -206,30 +307,30 @@ async function escolherOndeSalvar(nome) {
     filters: [{ name: 'Planilha do Excel', extensions: ['xlsx'] }] });
   return r.canceled ? '' : r.filePath;
 }
-tratar('produtos:exportar', async () => {
+tratar('produtos:exportar', soAdmin(async () => {
   const arq = await escolherOndeSalvar(`produtos-lisufit-${hojeArquivo()}.xlsx`);
   return arq ? planilha.exportarProdutos(arq, banco.getProdutos(), banco.getCategorias()) : '';
-});
+}));
 let planilhaLida = null; // guarda a leitura entre a prévia e a confirmação
-tratar('produtos:lerPlanilha', async () => {
+tratar('produtos:lerPlanilha', soAdmin(async () => {
   const r = await dialog.showOpenDialog(janela, { properties: ['openFile'],
     filters: [{ name: 'Planilha', extensions: ['xlsx', 'csv'] }] });
   if (r.canceled || !r.filePaths[0]) return null;
   const linhas = await planilha.lerPlanilhaProdutos(r.filePaths[0]);
   planilhaLida = linhas;
   return { arquivo: path.basename(r.filePaths[0]), ...banco.importarProdutos(linhas, false) };
-});
-tratar('produtos:importar', () => {
+}));
+tratar('produtos:importar', soAdmin(() => {
   if (!planilhaLida) throw new Error('Escolha a planilha de novo.');
   const res = banco.importarProdutos(planilhaLida, true);
   planilhaLida = null;
   return res;
-});
-tratar('vendas:exportar', async filtro => {
+}));
+tratar('vendas:exportar', logado(async filtro => {
   const nome = filtro && filtro.de ? `vendas-lisufit-${filtro.de}${filtro.ate && filtro.ate !== filtro.de ? '-a-' + filtro.ate : ''}.xlsx` : `vendas-lisufit-${hojeArquivo()}.xlsx`;
   const arq = await escolherOndeSalvar(nome);
   return arq ? planilha.exportarVendas(arq, banco.listarVendas(filtro)) : '';
-});
+}));
 
 tratar('impressoras:listar', async () =>
   (await janela.webContents.getPrintersAsync()).map(p => ({ nome: p.name, padrao: p.isDefault })));
@@ -238,9 +339,9 @@ tratar('sistema:escolherPasta', async () => {
   const r = await dialog.showOpenDialog(janela, { properties: ['openDirectory', 'createDirectory'] });
   return r.canceled ? '' : r.filePaths[0];
 });
-tratar('sistema:backup', async () => {
+tratar('sistema:backup', soAdmin(async () => {
   const r = await dialog.showOpenDialog(janela, { properties: ['openDirectory', 'createDirectory'] });
   if (r.canceled) return '';
   return banco.backup(r.filePaths[0]);
-});
-tratar('sistema:sair', () => app.quit());
+}));
+tratar('sistema:sair', soAdmin(() => app.quit()));
