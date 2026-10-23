@@ -187,6 +187,7 @@
           <option value="zerado">Esgotados</option>
         </select>
         <span class="espaco"></span>
+        <button class="btn" id="btn-importar-fotos">Importar fotos</button>
         <button class="btn" id="btn-importar-produtos">Importar planilha</button>
         <button class="btn" id="btn-exportar-produtos">Exportar planilha</button>
         <button class="btn btn-primario" id="btn-novo-produto">+ Novo produto</button>
@@ -386,6 +387,21 @@
       <button type="submit" class="btn btn-primario">Salvar</button>
     </div>
   </form>
+</div>
+
+<div id="modal-fotos" class="modal">
+  <div class="modal-caixa importar-caixa" role="dialog" aria-labelledby="fotos-titulo">
+    <h2 id="fotos-titulo">Importar fotos</h2>
+    <p class="ajuda">A foto vai para o produto cujo <b>código de barras</b> (ou <b>nome</b>) é o nome do arquivo. Ex.: <code>7891234567890.jpg</code> ou <code>Smoothie Proteico 400ml.jpg</code>. Cada foto é reduzida e convertida para ficar leve.</p>
+    <div class="cards-resumo" id="fotos-resumo"></div>
+    <label class="check-label" id="fotos-substituir-linha"><input type="checkbox" id="fotos-substituir" checked> <span id="fotos-substituir-texto"></span></label>
+    <div id="fotos-detalhes"></div>
+    <div class="fotos-progresso" id="fotos-progresso" hidden><div class="prog-trilho"><div id="fotos-barra"></div></div><p class="ajuda" id="fotos-progresso-texto"></p></div>
+    <div class="acoes">
+      <button type="button" class="btn btn-fantasma" id="btn-fotos-cancelar">Cancelar</button>
+      <button type="button" class="btn btn-primario" id="btn-fotos-confirmar">Importar</button>
+    </div>
+  </div>
 </div>
 
 <div id="modal-importar" class="modal">

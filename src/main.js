@@ -1,6 +1,7 @@
 const { app, BrowserWindow, ipcMain, dialog, globalShortcut, screen } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 const QRCode = require('qrcode');
 const { Banco } = require('./db');
 const { gerarPix } = require('./pix');
@@ -258,16 +259,37 @@ tratar('produtos:listar', () => banco.getProdutos());
 tratar('produtos:salvar', soAdmin(p => banco.salvarProduto(p)));
 tratar('produtos:excluir', soAdmin(id => banco.excluirProduto(id)));
 
-tratar('produtos:escolherImagem', async () => {
+// ---------- fotos dos produtos ----------
+// A tela escolhe os arquivos, lê um por vez, reduz e converte para WebP (no próprio Chromium)
+// e devolve a versão leve para gravar. Só dá para ler arquivos que foram escolhidos no diálogo.
+const EXTENSOES_FOTO = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'avif', 'heic', 'heif', 'jfif'];
+const fotosLiberadas = new Set();
+tratar('imagens:escolher', soAdmin(async varias => {
   const r = await dialog.showOpenDialog(janela, {
-    filters: [{ name: 'Imagens', extensions: ['png', 'jpg', 'jpeg', 'webp'] }], properties: ['openFile']
+    title: varias ? 'Escolha as fotos dos produtos' : 'Escolha a foto do produto',
+    filters: [{ name: 'Fotos', extensions: EXTENSOES_FOTO }],
+    properties: varias ? ['openFile', 'multiSelections'] : ['openFile']
   });
-  if (r.canceled || !r.filePaths[0]) return '';
-  const origem = r.filePaths[0];
-  const destino = path.join(banco.pastaImagens, Date.now() + path.extname(origem).toLowerCase());
-  fs.copyFileSync(origem, destino);
+  if (r.canceled) return [];
+  fotosLiberadas.clear();
+  return r.filePaths.map(caminho => {
+    fotosLiberadas.add(caminho);
+    return { caminho, nome: path.basename(caminho), bytes: fs.statSync(caminho).size };
+  });
+}));
+tratar('imagens:ler', soAdmin(caminho => {
+  if (!fotosLiberadas.has(caminho)) throw new Error('Escolha a foto de novo.');
+  return fs.readFileSync(caminho);
+}));
+tratar('imagens:salvar', soAdmin(dados => {
+  const buf = Buffer.from(dados);
+  if (!buf.length || buf.length > 5 * 1024 * 1024) throw new Error('Foto inválida.');
+  if (buf.toString('ascii', 0, 4) !== 'RIFF' || buf.toString('ascii', 8, 12) !== 'WEBP') throw new Error('A foto precisa estar em WebP.');
+  const destino = path.join(banco.pastaImagens, `${Date.now()}-${crypto.randomBytes(3).toString('hex')}.webp`);
+  fs.writeFileSync(destino, buf);
   return destino;
-});
+}));
+tratar('produtos:definirImagem', soAdmin((id, caminho) => banco.definirImagem(id, caminho)));
 
 tratar('pix:gerar', async (valorCentavos, txid) => {
   const c = banco.getConfig();

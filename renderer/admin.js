@@ -137,9 +137,83 @@ $('#form-produto').onsubmit = async e => {
 // Enter do leitor no campo de código não deve enviar o formulário
 $('#form-produto').codigoBarras.addEventListener('keydown', e => { if (e.key === 'Enter') e.preventDefault(); });
 
+// foto do produto: qualquer formato, reduzida e convertida para WebP leve
 $('#btn-imagem').onclick = async () => {
-  const caminho = await pdv.escolherImagem();
-  if (caminho) { produtoEditando.imagem = caminho; atualizarPreview(); }
+  try {
+    const [arq] = await pdv.escolherImagens(false);
+    if (!arq) return;
+    const { dados } = await otimizarImagem(await pdv.lerImagem(arq.caminho));
+    produtoEditando.imagem = await pdv.salvarImagem(dados);
+    atualizarPreview();
+    toast(`Foto otimizada: ${tamanhoArquivo(arq.bytes)} → ${tamanhoArquivo(dados.length)}`, 'ok');
+  } catch (err) { toast(err.message, 'erro'); }
+};
+
+// ---------- importar várias fotos ----------
+// nome do arquivo = código de barras (ou nome do produto) -> foto vai direto para ele
+let fotosPlano = null;
+function produtoDaFoto(nomeArquivo) {
+  const base = nomeArquivo.replace(/\.[^.]+$/, '').trim();
+  const codigo = (base.match(/\d{6,14}/) || [])[0];
+  const porCodigo = codigo && estado.produtos.find(p => p.codigoBarras && p.codigoBarras === codigo);
+  if (porCodigo) return porCodigo;
+  const norm = t => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s*\(\d+\)$/, '').replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
+  return estado.produtos.find(p => norm(p.nome) === norm(base));
+}
+$('#btn-importar-fotos').onclick = async () => {
+  try {
+    const arquivos = await pdv.escolherImagens(true);
+    if (!arquivos.length) return;
+    estado.produtos = await pdv.produtos();
+    const porProduto = new Map(), semProduto = [];
+    for (const a of arquivos) {
+      const p = produtoDaFoto(a.nome);
+      if (p) porProduto.set(p.id, { arquivo: a, produto: p }); // duas fotos para o mesmo produto: fica a última
+      else semProduto.push(a.nome);
+    }
+    const repetidas = arquivos.length - semProduto.length - porProduto.size;
+    const jaTem = [...porProduto.values()].filter(x => x.produto.imagem).length;
+    fotosPlano = [...porProduto.values()];
+    $('#fotos-resumo').innerHTML = [['Fotos escolhidas', arquivos.length], ['Com produto', porProduto.size], ['Sem produto', semProduto.length]]
+      .map(([t, v]) => `<div class="card-resumo"><small>${t}</small><strong>${v}</strong></div>`).join('');
+    $('#fotos-substituir-linha').hidden = !jaTem;
+    $('#fotos-substituir-texto').textContent = `Substituir a foto de ${jaTem} produto(s) que já têm foto`;
+    $('#fotos-detalhes').innerHTML =
+      (repetidas ? `<p class="ajuda">${repetidas} foto(s) eram do mesmo produto de outra; ficou a última.</p>` : '') +
+      (semProduto.length ? `<p><b>Sem produto com esse código ou nome (ficam de fora):</b></p><ul class="lista-erros">${semProduto.map(n => `<li>${esc(n)}</li>`).join('')}</ul>` : '');
+    $('#fotos-progresso').hidden = true;
+    $('#btn-fotos-confirmar').disabled = !fotosPlano.length;
+    $('#btn-fotos-confirmar').textContent = fotosPlano.length ? `Importar ${fotosPlano.length} foto(s)` : 'Nada para importar';
+    $('#btn-fotos-cancelar').disabled = false;
+    $('#btn-fotos-cancelar').textContent = 'Cancelar';
+    $('#modal-fotos').classList.add('aberto');
+  } catch (err) { toast(err.message, 'erro'); }
+};
+$('#btn-fotos-cancelar').onclick = () => $('#modal-fotos').classList.remove('aberto');
+$('#btn-fotos-confirmar').onclick = async () => {
+  const substituir = $('#fotos-substituir').checked;
+  const fila = fotosPlano.filter(x => substituir || !x.produto.imagem);
+  $('#btn-fotos-confirmar').disabled = $('#btn-fotos-cancelar').disabled = true;
+  $('#fotos-progresso').hidden = false;
+  let ok = 0, antes = 0, depois = 0;
+  const erros = [];
+  for (const [i, { arquivo, produto }] of fila.entries()) {
+    $('#fotos-progresso-texto').textContent = `Otimizando ${i + 1} de ${fila.length}: ${arquivo.nome}`;
+    $('#fotos-barra').style.width = `${(i / fila.length) * 100}%`;
+    try {
+      const { dados } = await otimizarImagem(await pdv.lerImagem(arquivo.caminho));
+      await pdv.definirImagemProduto(produto.id, await pdv.salvarImagem(dados));
+      ok++; antes += arquivo.bytes; depois += dados.length;
+    } catch (err) { erros.push(`${arquivo.nome}: ${err.message}`); }
+  }
+  $('#fotos-barra').style.width = '100%';
+  $('#fotos-progresso-texto').textContent = `${ok} foto(s) aplicada(s). Tamanho total: ${tamanhoArquivo(antes)} → ${tamanhoArquivo(depois)}.`;
+  if (erros.length) $('#fotos-detalhes').innerHTML = `<p><b>Não deu para usar:</b></p><ul class="lista-erros">${erros.map(e => `<li>${esc(e)}</li>`).join('')}</ul>`;
+  $('#btn-fotos-cancelar').disabled = false;
+  $('#btn-fotos-cancelar').textContent = 'Fechar';
+  toast(`${ok} foto(s) importada(s)`, erros.length ? 'erro' : 'ok');
+  await renderTabelaProdutos();
+  await carregarDados();
 };
 $('#btn-remover-imagem').onclick = () => { produtoEditando.imagem = ''; atualizarPreview(); };
 $('#btn-cancelar-produto').onclick = fecharProduto;

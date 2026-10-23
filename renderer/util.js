@@ -95,3 +95,22 @@ function ouvirLeitor(aoLer) {
     }
   });
 }
+
+// Reduz e converte qualquer foto (JPEG, PNG, WebP, GIF, BMP, AVIF...) para WebP leve.
+// Usa o próprio Chromium do Electron: nada para instalar. Respeita a rotação das fotos de celular.
+const FOTO_LADO_MAX = 800;
+async function otimizarImagem(bytes) {
+  let bmp;
+  try { bmp = await createImageBitmap(new Blob([bytes]), { imageOrientation: 'from-image' }); }
+  catch { throw new Error('Formato de foto não suportado (fotos HEIC do iPhone: mande pelo WhatsApp, que ele converte).'); }
+  const escala = Math.min(1, FOTO_LADO_MAX / Math.max(bmp.width, bmp.height));
+  const w = Math.max(1, Math.round(bmp.width * escala)), h = Math.max(1, Math.round(bmp.height * escala));
+  const canvas = new OffscreenCanvas(w, h);
+  const ctx = canvas.getContext('2d');
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(bmp, 0, 0, w, h);
+  bmp.close();
+  const blob = await canvas.convertToBlob({ type: 'image/webp', quality: 0.82 });
+  return { dados: new Uint8Array(await blob.arrayBuffer()), largura: w, altura: h };
+}
+const tamanhoArquivo = b => b >= 1048576 ? (b / 1048576).toFixed(1).replace('.', ',') + ' MB' : Math.max(1, Math.round(b / 1024)) + ' KB';

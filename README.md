@@ -85,6 +85,13 @@ Painel admin → Produtos → Editar → **Variações (opcional)**:
 - O **Simulador** aprova ou recusa sozinho e serve para testar e demonstrar para os donos. Enquanto estiver ligado, aparece o selo "Modo teste".
 - Para integrar Mercado Pago, Stone, PagBank, Cielo etc.: **um arquivo novo** em `src/pagamentos/provedores/`. Veja `docs/INTEGRAR-GATEWAY.md`.
 
+## Fotos dos produtos
+- Qualquer foto que você escolher (JPEG, PNG, WebP, GIF, foto grande de celular) é **reduzida e convertida sozinha** para WebP leve, com no máximo 800 px de lado. A rotação das fotos de celular é respeitada e PNG transparente continua transparente.
+- **Produtos › Importar fotos:** escolha várias fotos de uma vez (por exemplo, do pendrive). O **nome do arquivo** diz de qual produto é a foto: o código de barras (`7891234567890.jpg`, aceita "(1)" no nome) ou o nome do produto (`Smoothie Proteico 400ml.jpg`, útil para itens sem código).
+- Antes de aplicar, uma prévia mostra quantas fotos têm produto, quais ficam de fora e se alguma vai substituir uma foto que já existe.
+- Fotos HEIC do iPhone não abrem. Mandadas pelo WhatsApp, elas já chegam convertidas em JPEG.
+- Sugestão: a loja manda as fotos pelo WhatsApp normal, você salva no seu computador e leva para o totem num pendrive. Não precisa abrir o WhatsApp Web no totem.
+
 ## Planilhas (Excel)
 - **Produtos › Exportar planilha** gera um `.xlsx` com todos os produtos. Ele serve de modelo: a loja edita no Excel (preço, estoque, produtos novos) e usa **Importar planilha**.
 - Antes de gravar, a importação mostra uma prévia com o que é novo, o que vai ser atualizado e quais linhas têm erro, informando o número da linha.

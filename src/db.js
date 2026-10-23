@@ -422,6 +422,15 @@ class Banco {
     return limpo;
   }
 
+  definirImagem(id, caminho) {
+    const p = this.dados.produtos.find(x => x.id === id);
+    if (!p) throw new Error('Produto não encontrado.');
+    if (caminho && path.dirname(caminho) !== this.pastaImagens) throw new Error('Foto fora da pasta do sistema.');
+    p.imagem = caminho || '';
+    this._salvar();
+    return p;
+  }
+
   excluirProduto(id) {
     this.dados.produtos = this.dados.produtos.filter(p => p.id !== id);
     this._salvar();

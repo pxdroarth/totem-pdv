@@ -657,3 +657,8 @@ body.kds { background: var(--superficie); display: flex; flex-direction: column;
 .gateway-grupo { display: flex; flex-direction: column; gap: .6rem; padding: .9rem; border-radius: var(--raio-p); background: var(--superficie); }
 .gateway-grupo input, .gateway-grupo select { min-height: 3rem; background: var(--fundo); border: 1px solid var(--linha); border-radius: var(--raio-p); padding: 0 .9rem; font: inherit; width: 100%; }
 #btn-testar-gateway[hidden] { display: none; }
+/* ---------- importar fotos ---------- */
+.fotos-progresso { display: flex; flex-direction: column; gap: .4rem; }
+.fotos-progresso .prog-trilho { height: .6rem; border-radius: 99px; background: var(--superficie-2); overflow: hidden; }
+.fotos-progresso .prog-trilho div { height: 100%; width: 0; background: var(--marca); transition: width .2s; }
+.importar-caixa code { background: var(--superficie); padding: .05rem .35rem; border-radius: 6px; font-size: .9em; }
