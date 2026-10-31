@@ -85,6 +85,17 @@ Painel admin → Produtos → Editar → **Variações (opcional)**:
 - O **Simulador** aprova ou recusa sozinho e serve para testar e demonstrar para os donos. Enquanto estiver ligado, aparece o selo "Modo teste".
 - Para integrar Mercado Pago, Stone, PagBank, Cielo etc.: **um arquivo novo** em `src/pagamentos/provedores/`. Veja `docs/INTEGRAR-GATEWAY.md`.
 
+## Produto com vários sabores (código de barras por sabor)
+- Ex.: Whey Isolado Pro Fit em Chocolate, Baunilha e Cookies, cada um com a própria embalagem. No totem aparece **um card só**, e o cliente escolhe o sabor.
+- No cadastro (Variações), cada opção do grupo "Sabor" pode ter o **código de barras** da embalagem. Passar a embalagem no leitor já adiciona aquele sabor, sem abrir a tela de escolha.
+- Na planilha: **uma linha por sabor**, com o mesmo nome e a coluna **Sabor**. Na importação elas viram um produto só. Se um sabor custar mais, o preço da linha vira o adicional. A exportação faz o caminho de volta.
+- O sistema não deixa o mesmo código de barras em dois produtos ou sabores.
+
+## Ajustes da loja
+- **Formas de pagamento no totem** (Configurações › Gateway de pagamento): escolha entre PIX, Cartão e Pagar no caixa. A forma desligada some do totem e o sistema recusa.
+- **Controlar estoque** (Configurações › Pedidos e estoque): desligado, nenhum produto fica esgotado e as vendas não baixam estoque.
+- Configuração da Lisufit: `docs/INSTALACAO-LISUFIT.md`.
+
 ## Fotos dos produtos
 - Qualquer foto que você escolher (JPEG, PNG, WebP, GIF, foto grande de celular) é **reduzida e convertida sozinha** para WebP leve, com no máximo 800 px de lado. A rotação das fotos de celular é respeitada e PNG transparente continua transparente.
 - **Produtos › Importar fotos:** escolha várias fotos de uma vez (por exemplo, do pendrive). O **nome do arquivo** diz de qual produto é a foto: o código de barras (`7891234567890.jpg`, aceita "(1)" no nome) ou o nome do produto (`Smoothie Proteico 400ml.jpg`, útil para itens sem código).

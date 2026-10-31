@@ -249,6 +249,11 @@
         </fieldset>
         <fieldset><legend>Gateway de pagamento</legend>
           <p class="ajuda">Quem confirma o PIX e o cartão. <b>Manual</b> é o modo sem integração: QR fixo e maquininha avulsa, com o atendente confirmando por PIN. Com um gateway, o totem confirma sozinho.</p>
+          <div class="formas-totem"><span>Formas de pagamento no totem</span>
+            <label class="check-label"><input type="checkbox" name="formaPix"> PIX</label>
+            <label class="check-label"><input type="checkbox" name="formaCartao"> Cartão</label>
+            <label class="check-label"><input type="checkbox" name="formaCaixa"> Pagar no caixa</label>
+          </div>
           <label>PIX<select name="provedorPix" id="sel-provedor-pix"></select></label>
           <label>Cartão (maquininha)<select name="provedorCartao" id="sel-provedor-cartao"></select></label>
           <div class="campos-gateway" id="campos-gateway"></div>
@@ -288,6 +293,7 @@
           <button type="button" class="btn" id="btn-backup-agora">Fazer backup agora</button>
         </fieldset>
         <fieldset><legend>Pedidos e estoque</legend>
+          <label class="check-label"><input type="checkbox" name="controlarEstoqueGeral"> Controlar estoque (desligado: nada fica esgotado e as vendas não baixam estoque)</label>
           <label>Quando um produto acaba
             <select name="quandoEsgotar">
               <option value="esgotado">Aparece como esgotado no totem</option>

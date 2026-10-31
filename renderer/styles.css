@@ -662,3 +662,7 @@ body.kds { background: var(--superficie); display: flex; flex-direction: column;
 .fotos-progresso .prog-trilho { height: .6rem; border-radius: 99px; background: var(--superficie-2); overflow: hidden; }
 .fotos-progresso .prog-trilho div { height: 100%; width: 0; background: var(--marca); transition: width .2s; }
 .importar-caixa code { background: var(--superficie); padding: .05rem .35rem; border-radius: 6px; font-size: .9em; }
+/* código de barras do sabor no editor de variações */
+.item-edit .i-codigo { flex: 0 0 10rem; }
+.formas-totem { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem 1.1rem; }
+.formas-totem > span { width: 100%; font-size: .9rem; color: var(--texto-2); }

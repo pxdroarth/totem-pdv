@@ -49,7 +49,8 @@ async function renderTabelaProdutos() {
   const lista = estado.produtos
     .filter(p => !filtro.value || p.categoria === filtro.value)
     .filter(p => !fEstoque || (fEstoque === 'baixo' ? estoqueBaixo(p) : p.controlarEstoque !== false && p.estoque <= 0))
-    .filter(p => !termo || p.nome.toLowerCase().includes(termo) || p.codigoBarras.includes(termo))
+    .filter(p => !termo || p.nome.toLowerCase().includes(termo) || p.codigoBarras.includes(termo) ||
+      (p.opcoes || []).some(g => g.itens.some(i => (i.codigoBarras || '').includes(termo))))
     .sort((a, b) => a.nome.localeCompare(b.nome));
   $('#tabela-produtos').innerHTML = lista.map(p => `
     <tr class="${p.ativo ? '' : 'inativo'}">
@@ -64,7 +65,7 @@ async function renderTabelaProdutos() {
 }
 
 // abaixo (ou igual) do mínimo cadastrado no produto; feito na hora nunca entra
-const estoqueBaixo = p => p.controlarEstoque !== false && p.estoque <= (p.estoqueMinimo ?? 3);
+const estoqueBaixo = p => estado.config.controlarEstoque !== false && p.controlarEstoque !== false && p.estoque <= (p.estoqueMinimo ?? 3);
 
 // <option>s agrupados por seção
 function opcoesCategorias() {
@@ -241,6 +242,7 @@ function renderEditorOpcoes() {
         <div class="item-edit">
           <input class="i-nome" value="${esc(i.nome || '')}" placeholder="Opção (ex.: Morango)">
           <input class="i-preco" value="${centavosParaTexto(i.precoCentavos)}" placeholder="+ R$ 0,00" inputmode="decimal">
+          <input class="i-codigo" value="${esc(i.codigoBarras || '')}" placeholder="Código (opcional)" inputmode="numeric" title="Código de barras deste sabor, se ele tiver embalagem própria">
           <button type="button" class="btn-mini" data-rem-i="${gi}:${ii}" aria-label="Remover opção">${icone('fechar', 16)}</button>
         </div>`).join('')}
       <button type="button" class="btn btn-pequeno" data-add-i="${gi}">+ Opção</button>
@@ -256,7 +258,8 @@ function lerEditorOpcoes() {
       min: Number(el.querySelector('.g-min').value) || 0, max: Number(el.querySelector('.g-max').value) || 1,
       itens: [...el.querySelectorAll('.item-edit')].map((it, ii) => ({
         id: (antigo.itens || [])[ii]?.id, nome: it.querySelector('.i-nome').value.trim(),
-        precoCentavos: paraCentavos(it.querySelector('.i-preco').value || '0')
+        precoCentavos: paraCentavos(it.querySelector('.i-preco').value || '0'),
+        codigoBarras: it.querySelector('.i-codigo').value.trim()
       }))
     };
   });
@@ -562,6 +565,9 @@ async function carregarConfig() {
     'pinAdmin', 'tempoInatividadeSeg', 'horarioFechamento', 'pastaBackup'].forEach(k => (f[k].value = c[k] ?? ''));
   f.backupAutomatico.checked = c.backupAutomatico !== false;
   f.atendentePodeCancelar.checked = !!c.atendentePodeCancelar;
+  f.controlarEstoqueGeral.checked = c.controlarEstoque !== false;
+  const formas = c.formasTotem || { pix: true, cartao: true, caixa: true };
+  f.formaPix.checked = formas.pix !== false; f.formaCartao.checked = formas.cartao !== false; f.formaCaixa.checked = formas.caixa !== false;
   $('#info-backup').textContent = (c.ultimoBackup ? `Último backup: ${new Date(c.ultimoBackup).toLocaleString('pt-BR')}. ` : 'Nenhum backup feito ainda. ') +
     `Pasta: ${c.pastaBackupEfetiva}`;
   await renderAtendentes();
@@ -589,6 +595,7 @@ $('#form-config').onsubmit = async e => {
   e.preventDefault();
   const f = e.target;
   if (!/^\d{4,8}$/.test(f.pinAdmin.value)) return toast('O PIN do admin deve ter de 4 a 8 números.', 'erro');
+  if (!f.formaPix.checked && !f.formaCartao.checked && !f.formaCaixa.checked) return toast('Deixe pelo menos uma forma de pagamento no totem.', 'erro');
   if (f.fiscalModo.value === 'pasta' && !f.fiscalPasta.value)
     return toast('Escolha a pasta de integração fiscal.', 'erro');
   try {
@@ -597,6 +604,8 @@ $('#form-config').onsubmit = async e => {
       pixChave: f.pixChave.value.trim(), pixNome: f.pixNome.value, pixCidade: f.pixCidade.value,
       pinAdmin: f.pinAdmin.value,
       pagamentos: lerGateways(),
+      controlarEstoque: f.controlarEstoqueGeral.checked,
+      formasTotem: { pix: f.formaPix.checked, cartao: f.formaCartao.checked, caixa: f.formaCaixa.checked },
       horarioFechamento: f.horarioFechamento.value, atendentePodeCancelar: f.atendentePodeCancelar.checked, backupAutomatico: f.backupAutomatico.checked, pastaBackup: f.pastaBackup.value,
       confirmarPagamentoComPin: f.confirmarPagamentoComPin.checked,
       tempoInatividadeSeg: Math.max(30, Number(f.tempoInatividadeSeg.value) || 90),

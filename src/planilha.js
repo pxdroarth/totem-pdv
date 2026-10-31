@@ -7,6 +7,7 @@ const path = require('path');
 
 const COLUNAS_PRODUTO = [
   { chave: 'nome', titulo: 'Nome', largura: 40 },
+  { chave: 'sabor', titulo: 'Sabor', largura: 18 },
   { chave: 'codigoBarras', titulo: 'Código de barras', largura: 20, texto: true },
   { chave: 'preco', titulo: 'Preço', largura: 12, dinheiro: true },
   { chave: 'categoria', titulo: 'Categoria', largura: 20 },
@@ -20,6 +21,7 @@ const COLUNAS_PRODUTO = [
 // nomes de coluna aceitos (sem acento, minúsculo) -> chave
 const APELIDOS = {
   nome: 'nome', produto: 'nome', descricao: 'nome',
+  sabor: 'sabor', variacao: 'sabor', 'sabor/variacao': 'sabor', 'sabor / variacao': 'sabor', 'sabor ou variacao': 'sabor',
   'codigo de barras': 'codigoBarras', codigo: 'codigoBarras', ean: 'codigoBarras', 'cod barras': 'codigoBarras', gtin: 'codigoBarras',
   preco: 'preco', 'preco de venda': 'preco', valor: 'preco', 'preco venda': 'preco',
   categoria: 'categoria', secao: 'secao',
@@ -146,6 +148,7 @@ async function lerPlanilhaProdutos(arquivo) {
     }
     if (d._erro) continue;
     if ('categoria' in cel && String(cel.categoria).trim()) d.categoria = String(cel.categoria).trim();
+    if ('sabor' in cel && String(cel.sabor ?? '').trim()) d.sabor = String(cel.sabor).trim();
     if ('secao' in cel && String(cel.secao).trim()) d.secao = String(cel.secao).trim();
     for (const k of ['feitoNaHora', 'ativo']) {
       if (k in cel) {
@@ -179,24 +182,33 @@ async function exportarProdutos(arquivo, produtos, categorias) {
   ws.columns = COLUNAS_PRODUTO.map(c => ({ header: c.titulo, key: c.chave, width: c.largura,
     style: c.texto ? { numFmt: '@' } : c.dinheiro ? { numFmt: FORMATO_REAIS } : {} }));
   const secao = nome => (categorias.find(c => c.nome === nome) || {}).secao || '';
+  const semAcentoMin = t => semAcento(t).toLowerCase().trim();
   [...produtos].sort((a, b) => a.categoria.localeCompare(b.categoria) || a.nome.localeCompare(b.nome)).forEach(p => {
-    ws.addRow({
-      nome: p.nome, codigoBarras: p.codigoBarras || '', preco: p.precoCentavos / 100,
+    const base = {
+      nome: p.nome, preco: p.precoCentavos / 100,
       categoria: p.categoria, secao: secao(p.categoria),
       estoque: p.controlarEstoque === false ? '' : p.estoque,
       estoqueMinimo: p.controlarEstoque === false ? '' : (p.estoqueMinimo ?? 3),
       feitoNaHora: p.controlarEstoque === false ? 'Sim' : 'Não',
       ativo: p.ativo === false ? 'Não' : 'Sim'
-    });
+    };
+    // produto com grupo "Sabor" (1 escolha): uma linha por sabor, com o código e o preço de cada um
+    const g = (p.opcoes || []).find(x => semAcentoMin(x.nome) === 'sabor' && x.max === 1);
+    if (g && g.itens.length) {
+      g.itens.forEach(i => ws.addRow({ ...base, sabor: i.nome, codigoBarras: i.codigoBarras || '', preco: (p.precoCentavos + i.precoCentavos) / 100,
+        estoque: '', estoqueMinimo: '' }));
+    } else ws.addRow({ ...base, sabor: '', codigoBarras: p.codigoBarras || '' });
   });
   // linhas extras já formatadas como texto para novos códigos de barras
-  for (let i = 0; i < 300; i++) ws.getCell(ws.rowCount + 1, 2).numFmt = '@';
+  const colCodigo = COLUNAS_PRODUTO.findIndex(c => c.chave === 'codigoBarras') + 1;
+  for (let i = 0; i < 300; i++) ws.getCell(ws.rowCount + 1, colCodigo).numFmt = '@';
   estilizarCabecalho(ws);
   const ajuda = wb.addWorksheet('Como preencher');
   ajuda.columns = [{ width: 22 }, { width: 90 }];
   [
     ['Coluna', 'Como preencher'],
     ['Nome', 'Obrigatório. Se o produto não tiver código de barras, o nome é usado para achar o produto ao importar.'],
+    ['Sabor', 'Só para produto com vários sabores (ex.: Whey Isolado Pro Fit). Uma linha por sabor, com o MESMO nome, o sabor e o código de barras daquela embalagem. No totem vira um produto só, e o cliente escolhe o sabor. Se um sabor custar mais, coloque o preço dele na linha.'],
     ['Código de barras', 'O número embaixo do código no rótulo. A coluna já está como Texto para o Excel não estragar o número.'],
     ['Preço', 'Preço de venda. Ex.: 129,90'],
     ['Categoria', 'Ex.: Proteínas, Sorvetes. Categoria nova é criada sozinha.'],

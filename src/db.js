@@ -24,6 +24,8 @@ const CONFIG_PADRAO = {
   imprimirViaPreparo: true,       // imprime uma 2ª via com a senha para quem prepara os itens feitos na hora
   horarioFechamento: '22:00',     // fecha o caixa sozinho neste horário se ninguém fechar ('' = só manual)
   atendentePodeCancelar: false,   // atendente pode cancelar venda já paga? (pedido não pago ele sempre pode)
+  controlarEstoque: true,         // false = a loja não controla estoque: nada fica esgotado e nada é baixado
+  formasTotem: { pix: true, cartao: true, caixa: true }, // formas de pagamento que aparecem no totem
   backupAutomatico: true,         // cópia diária dos dados (mantém os últimos 30 dias)
   pastaBackup: '',                // vazio = pasta "backups" junto dos dados; pode apontar para OneDrive/Google Drive
   cancelarAguardandoMin: 0,       // cancela pedidos "pagar no balcão" não pagos após X minutos (0 = nunca, -1 = no dia seguinte)
@@ -94,13 +96,19 @@ function diaLocal(d = new Date()) {
 }
 
 // ---------- variações de produto ----------
-// opcoes = [{ id, nome: 'Sabor', min: 1, max: 1, itens: [{ id, nome: 'Morango', precoCentavos: 0 }] }]
+// opcoes = [{ id, nome: 'Sabor', min: 1, max: 1, itens: [{ id, nome: 'Morango', precoCentavos: 0, codigoBarras? }] }]
+// codigoBarras na opção: produto com vários sabores, cada um com a própria embalagem (ex.: Whey Isolado Pro Fit)
 function limparOpcoes(lista) {
   if (!Array.isArray(lista)) return [];
   return lista.map(g => {
     const itens = (Array.isArray(g.itens) ? g.itens : [])
-      .map(i => ({ id: i.id || crypto.randomUUID(), nome: String(i.nome || '').trim(),
-        precoCentavos: Math.max(0, Math.round(Number(i.precoCentavos) || 0)) }))
+      .map(i => {
+        const item = { id: i.id || crypto.randomUUID(), nome: String(i.nome || '').trim(),
+          precoCentavos: Math.max(0, Math.round(Number(i.precoCentavos) || 0)) };
+        const cod = String(i.codigoBarras || '').trim();
+        if (cod) item.codigoBarras = cod;
+        return item;
+      })
       .filter(i => i.nome);
     const nome = String(g.nome || '').trim();
     if (!nome && !itens.length) return null;
@@ -408,9 +416,14 @@ class Banco {
     };
     if (!limpo.nome) throw new Error('Informe o nome do produto.');
     if (limpo.precoCentavos <= 0) throw new Error('Informe um preço maior que zero.');
-    const dup = limpo.codigoBarras && this.dados.produtos.find(
-      x => x.codigoBarras === limpo.codigoBarras && x.id !== limpo.id);
-    if (dup) throw new Error(`Código de barras já usado em "${dup.nome}".`);
+    // código de barras é único entre todos os produtos e sabores
+    const codigos = [limpo.codigoBarras, ...limpo.opcoes.flatMap(g => g.itens.map(i => i.codigoBarras))].filter(Boolean);
+    const repetido = codigos.find((c, i) => codigos.indexOf(c) !== i);
+    if (repetido) throw new Error(`O código ${repetido} aparece duas vezes neste produto.`);
+    for (const c of codigos) {
+      const dono = this.donoDoCodigo(c, limpo.id);
+      if (dono) throw new Error(`Código de barras ${c} já usado em "${dono}".`);
+    }
     // categoria digitada que ainda não existe é criada automaticamente
     const cat = this.dados.categorias.find(c => normalizar(c.nome) === normalizar(limpo.categoria));
     if (cat) limpo.categoria = cat.nome;
@@ -420,6 +433,17 @@ class Banco {
     if (i >= 0) this.dados.produtos[i] = limpo; else this.dados.produtos.push(limpo);
     this._salvar();
     return limpo;
+  }
+
+  // quem já usa este código de barras (produto ou sabor de outro produto)
+  donoDoCodigo(codigo, ignorarId, produtos = this.dados.produtos) {
+    if (!codigo) return null;
+    for (const p of produtos) {
+      if (p.id === ignorarId) continue;
+      if (p.codigoBarras === codigo) return p.nome;
+      for (const g of p.opcoes || []) for (const i of g.itens) if (i.codigoBarras === codigo) return `${p.nome} (${i.nome})`;
+    }
+    return null;
   }
 
   definirImagem(id, caminho) {
@@ -508,6 +532,7 @@ class Banco {
   }
 
   _baixarEstoque(venda) {
+    if (this.dados.config.controlarEstoque === false) return;
     for (const l of venda.itens) {
       const p = this.dados.produtos.find(x => x.id === l.id);
       if (p && p.controlarEstoque !== false) p.estoque -= l.qtd;
@@ -525,7 +550,7 @@ class Banco {
         por: por || 'Painel', em: new Date().toISOString() });
     }
     if (antes !== 'paga' && v.status === 'paga') { this._baixarEstoque(v); this._entrarNaFila(v); }
-    if (antes === 'paga' && v.status === 'cancelada') {
+    if (antes === 'paga' && v.status === 'cancelada' && this.dados.config.controlarEstoque !== false) {
       for (const l of v.itens) {
         const p = this.dados.produtos.find(x => x.id === l.id);
         if (p && p.controlarEstoque !== false) p.estoque += l.qtd;
@@ -554,10 +579,76 @@ class Banco {
   importarProdutos(linhas, aplicar = false) {
     const produtos = aplicar ? this.dados.produtos : this.dados.produtos.map(p => ({ ...p }));
     const categorias = aplicar ? this.dados.categorias : this.dados.categorias.map(c => ({ ...c }));
-    const res = { novos: 0, atualizados: 0, categoriasNovas: [], erros: [] };
+    const res = { novos: 0, atualizados: 0, categoriasNovas: [], erros: [], comSabores: 0 };
     const vistos = new Set();
-    for (const { linha, dados: d, erro } of linhas) {
+    // linhas com a coluna Sabor e o mesmo nome viram UM produto com o grupo "Sabor";
+    // cada sabor guarda o próprio código de barras e a diferença de preço
+    const grupos = new Map();
+    const comuns = [];
+    for (const l of linhas) {
+      if (!l.erro && l.dados.sabor) {
+        if (!l.dados.nome) { res.erros.push({ linha: l.linha, erro: 'Linha com sabor e sem nome do produto.' }); continue; }
+        const k = normalizar(l.dados.nome);
+        if (!grupos.has(k)) grupos.set(k, []);
+        grupos.get(k).push(l);
+      } else comuns.push(l);
+    }
+    for (const lista of grupos.values()) {
+      const primeira = lista[0];
+      const precos = lista.map(l => l.dados.precoCentavos).filter(Boolean);
+      const base = precos.length ? Math.min(...precos) : undefined;
+      const sabores = [], nomesVistos = new Set();
+      for (const l of lista) {
+        const ns = normalizar(l.dados.sabor);
+        if (nomesVistos.has(ns)) { res.erros.push({ linha: l.linha, erro: `Sabor repetido: ${l.dados.sabor} (${l.dados.nome}).` }); continue; }
+        nomesVistos.add(ns);
+        sabores.push({ linha: l.linha, nome: l.dados.sabor, codigoBarras: l.dados.codigoBarras || '',
+          precoCentavos: l.dados.precoCentavos && base ? l.dados.precoCentavos - base : 0 });
+      }
+      const d = { ...primeira.dados, precoCentavos: base, codigoBarras: undefined, _sabores: sabores };
+      delete d.sabor; delete d.estoque; delete d.estoqueMinimo;
+      comuns.push({ linha: primeira.linha, dados: d, erro: null });
+    }
+    comuns.sort((a, b) => a.linha - b.linha);
+    for (const { linha, dados: d, erro } of comuns) {
       if (erro) { res.erros.push({ linha, erro }); continue; }
+      if (d._sabores) {
+        let p = produtos.find(x => normalizar(x.nome) === normalizar(d.nome));
+        if (!p && !d.precoCentavos) { res.erros.push({ linha, erro: `"${d.nome}" é novo e está sem preço.` }); continue; }
+        const conflito = d._sabores.find(s => s.codigoBarras && this.donoDoCodigo(s.codigoBarras, p?.id, produtos));
+        if (conflito) { res.erros.push({ linha: conflito.linha, erro: `Código ${conflito.codigoBarras} já é de "${this.donoDoCodigo(conflito.codigoBarras, p?.id, produtos)}".` }); continue; }
+        if (d.categoria) {
+          const cat = categorias.find(c => normalizar(c.nome) === normalizar(d.categoria));
+          if (cat) d.categoria = cat.nome;
+          else {
+            categorias.push({ id: crypto.randomUUID(), nome: d.categoria, secao: d.secao || 'Outros', icone: 'tag',
+              ordem: Math.max(-1, ...categorias.map(x => x.ordem)) + 1, ativo: true });
+            res.categoriasNovas.push(d.categoria);
+          }
+        }
+        if (!p) {
+          p = { id: crypto.randomUUID(), nome: d.nome, codigoBarras: '', categoria: 'Outros', estoque: 0, estoqueMinimo: 3,
+            controlarEstoque: true, imagem: '', ativo: true, opcoes: [] };
+          produtos.push(p);
+          res.novos++;
+        } else res.atualizados++;
+        for (const k of ['precoCentavos', 'categoria', 'ativo']) if (d[k] !== undefined) p[k] = d[k];
+        if (d.feitoNaHora !== undefined) p.controlarEstoque = !d.feitoNaHora;
+        // atualiza o grupo "Sabor" mantendo os ids dos sabores que já existiam (vendas antigas continuam batendo)
+        const opcoes = (p.opcoes || []).map(g => ({ ...g, itens: [...g.itens] }));
+        let g = opcoes.find(x => normalizar(x.nome) === 'sabor');
+        if (!g) { g = { id: crypto.randomUUID(), nome: 'Sabor', min: 1, max: 1, itens: [] }; opcoes.unshift(g); }
+        g.itens = d._sabores.map(s => {
+          const antigo = g.itens.find(i => normalizar(i.nome) === normalizar(s.nome));
+          const item = { id: antigo?.id || crypto.randomUUID(), nome: s.nome, precoCentavos: s.precoCentavos };
+          if (s.codigoBarras) item.codigoBarras = s.codigoBarras;
+          return item;
+        });
+        g.min = 1; g.max = 1;
+        p.opcoes = opcoes;
+        res.comSabores++;
+        continue;
+      }
       const chave = d.codigoBarras ? 'c:' + d.codigoBarras : 'n:' + normalizar(d.nome);
       if (vistos.has(chave)) { res.erros.push({ linha, erro: `Produto repetido na planilha (${d.codigoBarras || d.nome}).` }); continue; }
       vistos.add(chave);
@@ -567,8 +658,8 @@ class Banco {
         if (!d.nome) { res.erros.push({ linha, erro: 'Produto novo sem nome.' }); continue; }
         if (!d.precoCentavos) { res.erros.push({ linha, erro: `"${d.nome}" é novo e está sem preço.` }); continue; }
       }
-      const dono = d.codigoBarras && produtos.find(x => x.codigoBarras === d.codigoBarras && x !== p);
-      if (dono) { res.erros.push({ linha, erro: `Código ${d.codigoBarras} já é do produto "${dono.nome}".` }); continue; }
+      const dono = d.codigoBarras && this.donoDoCodigo(d.codigoBarras, p?.id, produtos);
+      if (dono) { res.erros.push({ linha, erro: `Código ${d.codigoBarras} já é do produto "${dono}".` }); continue; }
       if (d.categoria) {
         const cat = categorias.find(c => normalizar(c.nome) === normalizar(d.categoria));
         if (cat) d.categoria = cat.nome;

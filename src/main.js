@@ -302,6 +302,7 @@ tratar('venda:registrar', async ({ pin, transacaoId, ...dadosVenda }) => {
   // PIX/cartão: ou o gateway aprovou (transacaoId), ou o atendente confirmou com o PIN
   let por = 'Totem', pagamento = null;
   const forma = dadosVenda.formaPagamento;
+  if ((banco.getConfig().formasTotem || {})[forma] === false) throw new Error('Esta forma de pagamento não está disponível.');
   if (dadosVenda.status !== 'aguardando_caixa' && ['pix', 'cartao'].includes(forma)) {
     const prov = pagamentos.provedorDe(forma);
     if (transacaoId) {

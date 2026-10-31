@@ -22,19 +22,25 @@ async function carregarDados() {
   renderProdutos();
   renderCarrinho();
   $$('[data-modo-teste]').forEach(e => (e.hidden = !estado.config.pagamentos?.modoTeste));
+  // formas de pagamento que a loja usa no totem
+  const formas = estado.config.formasTotem || { pix: true, cartao: true, caixa: true };
+  $$('.opcao[data-forma]').forEach(b => (b.hidden = formas[b.dataset.forma] === false));
 }
 
 // Produto aparece no totem se estiver ativo e a categoria dele não estiver oculta
 const categoriaOculta = nome => estado.categorias.some(c => c.nome === nome && !c.ativo);
 const ordemCategoria = nome => { const c = estado.categorias.find(x => x.nome === nome); return c ? c.ordem : 9999; };
 // quandoEsgotar = 'ocultar': produto zerado some do totem até repor
-const escondidoPorEstoque = p => estado.config.quandoEsgotar === 'ocultar' && p.controlarEstoque !== false && p.estoque <= 0;
+const semEstoque = () => estado.config.controlarEstoque === false; // loja que não controla estoque: nada esgota
+const escondidoPorEstoque = p => !semEstoque() && estado.config.quandoEsgotar === 'ocultar' && p.controlarEstoque !== false && p.estoque <= 0;
 const visiveis = () => estado.produtos
   .filter(p => p.ativo && !categoriaOculta(p.categoria) && !escondidoPorEstoque(p))
   .sort((a, b) => ordemCategoria(a.categoria) - ordemCategoria(b.categoria) || a.nome.localeCompare(b.nome));
 const produtoPorId = id => estado.produtos.find(p => p.id === id);
 // produto feito na hora (controlarEstoque = false) nunca esgota
-const temEstoque = (p, qtd) => p.controlarEstoque === false || estado.config.quandoEsgotar === 'vender' || qtd <= p.estoque;
+const temEstoque = (p, qtd) => semEstoque() || p.controlarEstoque === false || estado.config.quandoEsgotar === 'vender' || qtd <= p.estoque;
+// códigos de barras dos sabores (produto com várias embalagens, ex.: Whey Isolado Pro Fit)
+const codigosDosSabores = p => (p.opcoes || []).flatMap(g => g.itens.map(i => i.codigoBarras).filter(Boolean));
 const temOpcoes = p => Array.isArray(p.opcoes) && p.opcoes.length > 0;
 const precoLinha = l => (produtoPorId(l.id)?.precoCentavos || 0) + (l.adicionalCentavos || 0);
 const totalCarrinho = () => [...estado.carrinho.values()].reduce((s, l) => s + precoLinha(l) * l.qtd, 0);
@@ -62,7 +68,7 @@ function renderProdutos() {
   const termo = $('#busca').value.trim().toLowerCase();
   const lista = visiveis().filter(p =>
     (estado.categoria === 'Todos' || p.categoria === estado.categoria) &&
-    (!termo || p.nome.toLowerCase().includes(termo) || p.codigoBarras.includes(termo)));
+    (!termo || p.nome.toLowerCase().includes(termo) || p.codigoBarras.includes(termo) || codigosDosSabores(p).some(c => c.includes(termo))));
   $('#grade-produtos').innerHTML = lista.length ? lista.map(p => {
     const esgotado = !temEstoque(p, 1);
     const img = p.imagem
@@ -151,8 +157,8 @@ const regraGrupo = g => g.min === 0
   ? (g.max === 1 ? 'Opcional' : `Opcional, até ${g.max}`)
   : g.min === g.max ? `Escolha ${g.min}` : `Escolha de ${g.min} a ${g.max}`;
 
-function abrirOpcoes(p) {
-  escolhaAtual = { p, sel: Object.fromEntries(p.opcoes.map(g => [g.id, new Set()])) };
+function abrirOpcoes(p, preSelecao = {}) {
+  escolhaAtual = { p, sel: Object.fromEntries(p.opcoes.map(g => [g.id, new Set(preSelecao[g.id] || [])])) };
   $('#opcoes-nome').textContent = p.nome;
   $('#opcoes-foto').innerHTML = p.imagem ? `<img src="${esc(urlArquivo(p.imagem))}" alt="">` : icone(iconeCategoria(p.categoria), 40);
   renderOpcoes();
@@ -482,9 +488,21 @@ ouvirLeitor(codigo => {
   if (!['inicio', 'loja', 'fim'].includes(tela)) return;
   if ($('#modal-opcoes').classList.contains('aberto') || $('#modal-cliente').classList.contains('aberto')) return;
   const p = visiveis().find(x => x.codigoBarras === codigo);
-  if (!p) return toast(`Produto não cadastrado (${codigo}). Chame um atendente.`, 'erro');
-  if (tela !== 'loja') mostrarTela('loja');
-  adicionar(p.id);
+  if (p) {
+    if (tela !== 'loja') mostrarTela('loja');
+    return adicionar(p.id);
+  }
+  // código de um sabor: já entra com o sabor escolhido
+  for (const prod of visiveis()) for (const g of prod.opcoes || []) {
+    const item = g.itens.find(i => i.codigoBarras === codigo);
+    if (!item) continue;
+    if (tela !== 'loja') mostrarTela('loja');
+    abrirOpcoes(prod, { [g.id]: [item.id] });
+    // se não falta escolher mais nada (ex.: só o sabor), adiciona direto sem abrir a tela de opções
+    if (!calcularEscolha().faltando.length) $('#btn-opcoes-adicionar').onclick();
+    return;
+  }
+  toast(`Produto não cadastrado (${codigo}). Chame um atendente.`, 'erro');
 });
 
 pdv.aoAbrirAdmin(() => abrirAdmin());
