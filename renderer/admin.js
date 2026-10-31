@@ -244,6 +244,7 @@ function renderEditorOpcoes() {
           <input class="i-preco" value="${centavosParaTexto(i.precoCentavos)}" placeholder="+ R$ 0,00" inputmode="decimal">
           <input class="i-codigo" value="${esc(i.codigoBarras || '')}" placeholder="Código (opcional)" inputmode="numeric" title="Código de barras deste sabor, se ele tiver embalagem própria">
           <button type="button" class="btn-mini" data-rem-i="${gi}:${ii}" aria-label="Remover opção">${icone('fechar', 16)}</button>
+          <input class="i-desc" value="${esc(i.descricao || '')}" placeholder="Ingredientes ou descrição (opcional, aparece no totem)" maxlength="160">
         </div>`).join('')}
       <button type="button" class="btn btn-pequeno" data-add-i="${gi}">+ Opção</button>
     </div>`).join('');
@@ -259,7 +260,8 @@ function lerEditorOpcoes() {
       itens: [...el.querySelectorAll('.item-edit')].map((it, ii) => ({
         id: (antigo.itens || [])[ii]?.id, nome: it.querySelector('.i-nome').value.trim(),
         precoCentavos: paraCentavos(it.querySelector('.i-preco').value || '0'),
-        codigoBarras: it.querySelector('.i-codigo').value.trim()
+        codigoBarras: it.querySelector('.i-codigo').value.trim(),
+        descricao: it.querySelector('.i-desc').value.trim()
       }))
     };
   });

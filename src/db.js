@@ -121,6 +121,8 @@ function limparOpcoes(lista) {
           precoCentavos: Math.max(0, Math.round(Number(i.precoCentavos) || 0)) };
         const cod = String(i.codigoBarras || '').trim();
         if (cod) item.codigoBarras = cod;
+        const desc = String(i.descricao || '').replace(/\s+/g, ' ').trim().slice(0, 160);
+        if (desc) item.descricao = desc; // ingredientes que aparecem na tela de escolha
         return item;
       })
       .filter(i => i.nome);
@@ -616,7 +618,7 @@ class Banco {
         const ns = normalizar(l.dados.sabor);
         if (nomesVistos.has(ns)) { res.erros.push({ linha: l.linha, erro: `Sabor repetido: ${l.dados.sabor} (${l.dados.nome}).` }); continue; }
         nomesVistos.add(ns);
-        sabores.push({ linha: l.linha, nome: l.dados.sabor, codigoBarras: l.dados.codigoBarras || '',
+        sabores.push({ linha: l.linha, nome: l.dados.sabor, codigoBarras: l.dados.codigoBarras || '', descricao: l.dados.ingredientes || '',
           precoCentavos: l.dados.precoCentavos && base ? l.dados.precoCentavos - base : 0 });
       }
       const d = { ...primeira.dados, precoCentavos: base, codigoBarras: undefined, _sabores: sabores };
@@ -656,6 +658,8 @@ class Banco {
           const antigo = g.itens.find(i => normalizar(i.nome) === normalizar(s.nome));
           const item = { id: antigo?.id || crypto.randomUUID(), nome: s.nome, precoCentavos: s.precoCentavos };
           if (s.codigoBarras) item.codigoBarras = s.codigoBarras;
+          const desc = s.descricao || antigo?.descricao;
+          if (desc) item.descricao = desc;
           return item;
         });
         g.min = 1; g.max = 1;

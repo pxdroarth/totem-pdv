@@ -15,12 +15,14 @@ const COLUNAS_PRODUTO = [
   { chave: 'estoque', titulo: 'Estoque', largura: 10 },
   { chave: 'estoqueMinimo', titulo: 'Estoque mínimo', largura: 15 },
   { chave: 'feitoNaHora', titulo: 'Feito na hora', largura: 14 },
-  { chave: 'ativo', titulo: 'Visível no totem', largura: 16 }
+  { chave: 'ativo', titulo: 'Visível no totem', largura: 16 },
+  { chave: 'ingredientes', titulo: 'Ingredientes', largura: 50 }
 ];
 
 // nomes de coluna aceitos (sem acento, minúsculo) -> chave
 const APELIDOS = {
   nome: 'nome', produto: 'nome', descricao: 'nome',
+  ingredientes: 'ingredientes', 'descricao do sabor': 'ingredientes', composicao: 'ingredientes',
   sabor: 'sabor', variacao: 'sabor', 'sabor/variacao': 'sabor', 'sabor / variacao': 'sabor', 'sabor ou variacao': 'sabor',
   'codigo de barras': 'codigoBarras', codigo: 'codigoBarras', ean: 'codigoBarras', 'cod barras': 'codigoBarras', gtin: 'codigoBarras',
   preco: 'preco', 'preco de venda': 'preco', valor: 'preco', 'preco venda': 'preco',
@@ -149,6 +151,7 @@ async function lerPlanilhaProdutos(arquivo) {
     if (d._erro) continue;
     if ('categoria' in cel && String(cel.categoria).trim()) d.categoria = String(cel.categoria).trim();
     if ('sabor' in cel && String(cel.sabor ?? '').trim()) d.sabor = String(cel.sabor).trim();
+    if ('ingredientes' in cel && String(cel.ingredientes ?? '').trim()) d.ingredientes = String(cel.ingredientes).trim();
     if ('secao' in cel && String(cel.secao).trim()) d.secao = String(cel.secao).trim();
     for (const k of ['feitoNaHora', 'ativo']) {
       if (k in cel) {
@@ -195,7 +198,7 @@ async function exportarProdutos(arquivo, produtos, categorias) {
     // produto com grupo "Sabor" (1 escolha): uma linha por sabor, com o código e o preço de cada um
     const g = (p.opcoes || []).find(x => semAcentoMin(x.nome) === 'sabor' && x.max === 1);
     if (g && g.itens.length) {
-      g.itens.forEach(i => ws.addRow({ ...base, sabor: i.nome, codigoBarras: i.codigoBarras || '', preco: (p.precoCentavos + i.precoCentavos) / 100,
+      g.itens.forEach(i => ws.addRow({ ...base, sabor: i.nome, codigoBarras: i.codigoBarras || '', ingredientes: i.descricao || '', preco: (p.precoCentavos + i.precoCentavos) / 100,
         estoque: '', estoqueMinimo: '' }));
     } else ws.addRow({ ...base, sabor: '', codigoBarras: p.codigoBarras || '' });
   });
@@ -208,6 +211,7 @@ async function exportarProdutos(arquivo, produtos, categorias) {
   [
     ['Coluna', 'Como preencher'],
     ['Nome', 'Obrigatório. Se o produto não tiver código de barras, o nome é usado para achar o produto ao importar.'],
+    ['Ingredientes', 'Opcional, só nas linhas com Sabor: o que vai naquele sabor. Aparece embaixo do sabor na tela de escolha do totem.'],
     ['Sabor', 'Só para produto com vários sabores (ex.: Whey Isolado Pro Fit). Uma linha por sabor, com o MESMO nome, o sabor e o código de barras daquela embalagem. No totem vira um produto só, e o cliente escolhe o sabor. Se um sabor custar mais, coloque o preço dele na linha.'],
     ['Código de barras', 'O número embaixo do código no rótulo. A coluna já está como Texto para o Excel não estragar o número.'],
     ['Preço', 'Preço de venda. Ex.: 129,90'],

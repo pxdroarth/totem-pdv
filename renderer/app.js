@@ -182,9 +182,9 @@ function renderOpcoes() {
   $('#opcoes-grupos').innerHTML = p.opcoes.map(g => `
     <section class="grupo-opcao">
       <header><h3>${esc(g.nome)}</h3><span class="regra ${g.min > 0 ? 'obrigatorio' : ''}">${regraGrupo(g)}</span></header>
-      <div class="chips-opcao">${g.itens.map(i => `
+      <div class="chips-opcao ${g.itens.some(i => i.descricao) ? 'com-descricao' : ''}">${g.itens.map(i => `
         <button class="chip-opcao ${sel[g.id].has(i.id) ? 'ativo' : ''}" data-grupo="${g.id}" data-item="${i.id}">
-          <span>${esc(i.nome)}</span>${i.precoCentavos ? `<small>+ ${reais(i.precoCentavos)}</small>` : ''}
+          <span>${esc(i.nome)}</span>${i.descricao ? `<span class="chip-desc">${esc(i.descricao)}</span>` : ''}${i.precoCentavos ? `<small>+ ${reais(i.precoCentavos)}</small>` : ''}
         </button>`).join('')}</div>
     </section>`).join('');
   const { adicional, faltando } = calcularEscolha();
