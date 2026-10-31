@@ -1,6 +1,6 @@
 # Instalação da Lisufit (meta: terça, 03/11/2026)
 
-Configuração tirada do formulário respondido pela loja. Itens com **(falta)** dependem de resposta da Lívia.
+Configuração tirada do formulário respondido pela loja. Itens com **(falta)** dependem de resposta da Lívia. Impressora: **(falta: marca e modelo)**.
 
 ## Plano até terça
 
@@ -22,7 +22,8 @@ Sem o leitor o totem funciona pelo toque: o cliente acha o produto pela categori
 ## Admin › Configurações
 
 **Loja**
-- Nome: Lisufit · Endereço: Rua Coronel Bia, 2626 **(falta: cidade)** · CNPJ: em branco (ainda não tem)
+- Nome: Lisufit · Endereço: R. Cel. Bia, 2597 – Cascavel/CE · CNPJ: em branco (ainda não tem)
+- (O formulário dizia 2626; a mensagem do Pedro, 2597. Confirmar o número.)
 
 **Gateway de pagamento**
 - Formas no totem: **PIX** ✓ · **Cartão** ✓ · **Pagar no caixa** ✗ (a loja não usa)
@@ -30,7 +31,7 @@ Sem o leitor o totem funciona pelo toque: o cliente acha o produto pela categori
 - "Se o gateway falhar, o atendente pode confirmar com PIN": ✓
 
 **PIX com QR fixo**
-- Chave: liviarachelribeiro@gmail.com (tipo e-mail, Nubank) · Nome do recebedor: **(falta: nome completo da titular)** · Cidade: **(falta)**
+- Chave: liviarachelribeiro@gmail.com (tipo e-mail, Nubank) · Nome do recebedor: **(falta: nome completo da titular)** · Cidade: Cascavel
 
 **Segurança e pagamento**
 - PIN do admin: trocar o 1234 (só a Lívia entra no painel)
@@ -59,11 +60,19 @@ Sem o leitor o totem funciona pelo toque: o cliente acha o produto pela categori
 2. **Produto com vários sabores** (ex.: Whey Isolado Pro Fit): uma linha por sabor, com o **mesmo nome**, a coluna **Sabor** e o código de barras daquela embalagem. No totem vira um produto só. Passar a embalagem no leitor já entra no sabor certo.
 3. **Fotos:** nome do arquivo = código de barras (ou nome do produto) › **Produtos › Importar fotos**. O sistema reduz e converte sozinho.
 4. **Carnes congeladas:** pacote com preço fixo, cadastro normal com código de barras.
-5. **Shakes, smoothies e sorvete montado na hora:** marcar "feito na hora" e cadastrar as variações (sabor, frutas, coberturas) **(falta: cardápio com preços)**.
+5. **Shakes, smoothies e sorvete montado na hora:** marcar "feito na hora" e cadastrar as variações.
+   - **Shake Protein Premium** (cardápio recebido): sabores Morango, Chocolate, Cookies, Maracujá e Manga, Supercoffee e Pink Lemonade. **(falta: preço e tamanho do copo; o cardápio não traz)**
+   - Sorvete montado na hora: **(falta: sabores, coberturas e preços)**
 6. **Salgados (prontos na vitrine):** marcar "feito na hora" para saírem na via de preparo, já que o pedido é **entregue na mesa**.
 7. **Combos e kits:** cadastrar como produto próprio com o preço do kit (ex.: "Kit Whey + Coqueteleira").
 
-Entrega na mesa: hoje o atendente entrega pelo nome do cliente. **(falta: confirmar se ela quer que o cliente digite o número da mesa.)**
+Entrega na mesa: o atendente chama pelo nome do cliente (confirmado; não precisa número da mesa).
+
+### Kit do Empório (fotos recebidas)
+- `Produtos Emporio Lisufit.xlsx`: 28 produtos do Empório tirados das fotos, mais o Shake Protein Premium com os 6 sabores. **Faltam os preços** (células amarelas).
+- Pasta `fotos/`: as 28 fotos já com o nome do produto. Depois de importar a planilha, use **Produtos › Importar fotos** e escolha todas.
+- Confira os nomes que eu deduzi pela foto, principalmente **Caldo de Mocotó**, **Guaraná Natural 300ml** e **Folhado de Presunto e Queijo**. Se mudar um nome na planilha, mude também o nome da foto.
+- **Antes de importar**, apague os produtos de exemplo que vêm no sistema (Whey Protein Concentrado, Shake Proteico 500ml, Smoothie Proteico etc.).
 
 ## Fica para depois da inauguração
 

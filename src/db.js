@@ -88,6 +88,20 @@ function conferePin(pin, guardado) {
 }
 const pinValido = pin => /^\d{4,8}$/.test(String(pin || ''));
 
+// ícone automático para categoria nova criada pela planilha (dá para trocar no admin)
+const ICONE_POR_PALAVRA = [
+  ['salgad', 'croissant'], ['lanche', 'sandwich'], ['sanduic', 'sandwich'], ['refei', 'utensils'], ['prato', 'utensils'],
+  ['suco', 'cupSoda'], ['smoothie', 'cupSoda'], ['shake', 'milk'], ['bebida', 'glassWater'], ['agua', 'glassWater'],
+  ['refrigerante', 'cupSoda'], ['cafe', 'coffee'], ['sobremesa', 'iceCream'], ['sorvete', 'iceCream'], ['doce', 'candy'],
+  ['salada', 'salad'], ['fruta', 'apple'], ['carne', 'beef'], ['frango', 'drumstick'], ['peixe', 'fish'], ['congelad', 'snowflake'],
+  ['whey', 'dumbbell'], ['prote', 'dumbbell'], ['creatina', 'flask'], ['pre-treino', 'zap'], ['pre treino', 'zap'],
+  ['vitamina', 'pill'], ['suplement', 'pill'], ['barra', 'cookie'], ['snack', 'cookie'], ['acessor', 'bag'], ['natura', 'leaf']
+];
+function iconeParaCategoria(nome) {
+  const n = String(nome || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  return (ICONE_POR_PALAVRA.find(([k]) => n.includes(k)) || [])[1] || 'tag';
+}
+
 const normalizar = t => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
 
 function diaLocal(d = new Date()) {
@@ -427,7 +441,7 @@ class Banco {
     // categoria digitada que ainda não existe é criada automaticamente
     const cat = this.dados.categorias.find(c => normalizar(c.nome) === normalizar(limpo.categoria));
     if (cat) limpo.categoria = cat.nome;
-    else this.dados.categorias.push({ id: crypto.randomUUID(), nome: limpo.categoria, secao: 'Outros', icone: 'tag',
+    else this.dados.categorias.push({ id: crypto.randomUUID(), nome: limpo.categoria, secao: 'Outros', icone: iconeParaCategoria(limpo.categoria),
       ordem: this.dados.categorias.length, ativo: true });
     const i = this.dados.produtos.findIndex(x => x.id === limpo.id);
     if (i >= 0) this.dados.produtos[i] = limpo; else this.dados.produtos.push(limpo);
@@ -621,7 +635,7 @@ class Banco {
           const cat = categorias.find(c => normalizar(c.nome) === normalizar(d.categoria));
           if (cat) d.categoria = cat.nome;
           else {
-            categorias.push({ id: crypto.randomUUID(), nome: d.categoria, secao: d.secao || 'Outros', icone: 'tag',
+            categorias.push({ id: crypto.randomUUID(), nome: d.categoria, secao: d.secao || 'Outros', icone: iconeParaCategoria(d.categoria),
               ordem: Math.max(-1, ...categorias.map(x => x.ordem)) + 1, ativo: true });
             res.categoriasNovas.push(d.categoria);
           }
@@ -664,7 +678,7 @@ class Banco {
         const cat = categorias.find(c => normalizar(c.nome) === normalizar(d.categoria));
         if (cat) d.categoria = cat.nome;
         else {
-          categorias.push({ id: crypto.randomUUID(), nome: d.categoria, secao: d.secao || 'Outros', icone: 'tag',
+          categorias.push({ id: crypto.randomUUID(), nome: d.categoria, secao: d.secao || 'Outros', icone: iconeParaCategoria(d.categoria),
             ordem: Math.max(-1, ...categorias.map(x => x.ordem)) + 1, ativo: true });
           res.categoriasNovas.push(d.categoria);
         }
