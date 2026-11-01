@@ -250,7 +250,7 @@ tratar('config:get', () => {
   // a tela do cliente nunca recebe PINs nem credenciais de gateway
   const pix = pagamentos.provedorDe('pix'), cartao = pagamentos.provedorDe('cartao');
   publica.pagamentos = { pix: pix.id, cartao: cartao.id, permitirManualSeFalhar: pag?.permitirManualSeFalhar !== false,
-    modoTeste: [pix.id, cartao.id].includes('simulador') };
+    modoTeste: [pix.id, cartao.id].includes('simulador'), ...pagamentos.infoTotem() };
   return publica;
 });
 tratar('config:getAdmin', soAdmin(() => ({ ...semHash(banco.getConfig()), pastaBackupEfetiva: pastaBackup(), ultimoBackup: banco.dados.ultimoBackup || '' })));
@@ -388,10 +388,10 @@ tratar('venda:atualizar', logado(async (numero, mudancas) => {
 }));
 
 // ---------- gateway de pagamento ----------
-tratar('pagamento:iniciar', async (forma, itens) => {
+tratar('pagamento:iniciar', async (forma, itens, extras) => {
   const total = banco.calcularTotal(itens);
   let t;
-  try { t = await pagamentos.iniciar(forma, total, `${banco.getConfig().nomeLoja || 'Lisufit'} - pedido no totem`); }
+  try { t = await pagamentos.iniciar(forma, total, `${banco.getConfig().nomeLoja || 'Lisufit'} - pedido no totem`, extras || {}); }
   catch (e) { registrarErro('pagamento', e); throw e; }
   return { ...t, qr: t.qrTexto ? await QRCode.toDataURL(t.qrTexto, { width: 420, margin: 1 }) : '' };
 });

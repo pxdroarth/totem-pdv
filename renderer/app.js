@@ -280,17 +280,38 @@ async function cancelarPagamentoAtual() {
   await pdv.cancelarPagamento(id).catch(() => {});
 }
 
+// maquininha integrada (ex.: Stone): o cliente escolhe crédito ou débito antes de o valor ir para ela
+let tipoCartaoEscolhido = '';
+function escolherTipoCartao() {
+  cancelarPagamentoAtual();
+  tipoCartaoEscolhido = '';
+  const tela = $('#tela-cartao');
+  tela.dataset.modo = 'auto';
+  tela.dataset.etapa = 'tipo';
+  $('#valor-cartao').textContent = reais(totalCarrinho());
+  $('#cartao-tipo').hidden = false;
+  $('#cartao-status').innerHTML = ''; $('#cartao-status').className = 'status-pagamento so-auto';
+  $('#btn-cartao-tentar').hidden = true; $('#btn-cartao-ajuda').hidden = true;
+  mostrarTela('cartao');
+}
+$$('[data-tipo-cartao]').forEach(b => (b.onclick = () => { tipoCartaoEscolhido = b.dataset.tipoCartao; iniciarGateway('cartao'); }));
+
 async function iniciarGateway(forma) {
   await cancelarPagamentoAtual();
   const tela = $(`#tela-${forma}`);
   tela.dataset.modo = 'auto';
+  const naMaquininha = forma === 'pix' && !!estado.config.pagamentos?.pixNaMaquininha;
+  if (forma === 'pix') tela.dataset.maquininha = naMaquininha ? '1' : '';
+  if (forma === 'cartao') { tela.dataset.etapa = ''; $('#cartao-tipo').hidden = true; }
   $(`#valor-${forma}`).textContent = reais(totalCarrinho());
   if (forma === 'pix') { $('#qr-pix').removeAttribute('src'); $('#pix-payload').textContent = ''; }
   mostrarTela(forma);
-  statusPag(forma, 'esperando', forma === 'pix' ? 'Gerando o QR Code…' : 'Enviando o valor para a maquininha…');
+  statusPag(forma, 'esperando', forma === 'pix' && !naMaquininha ? 'Gerando o QR Code…' : 'Enviando o valor para a maquininha…');
   try {
-    const t = await pdv.iniciarPagamento(forma, itensVenda());
-    if (forma === 'pix') { $('#qr-pix').src = t.qr; $('#pix-payload').textContent = t.qrTexto; }
+    const extras = { cliente: estado.cliente?.nome || '' };
+    if (forma === 'cartao' && tipoCartaoEscolhido) extras.tipoCartao = tipoCartaoEscolhido;
+    const t = await pdv.iniciarPagamento(forma, itensVenda(), extras);
+    if (forma === 'pix' && !t.naMaquininha) { $('#qr-pix').src = t.qr; $('#pix-payload').textContent = t.qrTexto; }
     pagAtual = { id: t.id, forma, expiraEm: t.expiraEm };
     statusPag(forma, 'esperando', 'Aguardando o pagamento…');
     acompanharPagamento();
@@ -336,11 +357,12 @@ $$('[data-ajuda-pagamento]').forEach(b => (b.onclick = async () => {
   finalizar(forma, pin);
 }));
 $('#btn-pix-tentar').onclick = () => iniciarGateway('pix');
-$('#btn-cartao-tentar').onclick = () => iniciarGateway('cartao');
+$('#btn-cartao-tentar').onclick = () => estado.config.pagamentos?.perguntarTipoCartao ? escolherTipoCartao() : iniciarGateway('cartao');
 $$('#tela-pix [data-voltar], #tela-cartao [data-voltar]').forEach(b => b.addEventListener('click', cancelarPagamentoAtual));
 
 function abrirCartaoManual() {
   $('#tela-cartao').dataset.modo = 'manual';
+  $('#tela-cartao').dataset.etapa = ''; $('#cartao-tipo').hidden = true;
   $('#valor-cartao').textContent = reais(totalCarrinho());
   mostrarTela('cartao');
 }
@@ -348,6 +370,7 @@ function abrirCartaoManual() {
 async function abrirPix(forcarManual = false) {
   if (!forcarManual && usaGateway('pix')) return iniciarGateway('pix');
   $('#tela-pix').dataset.modo = 'manual';
+  $('#tela-pix').dataset.maquininha = '';
   const total = totalCarrinho();
   estado.pixTxid = 'PDV' + Date.now().toString(36).toUpperCase();
   try {
@@ -476,7 +499,8 @@ $('#btn-finalizar-gaveta').onclick = irParaPagamento;
 $$('.opcao').forEach(b => (b.onclick = () => {
   const forma = b.dataset.forma;
   if (forma === 'pix') abrirPix();
-  if (forma === 'cartao') usaGateway('cartao') ? iniciarGateway('cartao') : abrirCartaoManual();
+  if (forma === 'cartao') !usaGateway('cartao') ? abrirCartaoManual()
+    : estado.config.pagamentos?.perguntarTipoCartao ? escolherTipoCartao() : iniciarGateway('cartao');
   if (forma === 'caixa') finalizar('caixa');
 }));
 $('#btn-pix-pago').onclick = async () => { const pin = await confirmarComPin(); if (pin !== null) finalizar('pix', pin); };

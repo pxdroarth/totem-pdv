@@ -745,3 +745,15 @@ body.kds { background: var(--superficie); display: flex; flex-direction: column;
 @media (max-width: 1100px) { .cards-ind { grid-template-columns: repeat(3, minmax(0, 1fr)); } .grade-ind { grid-template-columns: 1fr; } }
 .receber-troco label { display: flex; flex-direction: column; gap: .3rem; }
 .grafico text.maximo { font-size: 11.5px; }
+
+/* ---------- maquininha integrada: PIX na maquininha e escolha crédito/débito ---------- */
+.pix-maquininha-ico { display: none; }
+#tela-pix .passos-maquininha { display: none; }
+#tela-pix[data-maquininha="1"] .qr-moldura, #tela-pix[data-maquininha="1"] .copia-cola, #tela-pix[data-maquininha="1"] .passos-tela { display: none; }
+#tela-pix[data-maquininha="1"] .passos-maquininha { display: flex; }
+#tela-pix[data-maquininha="1"] .pix-maquininha-ico { display: grid; }
+.cartao-tipo[hidden] { display: none; }
+.cartao-tipo p { margin: 0 0 1rem; font-size: 1.4rem; font-weight: 700; }
+.cartao-tipo-botoes { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; max-width: 34rem; }
+.cartao-tipo-botoes .btn { font-size: 1.4rem; min-height: 5.5rem; }
+#tela-cartao[data-etapa="tipo"] .passos-enviado, #tela-cartao[data-etapa="tipo"] .status-pagamento { display: none !important; }

@@ -93,10 +93,16 @@
     </header>
     <div class="etapa-corpo pix-layout">
       <div class="qr-moldura"><img id="qr-pix" class="qr" alt="QR Code PIX"></div>
+      <span class="cartao-ico pix-maquininha-ico"><i data-icone="cartao" data-tam="88"></i></span>
       <div class="pix-info">
         <span class="selo-teste" data-modo-teste hidden>Modo teste: nenhum valor é cobrado</span>
         <h1>Pague com PIX</h1>
-        <ol class="passos">
+        <ol class="passos passos-maquininha">
+          <li><span>O QR Code aparece na <b>maquininha ao lado</b></span></li>
+          <li><span>Abra o app do seu banco, escolha <b>PIX</b> › <b>Ler QR Code</b> e aponte para a maquininha</span></li>
+          <li><span>Pronto: esta tela confirma sozinha quando o pagamento cair</span></li>
+        </ol>
+        <ol class="passos passos-tela">
           <li><span>Abra o app do seu banco e escolha <b>PIX</b> › <b>Ler QR Code</b></span></li>
           <li><span>Aponte a câmera para o código. O valor já vem preenchido.</span></li>
           <li class="so-manual"><span>Depois de pagar, mostre o comprovante ao atendente</span></li>
@@ -132,7 +138,14 @@
           <li><span>Confira se o valor é o mesmo do total desta tela</span></li>
           <li><span>Insira ou aproxime o cartão e aguarde a aprovação</span></li>
         </ol>
-        <ol class="passos so-auto">
+        <div class="cartao-tipo" id="cartao-tipo" hidden>
+          <p>Como você vai pagar?</p>
+          <div class="cartao-tipo-botoes">
+            <button class="btn btn-primario btn-alto" data-tipo-cartao="credit">Crédito</button>
+            <button class="btn btn-primario btn-alto" data-tipo-cartao="debit">Débito</button>
+          </div>
+        </div>
+        <ol class="passos so-auto passos-enviado">
           <li><span>O valor já foi enviado para a <b>maquininha ao lado</b></span></li>
           <li><span>Insira ou aproxime o cartão e siga as instruções nela</span></li>
           <li><span>Pronto: esta tela confirma sozinha</span></li>

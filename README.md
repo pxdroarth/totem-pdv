@@ -85,6 +85,9 @@ Painel admin → Produtos → Editar → **Variações (opcional)**:
 - O **Simulador** aprova ou recusa sozinho e serve para testar e demonstrar para os donos. Enquanto estiver ligado, aparece o selo "Modo teste".
 - Para integrar Mercado Pago, Stone, PagBank, Cielo etc.: **um arquivo novo** em `src/pagamentos/provedores/`. Veja `docs/INTEGRAR-GATEWAY.md`.
 
+## Stone (maquininha integrada)
+- Conector pronto em `src/pagamentos/provedores/stone.js` (Stone Connect 2.0): o valor vai direto para a maquininha; crédito, débito e PIX no QR da maquininha. O que pedir à Stone e como configurar: `docs/STONE.md`.
+
 ## Produto com vários sabores (código de barras por sabor)
 - Ex.: Whey Isolado Pro Fit em Chocolate, Baunilha e Cookies, cada um com a própria embalagem. No totem aparece **um card só**, e o cliente escolhe o sabor.
 - No cadastro (Variações), cada opção do grupo "Sabor" pode ter o **código de barras** da embalagem. Passar a embalagem no leitor já adiciona aquele sabor, sem abrir a tela de escolha.

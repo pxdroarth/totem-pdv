@@ -23,7 +23,7 @@ contextBridge.exposeInMainWorld('pdv', {
   pedidosPreparo: () => chamar('preparo:listar'),
   marcarPreparo: (numero, status) => chamar('preparo:marcar', numero, status),
   abrirTelaPedidos: () => chamar('pedidos:abrir'),
-  iniciarPagamento: (forma, itens) => chamar('pagamento:iniciar', forma, itens),
+  iniciarPagamento: (forma, itens, extras) => chamar('pagamento:iniciar', forma, itens, extras),
   statusPagamento: id => chamar('pagamento:status', id),
   cancelarPagamento: id => chamar('pagamento:cancelar', id),
   provedoresPagamento: () => chamar('pagamentos:provedores'),
