@@ -49,6 +49,8 @@ contextBridge.exposeInMainWorld('pdv', {
   vendas: filtro => chamar('vendas:listar', filtro),
   reimprimir: numero => chamar('vendas:reimprimir', numero),
   exportarProdutos: () => chamar('produtos:exportar'),
+  baixarModelo: () => chamar('produtos:modelo'),
+  produtosEmMassa: (ids, acao, valor) => chamar('produtos:emMassa', ids, acao, valor),
   lerPlanilhaProdutos: () => chamar('produtos:lerPlanilha'),
   importarProdutos: () => chamar('produtos:importar'),
   exportarVendas: filtro => chamar('vendas:exportar', filtro),

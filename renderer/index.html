@@ -181,20 +181,40 @@
       <div class="barra">
         <input id="busca-admin" type="search" placeholder="Buscar por nome ou código...">
         <select id="filtro-categoria-admin"><option value="">Todas as categorias</option></select>
-        <select id="filtro-estoque-admin">
-          <option value="">Qualquer estoque</option>
+        <select id="filtro-estoque-admin" aria-label="Situação">
+          <option value="">Todos os produtos</option>
+          <option value="exemplo">Preço de exemplo</option>
+          <option value="semFoto">Sem foto</option>
+          <option value="ocultos">Ocultos do totem</option>
           <option value="baixo">Estoque baixo</option>
           <option value="zerado">Esgotados</option>
         </select>
         <span class="espaco"></span>
         <button class="btn" id="btn-importar-fotos">Importar fotos</button>
-        <button class="btn" id="btn-importar-produtos">Importar planilha</button>
-        <button class="btn" id="btn-exportar-produtos">Exportar planilha</button>
+        <details class="menu-planilha">
+          <summary class="btn">Planilha ▾</summary>
+          <div class="menu-planilha-itens">
+            <button class="btn" id="btn-modelo-produtos">Baixar modelo em branco</button>
+            <button class="btn" id="btn-importar-produtos">Importar planilha</button>
+            <button class="btn" id="btn-exportar-produtos">Exportar produtos cadastrados</button>
+          </div>
+        </details>
         <button class="btn btn-primario" id="btn-novo-produto">+ Novo produto</button>
       </div>
       <button type="button" class="aviso-estoque" id="aviso-estoque" hidden></button>
-      <table class="tabela">
-        <thead><tr><th></th><th>Produto</th><th>Código de barras</th><th>Categoria</th><th>Preço</th><th>Estoque</th><th></th></tr></thead>
+      <button type="button" class="aviso-estoque aviso-exemplo" id="aviso-exemplo" hidden></button>
+      <div class="barra-massa" id="barra-massa" hidden>
+        <b id="massa-qtd"></b>
+        <button class="btn btn-pequeno" data-massa="mostrar">Mostrar no totem</button>
+        <button class="btn btn-pequeno" data-massa="ocultar">Ocultar do totem</button>
+        <button class="btn btn-pequeno" data-massa="confirmarPreco">Confirmar preço</button>
+        <select id="massa-categoria" aria-label="Mudar categoria"></select>
+        <button class="btn btn-pequeno btn-perigo" data-massa="excluir">Excluir</button>
+        <span class="espaco"></span>
+        <button class="btn btn-pequeno btn-fantasma" data-massa="limpar">Limpar seleção</button>
+      </div>
+      <table class="tabela tabela-produtos">
+        <thead><tr><th><input type="checkbox" id="sel-todos" aria-label="Selecionar todos"></th><th></th><th>Produto</th><th>Código de barras</th><th>Categoria</th><th>Preço</th><th class="col-estoque">Estoque</th><th>No totem</th><th></th></tr></thead>
         <tbody id="tabela-produtos"></tbody>
       </table>
     </div>

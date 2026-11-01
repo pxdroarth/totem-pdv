@@ -56,7 +56,7 @@ Sem o leitor o totem funciona pelo toque: o cliente acha o produto pela categori
 
 ## Produtos (200 a 500, a maioria com código de barras)
 
-1. **Produtos › Exportar planilha** e mandar como modelo. A Lívia preenche e você usa **Importar planilha**.
+1. **Produtos › Planilha › Baixar modelo em branco** e mandar para a loja. A Lívia preenche e você usa **Importar planilha**.
 2. **Produto com vários sabores** (ex.: Whey Isolado Pro Fit): uma linha por sabor, com o **mesmo nome**, a coluna **Sabor** e o código de barras daquela embalagem. No totem vira um produto só. Passar a embalagem no leitor já entra no sabor certo.
 3. **Fotos:** nome do arquivo = código de barras (ou nome do produto) › **Produtos › Importar fotos**. O sistema reduz e converte sozinho.
 4. **Carnes congeladas:** pacote com preço fixo, cadastro normal com código de barras.
@@ -68,11 +68,11 @@ Sem o leitor o totem funciona pelo toque: o cliente acha o produto pela categori
 
 Entrega na mesa: o atendente chama pelo nome do cliente (confirmado; não precisa número da mesa).
 
-### Kit do Empório (fotos recebidas)
-- `Produtos Emporio Lisufit.xlsx`: 28 produtos do Empório tirados das fotos, mais o Shake Protein Premium com os 6 sabores. **Faltam os preços** (células amarelas).
-- Pasta `fotos/`: as 28 fotos já com o nome do produto. Depois de importar a planilha, use **Produtos › Importar fotos** e escolha todas.
-- Confira os nomes que eu deduzi pela foto, principalmente **Caldo de Mocotó**, **Guaraná Natural 300ml** e **Folhado de Presunto e Queijo**. Se mudar um nome na planilha, mude também o nome da foto.
-- **Antes de importar**, apague os produtos de exemplo que vêm no sistema (Whey Protein Concentrado, Shake Proteico 500ml, Smoothie Proteico etc.).
+### Empório (já vem cadastrado)
+- O sistema abre com os 28 produtos do Empório, com foto, e o Shake Protein Premium com os 6 sabores e ingredientes. Não precisa importar planilha nem fotos do Empório.
+- Os preços são **de exemplo**. Quando a Lívia mandar os preços: digitar na tabela de Produtos (Enter salva) ou preencher `Produtos Emporio Lisufit.xlsx` e importar. O aviso amarelo some quando não sobrar nenhum preço de exemplo.
+- Confira os nomes que eu deduzi pela foto, principalmente **Caldo de Mocotó**, **Guaraná Natural 300ml** e **Folhado de Presunto e Queijo**.
+- Os suplementos: **Produtos › Planilha › Baixar modelo em branco**, mandar para a loja e importar de volta.
 
 ## Fica para depois da inauguração
 

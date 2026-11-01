@@ -673,3 +673,35 @@ body.kds { background: var(--superficie); display: flex; flex-direction: column;
 .com-descricao .chip-opcao { justify-content: flex-start; padding: .75rem 1rem; }
 .item-edit { flex-wrap: wrap; }
 .item-edit .i-desc { flex: 1 1 100%; font-size: .9rem; }
+
+/* ---------- lista de produtos: planilha, preço rápido, seleção em massa ---------- */
+.menu-planilha { position: relative; }
+.menu-planilha > summary { list-style: none; cursor: pointer; }
+.menu-planilha > summary::-webkit-details-marker { display: none; }
+.menu-planilha-itens { position: absolute; right: 0; top: calc(100% + .4rem); z-index: 20; display: flex; flex-direction: column; gap: .4rem;
+  min-width: 17rem; padding: .5rem; background: var(--fundo); border: 1px solid var(--linha); border-radius: var(--raio-p);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .12); }
+.menu-planilha-itens .btn { justify-content: flex-start; width: 100%; }
+.aviso-exemplo { background: var(--ouro-suave); color: #6b5a17; border-color: #e6dcb4; }
+.barra-massa { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin-bottom: 1rem; padding: .6rem .8rem;
+  background: var(--marca-suave); border: 1px solid #ffd2b8; border-radius: var(--raio-p); position: sticky; top: 0; z-index: 5; }
+.barra-massa[hidden] { display: none; }
+.barra-massa select { min-height: 3rem; max-width: 14rem; }
+.tabela-produtos tr.selecionada td { background: var(--marca-suave); }
+.tabela-produtos input[type=checkbox] { width: 1.25rem; height: 1.25rem; accent-color: var(--marca); }
+.preco-rapido { display: inline-flex; align-items: center; gap: .3rem; white-space: nowrap; }
+.preco-rapido input { width: 6.5rem; min-height: 2.6rem; padding: 0 .5rem; font: inherit; font-variant-numeric: tabular-nums; text-align: right;
+  border: 1px solid var(--linha); border-radius: 6px; background: var(--fundo); }
+.preco-rapido input:focus { border-color: var(--marca); outline: 2px solid var(--marca-suave); }
+.selo-exemplo { display: inline-block; margin-top: .25rem; padding: .05rem .45rem; border-radius: 999px; background: var(--ouro-suave); color: #6b5a17; font-weight: 600; }
+.chave { position: relative; display: inline-block; width: 2.9rem; height: 1.6rem; cursor: pointer; }
+.chave input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.chave span { position: absolute; inset: 0; border-radius: 999px; background: var(--superficie-2); transition: background .15s; }
+.chave span::after { content: ""; position: absolute; top: .2rem; left: .2rem; width: 1.2rem; height: 1.2rem; border-radius: 50%; background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .25); transition: transform .15s; }
+.chave input:checked + span { background: var(--verde); }
+.chave input:checked + span::after { transform: translateX(1.3rem); }
+.chave input:focus-visible + span { outline: 2px solid var(--marca); outline-offset: 2px; }
+.tabela-produtos td.acoes { white-space: nowrap; }
+.tabela-produtos.sem-estoque .col-estoque { display: none; }
+.tabela-produtos th { white-space: nowrap; }

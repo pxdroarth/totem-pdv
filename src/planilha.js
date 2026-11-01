@@ -34,6 +34,9 @@ const APELIDOS = {
 };
 
 const semAcento = t => String(t ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '');
+// linhas de exemplo do modelo começam com "(exemplo)"
+const PREFIXO_EXEMPLO = '(exemplo) ';
+const ehExemplo = nome => semAcento(nome).trim().toLowerCase().startsWith('(exemplo)');
 const chaveColuna = t => APELIDOS[semAcento(t).toLowerCase().replace(/[_\-.]/g, ' ').replace(/\s+/g, ' ').trim()];
 
 // "R$ 1.299,90" | "129,9" | "129.90" | 129.9 -> centavos
@@ -131,6 +134,7 @@ async function lerPlanilhaProdutos(arquivo) {
     const erro = msg => resultado.push({ linha: n, dados: null, erro: msg });
     const d = {};
     if ('nome' in cel) d.nome = String(cel.nome ?? '').trim();
+    if (ehExemplo(d.nome)) continue; // linhas "(exemplo)" do modelo nunca viram produto
     if ('codigoBarras' in cel) {
       const cod = String(cel.codigoBarras ?? '').trim();
       if (/e\+?\d+$/i.test(cod) || /^\d+[.,]\d+e/i.test(cod)) { erro(`Código de barras "${cod}" virou número científico no Excel. Formate a coluna como Texto e digite de novo.`); continue; }
@@ -178,7 +182,18 @@ function estilizarCabecalho(ws) {
   ws.views = [{ state: 'frozen', ySplit: 1 }];
 }
 
-async function exportarProdutos(arquivo, produtos, categorias) {
+// modelo para a loja preencher: só cabeçalhos, linhas de exemplo em cinza (ignoradas ao importar) e a aba de ajuda
+const LINHAS_MODELO = [
+  { nome: 'Creatina Monohidratada 300g', sabor: '', codigoBarras: '7890000000000', preco: 89.9, categoria: 'Creatina', secao: 'Suplementos', estoque: 10, estoqueMinimo: 3, feitoNaHora: 'Não', ativo: 'Sim' },
+  { nome: 'Whey Isolado 900g', sabor: 'Chocolate', codigoBarras: '7891111111111', preco: 199.9, categoria: 'Proteínas', secao: 'Suplementos', feitoNaHora: 'Não', ativo: 'Sim' },
+  { nome: 'Whey Isolado 900g', sabor: 'Baunilha', codigoBarras: '7892222222222', preco: 199.9, categoria: 'Proteínas', secao: 'Suplementos', feitoNaHora: 'Não', ativo: 'Sim' },
+  { nome: 'Shake de Frutas 500ml', sabor: 'Morango', codigoBarras: '', preco: 22, categoria: 'Shakes', secao: 'Empório', feitoNaHora: 'Sim', ativo: 'Sim', ingredientes: 'Iogurte, morango, banana e whey baunilha' }
+];
+async function exportarModelo(arquivo) {
+  return exportarProdutos(arquivo, [], [], { modelo: true });
+}
+
+async function exportarProdutos(arquivo, produtos, categorias, { modelo = false } = {}) {
   const wb = new ExcelJS.Workbook();
   wb.creator = 'Lisufit PDV';
   const ws = wb.addWorksheet('Produtos');
@@ -202,6 +217,10 @@ async function exportarProdutos(arquivo, produtos, categorias) {
         estoque: '', estoqueMinimo: '' }));
     } else ws.addRow({ ...base, sabor: '', codigoBarras: p.codigoBarras || '' });
   });
+  if (modelo) LINHAS_MODELO.forEach(l => {
+    const r = ws.addRow({ ...l, nome: PREFIXO_EXEMPLO + l.nome });
+    r.font = { italic: true, color: { argb: 'FF8A8A8A' } };
+  });
   // linhas extras já formatadas como texto para novos códigos de barras
   const colCodigo = COLUNAS_PRODUTO.findIndex(c => c.chave === 'codigoBarras') + 1;
   for (let i = 0; i < 300; i++) ws.getCell(ws.rowCount + 1, colCodigo).numFmt = '@';
@@ -210,8 +229,8 @@ async function exportarProdutos(arquivo, produtos, categorias) {
   ajuda.columns = [{ width: 22 }, { width: 90 }];
   [
     ['Coluna', 'Como preencher'],
+    ...(modelo ? [['Linhas em cinza', 'São exemplos e começam com "(exemplo)": o sistema ignora essas linhas ao importar. Pode apagar ou deixar.']] : []),
     ['Nome', 'Obrigatório. Se o produto não tiver código de barras, o nome é usado para achar o produto ao importar.'],
-    ['Ingredientes', 'Opcional, só nas linhas com Sabor: o que vai naquele sabor. Aparece embaixo do sabor na tela de escolha do totem.'],
     ['Sabor', 'Só para produto com vários sabores (ex.: Whey Isolado Pro Fit). Uma linha por sabor, com o MESMO nome, o sabor e o código de barras daquela embalagem. No totem vira um produto só, e o cliente escolhe o sabor. Se um sabor custar mais, coloque o preço dele na linha.'],
     ['Código de barras', 'O número embaixo do código no rótulo. A coluna já está como Texto para o Excel não estragar o número.'],
     ['Preço', 'Preço de venda. Ex.: 129,90'],
@@ -221,8 +240,10 @@ async function exportarProdutos(arquivo, produtos, categorias) {
     ['Estoque mínimo', 'Abaixo disso o produto aparece em "Estoque baixo" no painel.'],
     ['Feito na hora', 'Sim para shakes, smoothies e itens preparados na hora (não controla estoque).'],
     ['Visível no totem', 'Não para esconder o produto do cliente sem apagar.'],
+    ['Ingredientes', 'Opcional, só nas linhas com Sabor: o que vai naquele sabor. Aparece embaixo do sabor na tela de escolha do totem.'],
     ['', ''],
-    ['Importante', 'Fotos e variações (sabores, frutas) não vão na planilha: continuam como estão no sistema.']
+    ['Importante', 'Produto que já está no sistema e não aparece na planilha continua como está. Fotos e outras variações (frutas, adicionais) também não vão na planilha.'],
+    ['Fotos', 'Depois de importar: Produtos › Importar fotos. O nome do arquivo da foto deve ser o código de barras ou o nome do produto.']
   ].forEach(l => ajuda.addRow(l));
   estilizarCabecalho(ajuda);
   ajuda.getColumn(2).alignment = { wrapText: true };
@@ -277,4 +298,4 @@ async function exportarVendas(arquivo, vendas) {
   return arquivo;
 }
 
-module.exports = { lerPlanilhaProdutos, exportarProdutos, exportarVendas, lerPreco };
+module.exports = { lerPlanilhaProdutos, exportarProdutos, exportarModelo, exportarVendas, lerPreco };

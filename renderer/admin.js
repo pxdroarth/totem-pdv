@@ -46,23 +46,122 @@ async function renderTabelaProdutos() {
   aviso.hidden = !baixos.length || !!fEstoque;
   aviso.innerHTML = `${icone('alerta', 20)} <b>${baixos.length} produto(s) com estoque baixo</b>` +
     (zerados.length ? ` — ${zerados.length} esgotado(s)` : '') + ' <u>Ver lista</u>';
+  const exemplos = estado.produtos.filter(p => p.precoExemplo);
+  const avisoEx = $('#aviso-exemplo');
+  avisoEx.hidden = !exemplos.length || fEstoque === 'exemplo';
+  avisoEx.innerHTML = `${icone('alerta', 20)} <b>${exemplos.length} produto(s) com preço de exemplo</b> — confira antes de abrir a loja <u>Ver lista</u>`;
+  const situacao = {
+    baixo: estoqueBaixo,
+    zerado: p => p.controlarEstoque !== false && p.estoque <= 0,
+    exemplo: p => p.precoExemplo,
+    semFoto: p => !p.imagem,
+    ocultos: p => !p.ativo
+  }[fEstoque];
   const lista = estado.produtos
     .filter(p => !filtro.value || p.categoria === filtro.value)
-    .filter(p => !fEstoque || (fEstoque === 'baixo' ? estoqueBaixo(p) : p.controlarEstoque !== false && p.estoque <= 0))
+    .filter(p => !situacao || situacao(p))
     .filter(p => !termo || p.nome.toLowerCase().includes(termo) || p.codigoBarras.includes(termo) ||
       (p.opcoes || []).some(g => g.itens.some(i => (i.codigoBarras || '').includes(termo))))
     .sort((a, b) => a.nome.localeCompare(b.nome));
+  estado.listaAdmin = lista.map(p => p.id);
+  // loja sem controle de estoque: a coluna Estoque não diz nada, some da tabela
+  $('.tabela-produtos').classList.toggle('sem-estoque', estado.config.controlarEstoque === false);
+  for (const id of [...selecionados]) if (!estado.produtos.some(p => p.id === id)) selecionados.delete(id);
+  const precoTexto = c => (c / 100).toFixed(2).replace('.', ',');
   $('#tabela-produtos').innerHTML = lista.map(p => `
-    <tr class="${p.ativo ? '' : 'inativo'}">
+    <tr class="${p.ativo ? '' : 'inativo'} ${selecionados.has(p.id) ? 'selecionada' : ''}">
+      <td><input type="checkbox" data-sel="${p.id}" ${selecionados.has(p.id) ? 'checked' : ''} aria-label="Selecionar ${esc(p.nome)}"></td>
       <td>${p.imagem ? `<img class="mini" src="${esc(urlArquivo(p.imagem))}" alt="">` : ''}</td>
       <td>${esc(p.nome)}${p.ativo ? '' : ' <small>(oculto)</small>'}${(p.opcoes || []).length ? `<br><small class="ajuda">Variações: ${p.opcoes.map(g => esc(g.nome)).join(', ')}</small>` : ''}</td>
       <td>${esc(p.codigoBarras)}</td>
       <td><span class="cat-tabela">${icone(iconeCategoria(p.categoria), 18)} ${esc(p.categoria)}</span></td>
-      <td>${reais(p.precoCentavos)}</td>
-      <td class="${estoqueBaixo(p) ? 'alerta' : ''}">${p.controlarEstoque === false ? '<small>feito na hora</small>' : `${p.estoque} <small class="ajuda">mín. ${p.estoqueMinimo ?? 3}</small>`}</td>
-      <td><button class="btn btn-pequeno" data-editar="${p.id}">Editar</button></td>
-    </tr>`).join('');
+      <td class="celula-preco"><label class="preco-rapido">R$ <input inputmode="decimal" data-preco="${p.id}" value="${precoTexto(p.precoCentavos)}" aria-label="Preço de ${esc(p.nome)}"></label>
+        ${p.precoExemplo ? '<small class="selo-exemplo" title="Preço de exemplo: digite o preço certo ou aperte Enter para confirmar">exemplo</small>' : ''}</td>
+      <td class="col-estoque ${estoqueBaixo(p) ? 'alerta' : ''}">${p.controlarEstoque === false ? '<small>feito na hora</small>' : `${p.estoque} <small class="ajuda">mín. ${p.estoqueMinimo ?? 3}</small>`}</td>
+      <td><label class="chave"><input type="checkbox" data-ativo="${p.id}" ${p.ativo ? 'checked' : ''} aria-label="${esc(p.nome)} no totem"><span></span></label></td>
+      <td class="acoes"><button class="btn btn-pequeno" data-editar="${p.id}">Editar</button><button class="btn btn-pequeno btn-fantasma" data-duplicar="${p.id}">Duplicar</button></td>
+    </tr>`).join('') || '<tr><td class="vazio" colspan="9">Nenhum produto com esse filtro.</td></tr>';
+  atualizarBarraMassa();
 }
+
+// ---------- seleção e ações em massa ----------
+const selecionados = new Set();
+function atualizarBarraMassa() {
+  const n = selecionados.size;
+  $('#barra-massa').hidden = !n;
+  $('#massa-qtd').textContent = `${n} selecionado(s)`;
+  $('#massa-categoria').innerHTML = '<option value="">Mudar categoria…</option>' + opcoesCategorias();
+  const visiveis = estado.listaAdmin || [];
+  const todos = $('#sel-todos');
+  todos.checked = visiveis.length > 0 && visiveis.every(id => selecionados.has(id));
+  todos.indeterminate = !todos.checked && visiveis.some(id => selecionados.has(id));
+}
+$('#sel-todos').onchange = e => {
+  for (const id of estado.listaAdmin || []) e.target.checked ? selecionados.add(id) : selecionados.delete(id);
+  renderTabelaProdutos();
+};
+async function aplicarEmMassa(acao, valor) {
+  const ids = [...selecionados];
+  if (!ids.length) return;
+  if (acao === 'excluir' && !confirm(`Excluir ${ids.length} produto(s)? Vendas antigas continuam no histórico.`)) return;
+  try {
+    const n = await pdv.produtosEmMassa(ids, acao, valor);
+    const msg = { mostrar: 'agora aparecem no totem', ocultar: 'ocultos do totem', confirmarPreco: 'com preço confirmado',
+      categoria: `movidos para ${valor}`, excluir: 'excluídos' }[acao];
+    toast(`${n} produto(s) ${msg}`, 'ok');
+    if (acao === 'excluir') selecionados.clear();
+    await renderTabelaProdutos();
+    await carregarDados();
+  } catch (err) { toast(err.message, 'erro'); }
+}
+$('#barra-massa').onclick = e => {
+  const b = e.target.closest('[data-massa]');
+  if (!b) return;
+  if (b.dataset.massa === 'limpar') { selecionados.clear(); return renderTabelaProdutos(); }
+  aplicarEmMassa(b.dataset.massa);
+};
+$('#massa-categoria').onchange = e => { if (e.target.value) aplicarEmMassa('categoria', e.target.value); };
+
+// preço direto na tabela: Enter ou sair do campo salva; Enter sem mudar confirma o preço de exemplo
+async function salvarPrecoRapido(input) {
+  const p = estado.produtos.find(x => x.id === input.dataset.preco);
+  if (!p) return;
+  const centavos = Math.round(Number(input.value.replace(/[^\d,.]/g, '').replace(/\.(?=\d{3}(\D|$))/g, '').replace(',', '.')) * 100);
+  if (!centavos || centavos <= 0) { toast('Preço inválido', 'erro'); input.value = (p.precoCentavos / 100).toFixed(2).replace('.', ','); return; }
+  if (centavos === p.precoCentavos && !p.precoExemplo) return;
+  try {
+    await pdv.salvarProduto({ ...p, precoCentavos: centavos, confirmarPreco: true });
+    toast(`${p.nome}: ${reais(centavos)}`, 'ok');
+    await renderTabelaProdutos();
+    await carregarDados();
+  } catch (err) { toast(err.message, 'erro'); }
+}
+$('#tabela-produtos').addEventListener('keydown', e => {
+  if (e.target.dataset.preco && e.key === 'Enter') { e.preventDefault(); e.target.dataset.enviado = '1'; salvarPrecoRapido(e.target); }
+});
+$('#tabela-produtos').addEventListener('focusout', e => {
+  if (e.target.dataset.preco && !e.target.dataset.enviado) {
+    const p = estado.produtos.find(x => x.id === e.target.dataset.preco);
+    const mudou = p && e.target.value !== (p.precoCentavos / 100).toFixed(2).replace('.', ',');
+    if (mudou) salvarPrecoRapido(e.target);
+  }
+});
+$('#tabela-produtos').addEventListener('change', async e => {
+  if (e.target.dataset.sel) {
+    e.target.checked ? selecionados.add(e.target.dataset.sel) : selecionados.delete(e.target.dataset.sel);
+    e.target.closest('tr').classList.toggle('selecionada', e.target.checked);
+    return atualizarBarraMassa();
+  }
+  if (e.target.dataset.ativo) {
+    const p = estado.produtos.find(x => x.id === e.target.dataset.ativo);
+    try {
+      await pdv.salvarProduto({ ...p, ativo: e.target.checked });
+      toast(e.target.checked ? `${p.nome} aparece no totem` : `${p.nome} oculto do totem`, 'ok');
+      await renderTabelaProdutos();
+      await carregarDados();
+    } catch (err) { toast(err.message, 'erro'); }
+  }
+});
 
 // abaixo (ou igual) do mínimo cadastrado no produto; feito na hora nunca entra
 const estoqueBaixo = p => estado.config.controlarEstoque !== false && p.controlarEstoque !== false && p.estoque <= (p.estoqueMinimo ?? 3);
@@ -82,7 +181,7 @@ function preencherSelectCategoria(valor) {
   if (valor && estado.categorias.some(c => c.nome === valor)) sel.value = valor;
 }
 
-function abrirProduto(p) {
+function abrirProduto(p, { novo = false } = {}) {
   produtoEditando = p ? { ...p } : { imagem: '', ativo: true, estoque: 0 };
   produtoEditando.opcoes = JSON.parse(JSON.stringify(produtoEditando.opcoes || []));
   renderEditorOpcoes();
@@ -97,8 +196,9 @@ function abrirProduto(p) {
   f.ativo.checked = produtoEditando.ativo !== false;
   f.controlarEstoque.checked = produtoEditando.controlarEstoque !== false;
   f.estoque.disabled = f.estoqueMinimo.disabled = !f.controlarEstoque.checked;
-  $('#produto-titulo').textContent = p ? 'Editar produto' : 'Novo produto';
-  $('#btn-excluir-produto').style.visibility = p ? 'visible' : 'hidden';
+  const editando = p && !novo;
+  $('#produto-titulo').textContent = editando ? 'Editar produto' : novo ? 'Novo produto (cópia)' : 'Novo produto';
+  $('#btn-excluir-produto').style.visibility = editando ? 'visible' : 'hidden';
   atualizarPreview();
   $('#modal-produto').classList.add('aberto');
   setTimeout(() => f.nome.focus(), 50);
@@ -292,13 +392,22 @@ $('#form-produto').controlarEstoque.onchange = e => {
 };
 $('#filtro-estoque-admin').onchange = renderTabelaProdutos;
 $('#aviso-estoque').onclick = () => { $('#filtro-estoque-admin').value = 'baixo'; renderTabelaProdutos(); };
+$('#aviso-exemplo').onclick = () => { $('#filtro-estoque-admin').value = 'exemplo'; renderTabelaProdutos(); };
 
 // ---------- planilhas ----------
+const fecharMenuPlanilha = () => $('.menu-planilha').removeAttribute('open');
+$('#btn-modelo-produtos').onclick = async () => {
+  fecharMenuPlanilha();
+  try { const arq = await pdv.baixarModelo(); if (arq) toast('Modelo salvo em ' + arq, 'ok'); }
+  catch (err) { toast(err.message, 'erro'); }
+};
 $('#btn-exportar-produtos').onclick = async () => {
+  fecharMenuPlanilha();
   try { const arq = await pdv.exportarProdutos(); if (arq) toast('Planilha salva em ' + arq, 'ok'); }
   catch (err) { toast(err.message, 'erro'); }
 };
 $('#btn-importar-produtos').onclick = async () => {
+  fecharMenuPlanilha();
   try {
     const r = await pdv.lerPlanilhaProdutos();
     if (!r) return;
@@ -429,8 +538,21 @@ $('#tabela-categorias').onclick = async e => {
 };
 $('#tabela-produtos').onclick = e => {
   const b = e.target.closest('[data-editar]');
-  if (b) abrirProduto(estado.produtos.find(p => p.id === b.dataset.editar));
+  if (b) return abrirProduto(estado.produtos.find(p => p.id === b.dataset.editar));
+  const d = e.target.closest('[data-duplicar]');
+  if (d) duplicarProduto(estado.produtos.find(p => p.id === d.dataset.duplicar));
 };
+
+// copia o produto (foto, categoria, variações) e abre como novo; códigos de barras ficam em branco
+function duplicarProduto(p) {
+  const copia = JSON.parse(JSON.stringify(p));
+  delete copia.id; delete copia.precoExemplo;
+  copia.nome = p.nome + ' (cópia)';
+  copia.codigoBarras = '';
+  for (const g of copia.opcoes || []) { delete g.id; for (const i of g.itens) { delete i.id; delete i.codigoBarras; } }
+  abrirProduto(copia, { novo: true });
+  setTimeout(() => $('#form-produto').nome.select(), 60);
+}
 
 // ---------- vendas ----------
 async function carregarVendas() {

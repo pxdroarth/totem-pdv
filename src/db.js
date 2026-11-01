@@ -34,47 +34,10 @@ const CONFIG_PADRAO = {
   pagamentos: { provedorPix: 'manual', provedorCartao: 'manual', permitirManualSeFalhar: true, credenciais: {} }
 };
 
-const PRODUTOS_EXEMPLO = [
-  ['Whey Protein Concentrado 900g', '7890000000011', 12990, 'Proteínas'],
-  ['Whey Isolado 900g', '7890000000028', 18990, 'Proteínas'],
-  ['Creatina Monohidratada 300g', '7890000000035', 8990, 'Creatina'],
-  ['Pré-Treino 300g', '7890000000042', 9990, 'Pré-Treino'],
-  ['BCAA 120 cáps', '7890000000059', 5990, 'Aminoácidos'],
-  ['Glutamina 300g', '7890000000066', 6990, 'Aminoácidos'],
-  ['Multivitamínico 60 cáps', '7890000000073', 3990, 'Vitaminas'],
-  ['Ômega 3 120 cáps', '7890000000080', 4990, 'Vitaminas'],
-  ['Barra de Proteína 45g', '7890000000097', 990, 'Snacks'],
-  ['Pasta de Amendoim 500g', '7890000000103', 2490, 'Snacks'],
-  ['Coqueteleira 600ml', '7890000000110', 2990, 'Acessórios'],
-  // Empório (feitos na hora: sem código de barras e sem controle de estoque)
-  ['Smoothie Proteico 400ml', '', 1890, 'Smoothies', false, [
-    { nome: 'Sabor do whey', min: 1, max: 1, itens: [['Morango'], ['Baunilha'], ['Chocolate']] },
-    { nome: 'Frutas', min: 1, max: 2, itens: [['Banana'], ['Morango'], ['Manga'], ['Açaí', 200]] },
-    { nome: 'Adicionais', min: 0, max: 2, itens: [['Dose extra de whey', 500], ['Pasta de amendoim', 300], ['Aveia', 150]] }
-  ]],
-  ['Shake Proteico 500ml', '', 1690, 'Shakes', false, [
-    { nome: 'Sabor', min: 1, max: 1, itens: [['Chocolate'], ['Baunilha'], ['Morango'], ['Cookies'] ] }
-  ]],
-  ['Frango com Batata-doce 350g', '7890000000127', 2290, 'Congelados'],
-  ['Escondidinho Fit de Carne 350g', '7890000000134', 2490, 'Congelados'],
-  ['Patinho Moído 500g', '7890000000141', 3290, 'Carnes']
-];
-
-// Categorias iniciais. "secao" agrupa as categorias no totem (ex.: Suplementos, Empório).
-const CATEGORIAS_PADRAO = [
-  ['Proteínas', 'Suplementos', 'dumbbell'],
-  ['Creatina', 'Suplementos', 'flask'],
-  ['Pré-Treino', 'Suplementos', 'zap'],
-  ['Aminoácidos', 'Suplementos', 'atom'],
-  ['Vitaminas', 'Suplementos', 'pill'],
-  ['Snacks', 'Suplementos', 'cookie'],
-  ['Acessórios', 'Suplementos', 'bag'],
-  ['Smoothies', 'Empório', 'cupSoda'],
-  ['Shakes', 'Empório', 'milk'],
-  ['Refeições', 'Empório', 'utensils'],
-  ['Congelados', 'Empório', 'snowflake'],
-  ['Carnes', 'Empório', 'beef']
-];
+// Catálogo inicial: Empório Lisufit com fotos (src/catalogo). PDV_CATALOGO=exemplo usa os produtos
+// fictícios de suplementos (demonstração e testes automáticos).
+const CATALOGO = require('./catalogo/emporio');
+const CATEGORIAS_PADRAO = CATALOGO.CATEGORIAS;
 
 // PIN dos atendentes nunca fica em texto puro: guarda "sal:hash" (scrypt)
 function hashPin(pin, sal = crypto.randomBytes(8).toString('hex')) {
@@ -192,12 +155,9 @@ class Banco {
       return d;
     }
     const d = {
-      config: { ...CONFIG_PADRAO },
-      produtos: PRODUTOS_EXEMPLO.map(([nome, codigoBarras, precoCentavos, categoria, controlarEstoque = true, opcoes = []]) => ({
-        id: crypto.randomUUID(), nome, codigoBarras, precoCentavos, categoria,
-        estoque: controlarEstoque ? 20 : 0, estoqueMinimo: 3, controlarEstoque, imagem: '', ativo: true,
-        opcoes: limparOpcoes(opcoes.map(g => ({ ...g, itens: g.itens.map(([n, c = 0]) => ({ nome: n, precoCentavos: c })) })))
-      })),
+      // a Lisufit não controla estoque; com os produtos fictícios (testes) o padrão continua ligado
+      config: { ...CONFIG_PADRAO, ...(process.env.PDV_CATALOGO === 'exemplo' ? {} : { controlarEstoque: false }) },
+      produtos: this._produtosIniciais(),
       categorias: CATEGORIAS_PADRAO.map(([nome, secao, icone], ordem) => ({
         id: crypto.randomUUID(), nome, secao, icone, ordem, ativo: true
       })),
@@ -209,6 +169,29 @@ class Banco {
     this.dados = d;
     this._salvar();
     return d;
+  }
+
+  // Produtos da primeira abertura: o catálogo do Empório, com as fotos copiadas para a pasta de imagens
+  _produtosIniciais() {
+    const opcoesDe = sabores => limparOpcoes(sabores ? [{ nome: 'Sabor', min: 1, max: 1,
+      itens: sabores.map(([nome, descricao]) => ({ nome, descricao, precoCentavos: 0 })) }] : []);
+    if (process.env.PDV_CATALOGO === 'exemplo') {
+      return require('./catalogo/exemplo').PRODUTOS.map(([nome, codigoBarras, precoCentavos, categoria, controlarEstoque = true, opcoes = []]) => ({
+        id: crypto.randomUUID(), nome, codigoBarras, precoCentavos, categoria,
+        estoque: controlarEstoque ? 20 : 0, estoqueMinimo: 3, controlarEstoque, imagem: '', ativo: true,
+        opcoes: limparOpcoes(opcoes.map(g => ({ ...g, itens: g.itens.map(([n, c = 0]) => ({ nome: n, precoCentavos: c })) })))
+      }));
+    }
+    return CATALOGO.PRODUTOS.map(([nome, categoria, precoCentavos, feitoNaHora, foto, sabores]) => {
+      let imagem = '';
+      const origem = path.join(CATALOGO.pastaFotos, foto + '.webp');
+      try {
+        imagem = path.join(this.pastaImagens, 'catalogo-' + foto + '.webp');
+        fs.copyFileSync(origem, imagem);
+      } catch { imagem = ''; } // sem a foto o produto entra igual, só sem imagem
+      return { id: crypto.randomUUID(), nome, codigoBarras: '', precoCentavos, precoExemplo: true, categoria,
+        estoque: 0, estoqueMinimo: 3, controlarEstoque: !feitoNaHora, imagem, ativo: true, opcoes: opcoesDe(sabores) };
+    });
   }
 
   // Bases antigas (sem lista de categorias): cria a lista a partir dos produtos + padrões
@@ -446,6 +429,8 @@ class Banco {
     else this.dados.categorias.push({ id: crypto.randomUUID(), nome: limpo.categoria, secao: 'Outros', icone: iconeParaCategoria(limpo.categoria),
       ordem: this.dados.categorias.length, ativo: true });
     const i = this.dados.produtos.findIndex(x => x.id === limpo.id);
+    // preço de exemplo (catálogo inicial) continua marcado até alguém mudar o preço
+    if (i >= 0 && this.dados.produtos[i].precoExemplo && !p.confirmarPreco && this.dados.produtos[i].precoCentavos === limpo.precoCentavos) limpo.precoExemplo = true;
     if (i >= 0) this.dados.produtos[i] = limpo; else this.dados.produtos.push(limpo);
     this._salvar();
     return limpo;
@@ -469,6 +454,23 @@ class Banco {
     p.imagem = caminho || '';
     this._salvar();
     return p;
+  }
+
+  // ações do admin em vários produtos de uma vez; devolve quantos mudaram
+  produtosEmMassa(ids, acao, valor) {
+    const alvo = new Set(Array.isArray(ids) ? ids : []);
+    const lista = this.dados.produtos.filter(p => alvo.has(p.id));
+    if (!lista.length) throw new Error('Nenhum produto selecionado.');
+    if (acao === 'excluir') this.dados.produtos = this.dados.produtos.filter(p => !alvo.has(p.id));
+    else if (acao === 'mostrar' || acao === 'ocultar') lista.forEach(p => { p.ativo = acao === 'mostrar'; });
+    else if (acao === 'confirmarPreco') lista.forEach(p => { delete p.precoExemplo; });
+    else if (acao === 'categoria') {
+      const cat = this.dados.categorias.find(c => normalizar(c.nome) === normalizar(valor));
+      if (!cat) throw new Error('Categoria não encontrada.');
+      lista.forEach(p => { p.categoria = cat.nome; });
+    } else throw new Error('Ação desconhecida.');
+    this._salvar();
+    return lista.length;
   }
 
   excluirProduto(id) {
@@ -648,6 +650,7 @@ class Banco {
           produtos.push(p);
           res.novos++;
         } else res.atualizados++;
+        if (d.precoCentavos !== undefined) delete p.precoExemplo; // preço vindo da planilha conta como definitivo
         for (const k of ['precoCentavos', 'categoria', 'ativo']) if (d[k] !== undefined) p[k] = d[k];
         if (d.feitoNaHora !== undefined) p.controlarEstoque = !d.feitoNaHora;
         // atualiza o grupo "Sabor" mantendo os ids dos sabores que já existiam (vendas antigas continuam batendo)
@@ -690,7 +693,10 @@ class Banco {
       const campos = {};
       for (const k of ['nome', 'codigoBarras', 'precoCentavos', 'categoria', 'estoque', 'estoqueMinimo', 'ativo']) if (d[k] !== undefined) campos[k] = d[k];
       if (d.feitoNaHora !== undefined) campos.controlarEstoque = !d.feitoNaHora;
-      if (p) { Object.assign(p, campos); res.atualizados++; }
+      if (p) {
+        if (campos.precoCentavos !== undefined) delete p.precoExemplo;
+        Object.assign(p, campos); res.atualizados++;
+      }
       else {
         produtos.push({ id: crypto.randomUUID(), codigoBarras: '', categoria: 'Outros', estoque: 0, estoqueMinimo: 3,
           controlarEstoque: true, imagem: '', ativo: true, opcoes: [], ...campos });

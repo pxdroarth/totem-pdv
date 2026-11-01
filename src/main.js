@@ -258,6 +258,7 @@ tratar('categorias:mover', soAdmin((id, direcao) => banco.moverCategoria(id, dir
 tratar('produtos:listar', () => banco.getProdutos());
 tratar('produtos:salvar', soAdmin(p => banco.salvarProduto(p)));
 tratar('produtos:excluir', soAdmin(id => banco.excluirProduto(id)));
+tratar('produtos:emMassa', soAdmin((ids, acao, valor) => banco.produtosEmMassa(ids, acao, valor)));
 
 // ---------- fotos dos produtos ----------
 // A tela escolhe os arquivos, lê um por vez, reduz e converte para WebP (no próprio Chromium)
@@ -416,6 +417,10 @@ async function escolherOndeSalvar(nome) {
 tratar('produtos:exportar', soAdmin(async () => {
   const arq = await escolherOndeSalvar(`produtos-lisufit-${hojeArquivo()}.xlsx`);
   return arq ? planilha.exportarProdutos(arq, banco.getProdutos(), banco.getCategorias()) : '';
+}));
+tratar('produtos:modelo', soAdmin(async () => {
+  const arq = await escolherOndeSalvar('modelo-produtos-lisufit.xlsx');
+  return arq ? planilha.exportarModelo(arq) : '';
 }));
 let planilhaLida = null; // guarda a leitura entre a prévia e a confirmação
 tratar('produtos:lerPlanilha', soAdmin(async () => {

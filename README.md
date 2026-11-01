@@ -50,7 +50,7 @@ Outros comandos: `npm start` abre em modo desenvolvimento (janela normal com Dev
 2. **Chave PIX**, nome do recebedor (igual ao do banco) e cidade
 3. Escolha a **impressora** do cupom
 4. Troque os PINs
-5. Em Produtos, apague os produtos de exemplo e cadastre os seus (dá para passar o código no leitor direto no campo)
+5. Em Produtos, confira os preços: o sistema já abre com o catálogo do Empório (28 produtos com foto) e **preços de exemplo**, marcados com o selo "exemplo" até serem confirmados. Os suplementos entram pela planilha.
 
 ### Abrir sozinho quando ligar o PC
 Aperte `Win + R`, digite `shell:startup` e coloque ali um atalho do `iniciar-totem.bat` (ou do "Lisufit PDV", se usou o instalador .exe).
@@ -103,8 +103,22 @@ Painel admin → Produtos → Editar → **Variações (opcional)**:
 - Fotos HEIC do iPhone não abrem. Mandadas pelo WhatsApp, elas já chegam convertidas em JPEG.
 - Sugestão: a loja manda as fotos pelo WhatsApp normal, você salva no seu computador e leva para o totem num pendrive. Não precisa abrir o WhatsApp Web no totem.
 
+## Catálogo inicial do Empório
+- Na primeira vez que o sistema abre (base nova), já entram os 28 produtos do Empório com foto, categoria e o Shake Protein Premium com os 6 sabores e ingredientes. Ficam em `src/catalogo/` (lista em `emporio.js`, fotos em `fotos/`).
+- Os preços são **de exemplo**. No admin, o aviso amarelo e o filtro **Preço de exemplo** mostram quais faltam. O selo some quando o preço é digitado na tabela, confirmado com Enter, confirmado em massa ou importado pela planilha.
+- Para demonstração e testes automáticos há os produtos fictícios de suplementos: abra com `PDV_CATALOGO=exemplo`.
+
+## Lista de produtos no admin
+- **Filtros:** categoria e situação (preço de exemplo, sem foto, ocultos do totem, estoque baixo, esgotados).
+- **Preço direto na tabela:** digite e aperte Enter. A chave **No totem** mostra ou esconde o produto na hora.
+- **Ações em massa:** marque vários (ou todos do filtro, no quadrado do cabeçalho) e use mostrar, ocultar, confirmar preço, mudar categoria ou excluir.
+- **Duplicar:** abre um produto novo com a foto, a categoria e as variações do original (útil para tamanhos, ex.: 300ml/500ml). Os códigos de barras ficam em branco.
+- Com o controle de estoque desligado, a coluna Estoque some da tabela.
+
 ## Planilhas (Excel)
-- **Produtos › Exportar planilha** gera um `.xlsx` com todos os produtos. Ele serve de modelo: a loja edita no Excel (preço, estoque, produtos novos) e usa **Importar planilha**.
+- **Produtos › Planilha › Baixar modelo em branco** gera o modelo com as colunas, 4 linhas de exemplo em cinza (começam com "(exemplo)" e são ignoradas ao importar) e a aba "Como preencher".
+- **Exportar produtos cadastrados** gera um `.xlsx` com todos os produtos, no mesmo formato: a loja edita no Excel (preço, estoque, produtos novos) e usa **Importar planilha**.
+- Produto que já está no sistema e não aparece na planilha continua como está.
 - Antes de gravar, a importação mostra uma prévia com o que é novo, o que vai ser atualizado e quais linhas têm erro, informando o número da linha.
 - O produto é encontrado pelo código de barras ou, se não tiver código, pelo nome. Fotos e variações não vão na planilha e continuam como estão.
 - **Vendas › Exportar planilha do período** gera um `.xlsx` com duas abas, Vendas e Itens vendidos (com as opções escolhidas), para a gestora.
@@ -148,6 +162,7 @@ src/preload.js   ponte segura entre a tela e o sistema (window.pdv)
 src/db.js        banco local em JSON (produtos, vendas, configurações) — valores em centavos
 src/pix.js       gera o PIX Copia e Cola / QR (padrão do Banco Central)
 src/fiscal.js    ponto único de integração com a nota fiscal
+src/catalogo/    catálogo inicial do Empório (lista + fotos) e os produtos fictícios de demonstração
 renderer/        telas: index.html, styles.css, app.js (cliente), admin.js (painel), util.js
 ```
 
