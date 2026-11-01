@@ -705,3 +705,43 @@ body.kds { background: var(--superficie); display: flex; flex-direction: column;
 .tabela-produtos td.acoes { white-space: nowrap; }
 .tabela-produtos.sem-estoque .col-estoque { display: none; }
 .tabela-produtos th { white-space: nowrap; }
+
+/* ---------- indicadores e fluxo de caixa ---------- */
+.periodos { display: flex; gap: .4rem; }
+.periodos .btn.ativo, .receber-formas .btn.ativo { background: var(--marca); border-color: var(--marca); color: var(--sobre-marca); }
+.cards-ind { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.cards-ind .card-resumo small.sobe { color: var(--verde); font-weight: 600; }
+.cards-ind .card-resumo small.desce { color: var(--perigo); font-weight: 600; }
+.aviso-ind { grid-column: 1 / -1; margin: 0; color: #6b5a17; background: var(--ouro-suave); padding: .6rem .9rem; border-radius: var(--raio-p); }
+.grade-ind { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; margin-top: 1rem; }
+.painel-ind { background: var(--fundo); border: 1px solid var(--linha); border-radius: var(--raio-p); padding: 1rem 1.1rem; min-width: 0; }
+.painel-ind.largo { grid-column: 1 / -1; }
+.painel-ind h3 { margin: 0 0 .75rem; font-size: 1rem; }
+.grafico { width: 100%; height: auto; display: block; margin-bottom: .75rem; }
+.grafico .barra { fill: var(--marca); }
+.grafico .marca-barra:hover .barra { fill: var(--marca-escura); }
+.grafico .grade { stroke: var(--linha); stroke-width: 1; }
+.grafico .eixo { stroke: var(--texto-2); stroke-width: 1; }
+.grafico text { font-size: 11px; fill: var(--texto-2); font-variant-numeric: tabular-nums; }
+.barras-h { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .55rem; }
+.barras-h li { display: grid; grid-template-columns: 9rem 1fr 9.5rem; align-items: center; gap: .75rem; font-size: .92rem; }
+.bh-nome { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bh-trilho { height: .8rem; background: var(--superficie); border-radius: 4px; overflow: hidden; }
+.bh-barra { display: block; height: 100%; background: var(--marca); border-radius: 4px; }
+.bh-valor { font-variant-numeric: tabular-nums; color: var(--texto-2); white-space: nowrap; text-align: right; }
+.secoes-ind { margin: 0 0 .75rem; color: var(--texto-2); }
+.tabela-fluxo td, .tabela-fluxo th { font-variant-numeric: tabular-nums; }
+.tabela-fluxo tfoot th { border-top: 2px solid var(--linha); padding: .6rem .75rem; text-align: left; }
+.receber-caixa { width: min(520px, 94vw); display: flex; flex-direction: column; gap: .75rem; }
+.receber-caixa h2 { margin: 0; }
+.receber-total { margin: 0; font-size: 2rem; font-weight: 800; }
+.receber-formas { display: grid; grid-template-columns: repeat(3, 1fr); gap: .5rem; }
+.receber-troco { display: flex; align-items: end; justify-content: space-between; gap: 1rem; }
+.receber-troco[hidden] { display: none; }
+.receber-troco input { font-size: 1.3rem; width: 10rem; }
+.receber-troco p { margin: 0; font-size: 1.2rem; }
+.receber-caixa .acoes { display: flex; justify-content: flex-end; gap: .75rem; }
+.aviso-pin { color: var(--perigo); font-weight: 600; }
+@media (max-width: 1100px) { .cards-ind { grid-template-columns: repeat(3, minmax(0, 1fr)); } .grade-ind { grid-template-columns: 1fr; } }
+.receber-troco label { display: flex; flex-direction: column; gap: .3rem; }
+.grafico text.maximo { font-size: 11.5px; }

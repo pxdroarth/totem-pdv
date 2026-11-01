@@ -171,6 +171,7 @@
         <button class="aba ativa" data-aba="produtos">Produtos</button>
         <button class="aba" data-aba="categorias">Categorias</button>
         <button class="aba" data-aba="vendas">Vendas</button>
+        <button class="aba so-admin" data-aba="indicadores">Indicadores</button>
         <button class="aba" data-aba="config">Configurações</button>
       </nav>
       <span class="painel-quem" id="painel-quem"></span>
@@ -254,9 +255,32 @@
       </table>
       <h3>Fechamentos de caixa</h3>
       <table class="tabela">
-        <thead><tr><th>Dia</th><th>Total</th><th>PIX</th><th>Cartão</th><th>Balcão</th><th>Vendas</th><th>Fechado por</th><th></th></tr></thead>
+        <thead><tr><th>Dia</th><th>Total</th><th>PIX</th><th>Cartão</th><th>Balcão</th><th>Dinheiro</th><th>Vendas</th><th>Fechado por</th><th></th></tr></thead>
         <tbody id="tabela-fechamentos"></tbody>
       </table>
+    </div>
+
+    <div class="aba-conteudo" id="aba-indicadores">
+      <div class="barra">
+        <div class="periodos" role="group" aria-label="Período">
+          <button class="btn btn-pequeno" data-periodo="hoje">Hoje</button>
+          <button class="btn btn-pequeno" data-periodo="7">7 dias</button>
+          <button class="btn btn-pequeno" data-periodo="30">30 dias</button>
+          <button class="btn btn-pequeno" data-periodo="mes">Este mês</button>
+        </div>
+        <label>De <input type="date" id="ind-de"></label>
+        <label>Até <input type="date" id="ind-ate"></label>
+        <button class="btn" id="btn-ind-filtrar">Ver</button>
+      </div>
+      <div class="cards-resumo cards-ind" id="ind-cards"></div>
+      <div class="grade-ind">
+        <section class="painel-ind largo"><h3>Fluxo de caixa: entradas por dia</h3><div id="ind-fluxo-grafico"></div>
+          <table class="tabela tabela-fluxo"><thead><tr><th>Dia</th><th>Dinheiro</th><th>PIX</th><th>Cartão</th><th>Balcão (sem forma)</th><th>Total</th><th>Acumulado</th></tr></thead><tbody id="ind-fluxo"></tbody><tfoot id="ind-fluxo-total"></tfoot></table></section>
+        <section class="painel-ind"><h3>Entradas por forma de recebimento</h3><div id="ind-meio"></div></section>
+        <section class="painel-ind"><h3>Vendas por hora</h3><div id="ind-hora"></div></section>
+        <section class="painel-ind"><h3>Faturamento por seção e categoria</h3><div id="ind-categoria"></div></section>
+        <section class="painel-ind"><h3>Mais vendidos</h3><table class="tabela"><tbody id="ind-top"></tbody></table></section>
+      </div>
     </div>
 
     <div class="aba-conteudo" id="aba-config">
@@ -286,7 +310,8 @@
           <label>Cidade<input name="pixCidade" maxlength="15"></label>
         </fieldset>
         <fieldset><legend>Segurança e pagamento</legend>
-          <label>PIN do admin<input name="pinAdmin" type="password" inputmode="numeric"></label>
+          <label>Novo PIN do admin<input name="pinAdmin" type="password" inputmode="numeric" placeholder="em branco = mantém o atual" autocomplete="new-password"></label>
+          <p class="ajuda dica-campo aviso-pin" id="aviso-pin-padrao" hidden>O admin ainda usa o PIN de fábrica (1234). Troque antes de abrir a loja.</p>
           <label class="check-label"><input type="checkbox" name="confirmarPagamentoComPin"> Exigir PIN do atendente para confirmar PIX e cartão</label>
           <label>Voltar à tela inicial após inatividade (segundos)<input name="tempoInatividadeSeg" type="number" min="30"></label>
         </fieldset>
@@ -311,6 +336,9 @@
           </label>
           <p class="ajuda dica-campo" id="info-backup"></p>
           <button type="button" class="btn" id="btn-backup-agora">Fazer backup agora</button>
+          <label>Restaurar um backup
+            <span class="linha"><select id="sel-backup"></select><button type="button" class="btn btn-perigo" id="btn-restaurar-backup">Restaurar</button></span></label>
+          <p class="ajuda dica-campo">Volta os produtos, vendas e configurações para o dia escolhido. O estado de agora é guardado antes, na pasta "seguranca" dos backups.</p>
         </fieldset>
         <fieldset><legend>Pedidos e estoque</legend>
           <label class="check-label"><input type="checkbox" name="controlarEstoqueGeral"> Controlar estoque (desligado: nada fica esgotado e as vendas não baixam estoque)</label>
@@ -426,6 +454,27 @@
     <div class="acoes">
       <button type="button" class="btn btn-fantasma" id="btn-fotos-cancelar">Cancelar</button>
       <button type="button" class="btn btn-primario" id="btn-fotos-confirmar">Importar</button>
+    </div>
+  </div>
+</div>
+
+<div id="modal-receber" class="modal">
+  <div class="modal-caixa receber-caixa" role="dialog" aria-labelledby="receber-titulo">
+    <h2 id="receber-titulo">Receber pedido</h2>
+    <p class="receber-total" id="receber-total"></p>
+    <p class="ajuda">Como o cliente pagou no balcão?</p>
+    <div class="receber-formas">
+      <button type="button" class="btn" data-receber="dinheiro">Dinheiro</button>
+      <button type="button" class="btn" data-receber="pix">PIX</button>
+      <button type="button" class="btn" data-receber="cartao">Cartão</button>
+    </div>
+    <div class="receber-troco" id="receber-troco" hidden>
+      <label>Valor recebido<input id="receber-valor" inputmode="decimal" placeholder="0,00"></label>
+      <p>Troco: <b id="receber-troco-valor">R$ 0,00</b></p>
+    </div>
+    <div class="acoes">
+      <button type="button" class="btn btn-fantasma" id="btn-receber-cancelar">Voltar</button>
+      <button type="button" class="btn btn-primario" id="btn-receber-confirmar" disabled>Confirmar pagamento</button>
     </div>
   </div>
 </div>

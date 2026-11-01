@@ -1,6 +1,24 @@
 const { app, BrowserWindow, ipcMain, dialog, globalShortcut, screen } = require('electron');
 const path = require('path');
 const fs = require('fs');
+
+// ---------- registro de erros ----------
+// Problemas de impressora, backup, pagamento, nota fiscal e PIN bloqueado vão para
+// %APPDATA%\Lisufit PDV\logs\erros-AAAA-MM.log (um arquivo por mês), para o suporte ver o que aconteceu.
+function registrarErro(contexto, erro) {
+  try {
+    const pasta = path.join(require('electron').app.getPath('userData'), 'logs');
+    fs.mkdirSync(pasta, { recursive: true });
+    const agora = new Date();
+    const arq = path.join(pasta, `erros-${agora.toISOString().slice(0, 7)}.log`);
+    const msg = erro instanceof Error ? (erro.stack || erro.message) : String(erro);
+    fs.appendFileSync(arq, `${agora.toLocaleString('pt-BR')} [${contexto}] ${msg.replace(/\s+/g, ' ').slice(0, 2000)}\n`);
+  } catch { /* registrar nunca pode derrubar a venda */ }
+}
+const consoleErro = console.error.bind(console);
+console.error = (...a) => { consoleErro(...a); registrarErro('sistema', a.map(x => x instanceof Error ? x.stack : String(x)).join(' ')); };
+process.on('uncaughtException', e => registrarErro('falha', e));
+process.on('unhandledRejection', e => registrarErro('falha', e));
 const crypto = require('crypto');
 const QRCode = require('qrcode');
 const { Banco } = require('./db');
@@ -92,6 +110,7 @@ app.whenReady().then(() => {
       }
     } catch (e) { console.error(e); }
     if (banco.precisaBackupHoje()) fazerBackup();
+    try { banco.esquecerClientes(30); } catch (e) { console.error(e); } // privacidade: nome do cliente some após 30 dias
   };
   rotina();
   setInterval(rotina, 60 * 1000);
@@ -194,7 +213,7 @@ function htmlFechamento(f, cfg) {
     hr { border: 0; border-top: 1px dashed #000; } .t td { font-weight: bold; font-size: 14px; }
   </style></head><body>
     <div class="c"><b>${esc(cfg.nomeLoja)}</b><br>FECHAMENTO DE CAIXA<br>${f.dia.split('-').reverse().join('/')}</div><hr>
-    <table>${linha('PIX', reais(f.pixCentavos))}${linha('Cartão', reais(f.cartaoCentavos))}${linha('Pago no balcão', reais(f.caixaCentavos))}</table><hr>
+    <table>${linha('PIX', reais(f.pixCentavos))}${linha('Cartão', reais(f.cartaoCentavos))}${linha('Pago no balcão', reais(f.caixaCentavos))}${f.dinheiroCentavos !== undefined ? linha('Dinheiro na gaveta', reais(f.dinheiroCentavos)) : ''}</table><hr>
     <table class="t">${linha('TOTAL', reais(f.totalCentavos))}</table><hr>
     <table>${linha('Vendas pagas', f.vendasPagas)}${linha('Canceladas', f.canceladas)}${linha('Aguardando pagamento', f.aguardando)}
     ${f.primeiraVenda ? linha('Vendas nº', `${f.primeiraVenda} a ${f.ultimaVenda}`) : ''}</table><hr>
@@ -227,25 +246,46 @@ async function imprimirHtml(html, cfg) {
 
 // ---------- IPC ----------
 tratar('config:get', () => {
-  const { pinAdmin, pagamentos: pag, ...publica } = banco.getConfig();
+  const { pinAdminHash, pagamentos: pag, ...publica } = banco.getConfig();
   // a tela do cliente nunca recebe PINs nem credenciais de gateway
   const pix = pagamentos.provedorDe('pix'), cartao = pagamentos.provedorDe('cartao');
   publica.pagamentos = { pix: pix.id, cartao: cartao.id, permitirManualSeFalhar: pag?.permitirManualSeFalhar !== false,
     modoTeste: [pix.id, cartao.id].includes('simulador') };
   return publica;
 });
-tratar('config:getAdmin', soAdmin(() => ({ ...banco.getConfig(), pastaBackupEfetiva: pastaBackup(), ultimoBackup: banco.dados.ultimoBackup || '' })));
+tratar('config:getAdmin', soAdmin(() => ({ ...semHash(banco.getConfig()), pastaBackupEfetiva: pastaBackup(), ultimoBackup: banco.dados.ultimoBackup || '' })));
 tratar('config:salvar', soAdmin(cfg => banco.salvarConfig(cfg)));
+
+const semHash = ({ pinAdminHash, ...c }) => c;
+
+// PIN errado 5 vezes seguidas: bloqueia novas tentativas por 5 minutos (vale para o painel e para a confirmação de pagamento)
+const BLOQUEIO = { maxErros: 5, minutos: 5 };
+let errosPin = 0, bloqueadoAte = 0;
+function conferirPinComBloqueio(pin) {
+  const agora = Date.now();
+  if (agora < bloqueadoAte) {
+    const min = Math.ceil((bloqueadoAte - agora) / 60000);
+    throw new Error(`Muitos PINs errados. Tente de novo em ${min} minuto${min > 1 ? 's' : ''}.`);
+  }
+  const quem = banco.identificarPin(pin);
+  if (quem) { errosPin = 0; return quem; }
+  errosPin++;
+  if (errosPin >= BLOQUEIO.maxErros) {
+    errosPin = 0; bloqueadoAte = agora + BLOQUEIO.minutos * 60000;
+    registrarErro('seguranca', `${BLOQUEIO.maxErros} PINs errados seguidos: PIN bloqueado por ${BLOQUEIO.minutos} minutos`);
+  }
+  return null;
+}
 
 // entrar no painel: o PIN diz quem é (admin vê tudo; atendente só Vendas e fechamento)
 tratar('painel:entrar', pin => {
-  const quem = banco.identificarPin(pin);
+  const quem = conferirPinComBloqueio(pin);
   if (!quem) throw new Error('PIN incorreto');
   sessao = quem;
   return quem;
 });
 tratar('painel:sair', () => { sessao = null; });
-tratar('atendente:verificarPin', pin => !!banco.identificarPin(pin));
+tratar('atendente:verificarPin', pin => !!conferirPinComBloqueio(pin));
 
 tratar('atendentes:listar', soAdmin(() => banco.getAtendentes()));
 tratar('atendentes:salvar', soAdmin(a => banco.salvarAtendente(a)));
@@ -325,10 +365,10 @@ tratar('venda:registrar', async ({ pin, transacaoId, ...dadosVenda }) => {
   const avisos = [];
   if (venda.status === 'paga') {
     try { venda.fiscal = await fiscal.emitir(venda, banco.getConfig()); banco.atualizarVenda(venda.numero, { fiscal: venda.fiscal }); }
-    catch (e) { avisos.push('Fiscal: ' + e.message); }
+    catch (e) { avisos.push('Fiscal: ' + e.message); registrarErro('fiscal', e); }
   }
-  try { await imprimirCupom(venda); } catch (e) { avisos.push(e.message); }
-  try { await imprimirPreparo(venda); } catch (e) { avisos.push('Preparo: ' + e.message); }
+  try { await imprimirCupom(venda); } catch (e) { avisos.push(e.message); registrarErro('impressora', e); }
+  try { await imprimirPreparo(venda); } catch (e) { avisos.push('Preparo: ' + e.message); registrarErro('impressora', e); }
   return { venda, avisos };
 });
 
@@ -336,12 +376,13 @@ tratar('venda:atualizar', logado(async (numero, mudancas) => {
   const atual = banco.listarVendas().find(x => x.numero === numero);
   if (mudancas.status === 'cancelada' && atual?.status === 'paga' && sessao.perfil !== 'admin' && !banco.getConfig().atendentePodeCancelar)
     throw new Error('Só o administrador pode cancelar uma venda já paga.');
-  const v = banco.atualizarVenda(numero, { status: mudancas.status }, sessao.nome);
+  const v = banco.atualizarVenda(numero, { status: mudancas.status,
+    ...(mudancas.status === 'paga' && mudancas.recebidoComo ? { recebidoComo: mudancas.recebidoComo } : {}) }, sessao.nome);
   const avisos = [];
   if (mudancas.status === 'paga') {
-    try { await imprimirPreparo(v); } catch (e) { avisos.push('Preparo: ' + e.message); }
+    try { await imprimirPreparo(v); } catch (e) { avisos.push('Preparo: ' + e.message); registrarErro('impressora', e); }
     try { v.fiscal = await fiscal.emitir(v, banco.getConfig()); banco.atualizarVenda(v.numero, { fiscal: v.fiscal }); }
-    catch (e) { avisos.push('Fiscal: ' + e.message); }
+    catch (e) { avisos.push('Fiscal: ' + e.message); registrarErro('fiscal', e); }
   }
   return { venda: v, avisos };
 }));
@@ -349,7 +390,9 @@ tratar('venda:atualizar', logado(async (numero, mudancas) => {
 // ---------- gateway de pagamento ----------
 tratar('pagamento:iniciar', async (forma, itens) => {
   const total = banco.calcularTotal(itens);
-  const t = await pagamentos.iniciar(forma, total, `${banco.getConfig().nomeLoja || 'Lisufit'} - pedido no totem`);
+  let t;
+  try { t = await pagamentos.iniciar(forma, total, `${banco.getConfig().nomeLoja || 'Lisufit'} - pedido no totem`); }
+  catch (e) { registrarErro('pagamento', e); throw e; }
   return { ...t, qr: t.qrTexto ? await QRCode.toDataURL(t.qrTexto, { width: 420, margin: 1 }) : '' };
 });
 tratar('pagamento:status', id => pagamentos.status(id));
@@ -384,7 +427,7 @@ tratar('fechamento:resumo', logado(() => banco.resumoDia(diaParaFechar())));
 tratar('fechamento:fechar', logado(async observacao => {
   const f = banco.fecharDia({ dia: diaParaFechar(), tipo: 'manual', por: sessao.nome, observacao });
   const avisos = [];
-  try { await imprimirFechamento(f); } catch (e) { avisos.push(e.message); }
+  try { await imprimirFechamento(f); } catch (e) { avisos.push(e.message); registrarErro('impressora', e); }
   const backup = fazerBackup(true);
   return { fechamento: f, backup, avisos };
 }));
@@ -400,6 +443,22 @@ tratar('backup:agora', soAdmin(() => {
   return arq;
 }));
 
+tratar('indicadores:ver', soAdmin(filtro => banco.indicadores(filtro)));
+tratar('backup:listar', soAdmin(() => {
+  const pasta = pastaBackup();
+  if (!fs.existsSync(pasta)) return [];
+  return fs.readdirSync(pasta).filter(n => n.endsWith('.json'))
+    .map(nome => { const st = fs.statSync(path.join(pasta, nome)); return { nome, tamanho: st.size, em: st.mtime.toISOString() }; })
+    .sort((a, b) => b.em.localeCompare(a.em));
+}));
+tratar('backup:restaurar', soAdmin(nome => {
+  const pasta = pastaBackup();
+  const arq = path.join(pasta, path.basename(String(nome || '')));
+  if (!arq.endsWith('.json') || !fs.existsSync(arq)) throw new Error('Backup não encontrado.');
+  const r = banco.restaurar(arq, path.join(pasta, 'seguranca'));
+  registrarErro('backup', `Backup restaurado: ${path.basename(arq)} (cópia do estado anterior em ${r.seguranca})`);
+  return r;
+}));
 tratar('vendas:listar', logado(filtro => banco.listarVendas(filtro)));
 tratar('vendas:reimprimir', numero => {
   const v = banco.listarVendas().find(x => x.numero === numero);

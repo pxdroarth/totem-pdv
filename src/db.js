@@ -11,7 +11,7 @@ const CONFIG_PADRAO = {
   pixChave: '',
   pixNome: '',
   pixCidade: '',
-  pinAdmin: '1234',
+  // PIN do admin: só o hash fica gravado (pinAdminHash); o padrão de fábrica é 1234
   confirmarPagamentoComPin: true,
   impressoraCupom: '',
   imprimirCupom: true,
@@ -64,6 +64,10 @@ function iconeParaCategoria(nome) {
   const n = String(nome || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
   return (ICONE_POR_PALAVRA.find(([k]) => n.includes(k)) || [])[1] || 'tag';
 }
+
+// como o dinheiro entrou de fato: no balcão o atendente diz se foi dinheiro, PIX ou cartão
+const MEIOS = ['dinheiro', 'pix', 'cartao'];
+const meioRecebimento = v => v.formaPagamento === 'caixa' ? (MEIOS.includes(v.recebidoComo) ? v.recebidoComo : 'balcao') : v.formaPagamento;
 
 const normalizar = t => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
 
@@ -150,13 +154,20 @@ class Banco {
         mudou = true;
       }
       if ('pinAtendente' in d.config) { delete d.config.pinAtendente; mudou = true; }
+      if ('pinAdmin' in d.config) { // bases antigas: PIN do admin em texto vira hash
+        d.config.pinAdminHash = hashPin(d.config.pinAdmin || '1234');
+        d.config.pinAdminPadrao = (d.config.pinAdmin || '1234') === '1234';
+        delete d.config.pinAdmin; mudou = true;
+      }
+      if (!d.config.pinAdminHash) { d.config.pinAdminHash = hashPin('1234'); d.config.pinAdminPadrao = true; mudou = true; }
       if (!Array.isArray(d.fechamentos)) { d.fechamentos = []; mudou = true; }
       if (mudou) { this.dados = d; this._salvar(); }
       return d;
     }
     const d = {
       // a Lisufit não controla estoque; com os produtos fictícios (testes) o padrão continua ligado
-      config: { ...CONFIG_PADRAO, ...(process.env.PDV_CATALOGO === 'exemplo' ? {} : { controlarEstoque: false }) },
+      config: { ...CONFIG_PADRAO, pinAdminHash: hashPin('1234'), pinAdminPadrao: true,
+        ...(process.env.PDV_CATALOGO === 'exemplo' ? {} : { controlarEstoque: false }) },
       produtos: this._produtosIniciais(),
       categorias: CATEGORIAS_PADRAO.map(([nome, secao, icone], ordem) => ({
         id: crypto.randomUUID(), nome, secao, icone, ordem, ativo: true
@@ -224,10 +235,16 @@ class Banco {
 
   getConfig() { return this.dados.config; }
   salvarConfig(cfg) {
+    cfg = { ...cfg };
+    delete cfg.pinAdminHash;
+    if (cfg.pinAdmin === '' || cfg.pinAdmin == null) delete cfg.pinAdmin; // em branco = mantém o PIN atual
     if (cfg.pinAdmin !== undefined) {
       if (!pinValido(cfg.pinAdmin)) throw new Error('O PIN do admin deve ter de 4 a 8 números.');
       const dono = this.dados.atendentes.find(a => a.ativo && conferePin(cfg.pinAdmin, a.pinHash));
       if (dono) throw new Error(`O PIN do admin não pode ser igual ao de ${dono.nome}.`);
+      cfg.pinAdminHash = hashPin(cfg.pinAdmin);
+      cfg.pinAdminPadrao = false;
+      delete cfg.pinAdmin; // o PIN nunca fica gravado em texto
     }
     this.dados.config = { ...this.dados.config, ...cfg };
     this._salvar();
@@ -246,7 +263,7 @@ class Banco {
     if (!existente && !pin) throw new Error('Defina um PIN para o novo atendente.');
     if (pin) {
       if (!pinValido(pin)) throw new Error('O PIN deve ter de 4 a 8 números.');
-      if (pin === this.dados.config.pinAdmin) throw new Error('Esse PIN é o do admin. Escolha outro.');
+      if (conferePin(pin, this.dados.config.pinAdminHash)) throw new Error('Esse PIN é o do admin. Escolha outro.');
       const outro = this.dados.atendentes.find(a => a.id !== id && a.ativo && conferePin(pin, a.pinHash));
       if (outro) throw new Error('Esse PIN já é de outro atendente. Cada um precisa de um PIN diferente.');
     }
@@ -271,7 +288,7 @@ class Banco {
   // quem é o dono deste PIN? admin, um atendente ativo ou ninguém
   identificarPin(pin) {
     if (!pin) return null;
-    if (pin === this.dados.config.pinAdmin) return { id: 'admin', nome: 'Administrador', perfil: 'admin' };
+    if (conferePin(pin, this.dados.config.pinAdminHash)) return { id: 'admin', nome: 'Administrador', perfil: 'admin' };
     const a = this.dados.atendentes.find(x => x.ativo && conferePin(pin, x.pinHash));
     return a ? { id: a.id, nome: a.nome, perfil: 'atendente' } : null;
   }
@@ -294,6 +311,8 @@ class Banco {
       dia,
       totalCentavos: soma(pagas),
       pixCentavos: porForma('pix'), cartaoCentavos: porForma('cartao'), caixaCentavos: porForma('caixa'),
+      // dinheiro que deve estar na gaveta: pedidos do balcão marcados como pagos em dinheiro
+      dinheiroCentavos: soma(pagas.filter(v => meioRecebimento(v) === 'dinheiro')),
       vendasPagas: pagas.length,
       canceladas: vendas.filter(v => v.status === 'cancelada').length,
       aguardando: vendas.filter(v => v.status === 'aguardando_caixa').length,
@@ -560,6 +579,8 @@ class Banco {
   atualizarVenda(numero, mudancas, por) {
     const v = this.dados.vendas.find(x => x.numero === numero);
     if (!v) throw new Error('Venda não encontrada.');
+    mudancas = { ...mudancas };
+    if ('recebidoComo' in mudancas && !MEIOS.includes(mudancas.recebidoComo)) delete mudancas.recebidoComo;
     const antes = v.status;
     Object.assign(v, mudancas);
     if (mudancas.status && mudancas.status !== antes) {
@@ -709,6 +730,99 @@ class Banco {
     }
     if (aplicar) this._salvar();
     return res;
+  }
+
+  // Indicadores do período (dias operacionais, de/ate = 'AAAA-MM-DD') e fluxo de caixa das entradas
+  indicadores({ de, ate } = {}) {
+    const hoje = diaLocal();
+    de = de || hoje; ate = ate || de;
+    if (ate < de) [de, ate] = [ate, de];
+    const diaDe = v => v.dia || v.data.slice(0, 10);
+    const noPeriodo = (a, b) => this.dados.vendas.filter(v => diaDe(v) >= a && diaDe(v) <= b);
+    const vendas = noPeriodo(de, ate);
+    const pagas = vendas.filter(v => v.status === 'paga');
+    const soma = arr => arr.reduce((s, v) => s + v.totalCentavos, 0);
+    const canceladas = vendas.filter(v => v.status === 'cancelada');
+    // período anterior de mesmo tamanho, para comparar
+    const umDia = 864e5, d0 = Date.parse(de + 'T12:00:00Z'), d1 = Date.parse(ate + 'T12:00:00Z');
+    const n = Math.round((d1 - d0) / umDia) + 1;
+    const iso = t => new Date(t).toISOString().slice(0, 10);
+    const antDe = iso(d0 - n * umDia), antAte = iso(d0 - umDia);
+    const pagasAnt = noPeriodo(antDe, antAte).filter(v => v.status === 'paga');
+    const produto = id => this.dados.produtos.find(p => p.id === id);
+    const secaoDe = cat => (this.dados.categorias.find(c => c.nome === cat) || {}).secao || 'Outros';
+
+    const porHora = Array.from({ length: 24 }, (_, h) => ({ hora: h, vendas: 0, totalCentavos: 0 }));
+    const dias = Array.from({ length: n }, (_, i) => iso(d0 + i * umDia));
+    const fluxo = dias.map(dia => ({ dia, dinheiro: 0, pix: 0, cartao: 0, balcao: 0, total: 0, vendas: 0 }));
+    const porMeio = { dinheiro: 0, pix: 0, cartao: 0, balcao: 0 };
+    const porCategoria = {}, porSecao = {}, produtos = {};
+    let itens = 0;
+    for (const v of pagas) {
+      const h = new Date(v.data).getHours();
+      porHora[h].vendas++; porHora[h].totalCentavos += v.totalCentavos;
+      const meio = meioRecebimento(v);
+      porMeio[meio] += v.totalCentavos;
+      const f = fluxo.find(x => x.dia === diaDe(v));
+      if (f) { f[meio] += v.totalCentavos; f.total += v.totalCentavos; f.vendas++; }
+      for (const l of v.itens) {
+        itens += l.qtd;
+        const cat = produto(l.id)?.categoria || 'Outros';
+        porCategoria[cat] = (porCategoria[cat] || 0) + l.totalCentavos;
+        const sec = secaoDe(cat);
+        porSecao[sec] = (porSecao[sec] || 0) + l.totalCentavos;
+        const k = l.nome;
+        produtos[k] = produtos[k] || { nome: k, qtd: 0, totalCentavos: 0 };
+        produtos[k].qtd += l.qtd; produtos[k].totalCentavos += l.totalCentavos;
+      }
+    }
+    let acumulado = 0;
+    for (const f of fluxo) { acumulado += f.total; f.acumulado = acumulado; }
+    const preparos = pagas.filter(v => v.preparoDesde && v.preparoProntoEm)
+      .map(v => (Date.parse(v.preparoProntoEm) - Date.parse(v.preparoDesde)) / 60000).filter(m => m >= 0 && m < 240);
+    const lista = obj => Object.entries(obj).map(([nome, totalCentavos]) => ({ nome, totalCentavos })).sort((a, b) => b.totalCentavos - a.totalCentavos);
+    const fat = soma(pagas);
+    return {
+      de, ate, dias: n,
+      faturamentoCentavos: fat,
+      vendas: pagas.length,
+      ticketMedioCentavos: pagas.length ? Math.round(fat / pagas.length) : 0,
+      itensPorVenda: pagas.length ? Math.round(itens / pagas.length * 10) / 10 : 0,
+      canceladas: canceladas.length, canceladasCentavos: soma(canceladas),
+      aguardando: vendas.filter(v => v.status === 'aguardando_caixa').length,
+      anterior: { de: antDe, ate: antAte, faturamentoCentavos: soma(pagasAnt), vendas: pagasAnt.length },
+      porHora, porMeio, fluxo,
+      porCategoria: lista(porCategoria), porSecao: lista(porSecao),
+      maisVendidos: Object.values(produtos).sort((a, b) => b.qtd - a.qtd || b.totalCentavos - a.totalCentavos).slice(0, 10),
+      preparoMinutos: preparos.length ? Math.round(preparos.reduce((a, b) => a + b, 0) / preparos.length * 10) / 10 : null,
+      preparosMedidos: preparos.length
+    };
+  }
+
+  // privacidade: o nome do cliente só serve para chamar o pedido; some das vendas depois de X dias
+  esquecerClientes(dias = 30, agora = new Date()) {
+    const limite = new Date(agora.getTime() - dias * 864e5).toISOString();
+    let n = 0;
+    for (const v of this.dados.vendas) {
+      if (v.cliente?.nome && v.data < limite) { delete v.cliente.nome; if (!v.cliente.local) delete v.cliente; n++; }
+    }
+    if (n) this._salvar();
+    return n;
+  }
+
+  // restaura um backup: valida antes, guarda o estado atual e recarrega
+  restaurar(arquivoBackup, pastaSeguranca) {
+    const texto = fs.readFileSync(arquivoBackup, 'utf8');
+    let d;
+    try { d = JSON.parse(texto); } catch { throw new Error('Esse arquivo de backup está corrompido.'); }
+    if (!d || !Array.isArray(d.produtos) || !Array.isArray(d.vendas) || !d.config) throw new Error('Esse arquivo não é um backup do sistema.');
+    fs.mkdirSync(pastaSeguranca, { recursive: true });
+    const seguranca = path.join(pastaSeguranca, `antes-de-restaurar-${new Date().toISOString().replace(/[:.]/g, '-')}.json`);
+    fs.copyFileSync(this.arquivo, seguranca);
+    fs.writeFileSync(this.arquivo + '.tmp', texto);
+    fs.renameSync(this.arquivo + '.tmp', this.arquivo);
+    this.dados = this._carregar();
+    return { seguranca, produtos: this.dados.produtos.length, vendas: this.dados.vendas.length };
   }
 
   listarVendas({ de, ate } = {}) {

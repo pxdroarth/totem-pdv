@@ -1,5 +1,6 @@
 // Painel administrativo (protegido por PIN)
 const formas = { pix: 'PIX', cartao: 'Cartão', caixa: 'Caixa' };
+const meiosNome = { dinheiro: 'Dinheiro', pix: 'PIX', cartao: 'Cartão', balcao: 'Balcão (sem forma)' };
 const statusNome = { paga: 'Paga', aguardando_caixa: 'Aguardando caixa', cancelada: 'Cancelada' };
 let produtoEditando = null;
 let categoriaEditando = null;
@@ -27,6 +28,7 @@ function trocarAba(nome) {
   if (nome === 'produtos') renderTabelaProdutos();
   if (nome === 'categorias') renderTabelaCategorias();
   if (nome === 'vendas') carregarVendas();
+  if (nome === 'indicadores') carregarIndicadores();
   if (nome === 'config') carregarConfig();
 }
 
@@ -569,7 +571,8 @@ async function carregarVendas() {
     ['Ticket médio', reais(pagas.length ? Math.round(soma(pagas) / pagas.length) : 0)],
     ['PIX', reais(porForma('pix'))],
     ['Cartão', reais(porForma('cartao'))],
-    ['Caixa', reais(porForma('caixa'))]
+    ['Pago no balcão', reais(porForma('caixa'))],
+    ['Dinheiro', reais(soma(pagas.filter(v => v.formaPagamento === 'caixa' && v.recebidoComo === 'dinheiro')))]
   ].map(([t, v]) => `<div class="card-resumo"><small>${t}</small><strong>${v}</strong></div>`).join('');
 
   // pedidos "pagar no caixa" de qualquer dia que ainda não foram resolvidos
@@ -594,7 +597,7 @@ async function carregarVendas() {
   $('#tabela-vendas').innerHTML = vendas.slice().reverse().map(v => `
     <tr class="${v.status === 'cancelada' ? 'inativo' : ''}">
       <td>${v.numero}</td><td>${new Date(v.data).toLocaleString('pt-BR')}</td>
-      <td>${v.itens.reduce((s, i) => s + i.qtd, 0)}</td><td>${formas[v.formaPagamento]}</td>
+      <td>${v.itens.reduce((s, i) => s + i.qtd, 0)}</td><td>${formas[v.formaPagamento]}${v.recebidoComo ? ` <small class="ajuda">· ${meiosNome[v.recebidoComo]}</small>` : ''}</td>
       <td>${statusNome[v.status]}${quemFez(v)}</td><td>${reais(v.totalCentavos)}</td>
       <td><button class="btn btn-pequeno" data-reimprimir="${v.numero}">Reimprimir</button>
       ${v.status === 'paga' && podeCancelarPaga() ? `<button class="btn btn-pequeno btn-perigo" data-cancelar="${v.numero}">Cancelar</button>` : ''}</td>
@@ -613,11 +616,138 @@ function quemFez(v) {
   return `<br><small class="ajuda" title="${esc(tudo)}">por ${esc(ult.por)}</small>`;
 }
 
+// ---------- receber pedido no balcão: dinheiro, PIX ou cartão (entra certo no fluxo de caixa) ----------
+let receber = null;
+async function abrirReceber(numero) {
+  const v = (await pdv.vendas({})).find(x => x.numero === numero);
+  if (!v) return toast('Pedido não encontrado', 'erro');
+  receber = { numero, total: v.totalCentavos, meio: '' };
+  $('#receber-titulo').textContent = `Receber pedido ${numero}`;
+  $('#receber-total').textContent = reais(v.totalCentavos);
+  $('#receber-valor').value = '';
+  $('#receber-troco-valor').textContent = reais(0);
+  $('#receber-troco').hidden = true;
+  $$('[data-receber]').forEach(x => x.classList.remove('ativo'));
+  $('#btn-receber-confirmar').disabled = true;
+  $('#modal-receber').classList.add('aberto');
+}
+const lerReais = t => Math.round(Number(String(t).replace(/[^\d,.]/g, '').replace(/\.(?=\d{3}(\D|$))/g, '').replace(',', '.')) * 100) || 0;
+function atualizarTroco() {
+  const recebido = lerReais($('#receber-valor').value);
+  const troco = recebido - receber.total;
+  $('#receber-troco-valor').textContent = recebido ? (troco >= 0 ? reais(troco) : `faltam ${reais(-troco)}`) : reais(0);
+}
+$('.receber-formas').onclick = e => {
+  const b = e.target.closest('[data-receber]');
+  if (!b) return;
+  receber.meio = b.dataset.receber;
+  $$('[data-receber]').forEach(x => x.classList.toggle('ativo', x === b));
+  $('#receber-troco').hidden = receber.meio !== 'dinheiro';
+  $('#btn-receber-confirmar').disabled = false;
+  if (receber.meio === 'dinheiro') setTimeout(() => $('#receber-valor').focus(), 30);
+};
+$('#receber-valor').oninput = atualizarTroco;
+$('#btn-receber-cancelar').onclick = () => $('#modal-receber').classList.remove('aberto');
+$('#btn-receber-confirmar').onclick = async () => {
+  if (!receber?.meio) return;
+  if (receber.meio === 'dinheiro' && $('#receber-valor').value && lerReais($('#receber-valor').value) < receber.total)
+    return toast('O valor recebido é menor que o total', 'erro');
+  try {
+    const { avisos } = await pdv.atualizarVenda(receber.numero, { status: 'paga', recebidoComo: receber.meio });
+    $('#modal-receber').classList.remove('aberto');
+    toast(avisos[0] || `Pedido ${receber.numero} pago (${meiosNome[receber.meio]})`, avisos.length ? 'erro' : 'ok');
+    await carregarVendas();
+  } catch (err) { toast(err.message, 'erro'); }
+};
+
+// ---------- indicadores ----------
+const diaISO = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const diaCurto = iso => iso.slice(8, 10) + '/' + iso.slice(5, 7);
+function periodo(tipo) {
+  const hoje = new Date(), de = new Date(hoje);
+  if (tipo === '7') de.setDate(hoje.getDate() - 6);
+  else if (tipo === '30') de.setDate(hoje.getDate() - 29);
+  else if (tipo === 'mes') de.setDate(1);
+  $('#ind-de').value = diaISO(de); $('#ind-ate').value = diaISO(hoje);
+  $$('[data-periodo]').forEach(b => b.classList.toggle('ativo', b.dataset.periodo === tipo));
+}
+$('.periodos').onclick = e => { const b = e.target.closest('[data-periodo]'); if (b) { periodo(b.dataset.periodo); carregarIndicadores(); } };
+$('#btn-ind-filtrar').onclick = () => { $$('[data-periodo]').forEach(b => b.classList.remove('ativo')); carregarIndicadores(); };
+
+// barras verticais (uma série, cor da marca); passar o mouse mostra o valor
+function graficoColunas(itens, { largura = 600, altura = 170, rotuloCada = 1 } = {}) {
+  const L = largura, H = altura, base = H - 24, topo = 12;
+  const max = Math.max(1, ...itens.map(i => i.valor));
+  const passo = L / itens.length, larg = Math.max(2, Math.min(28, passo - 4));
+  const linhas = [0.5, 1].map(f => `<line x1="0" x2="${L}" y1="${base - (base - topo) * f}" y2="${base - (base - topo) * f}" class="grade"/>`).join('');
+  const barras = itens.map((it, i) => {
+    const h = (base - topo) * it.valor / max, x = i * passo + (passo - larg) / 2;
+    return `<g class="marca-barra"><rect x="${i * passo}" y="${topo}" width="${passo}" height="${base - topo}" fill="transparent"><title>${esc(it.dica)}</title></rect>` +
+      (it.valor ? `<rect x="${x}" y="${base - h}" width="${larg}" height="${h}" rx="3" class="barra"><title>${esc(it.dica)}</title></rect>` : '') +
+      (i % rotuloCada === 0 ? `<text x="${i * passo + passo / 2}" y="${H - 6}" text-anchor="middle">${esc(it.rotulo)}</text>` : '') + '</g>';
+  }).join('');
+  return `<svg class="grafico" viewBox="0 0 ${L} ${H}" role="img" aria-label="gráfico">${linhas}<line x1="0" x2="${L}" y1="${base}" y2="${base}" class="eixo"/>${barras}` +
+    `<text x="0" y="${topo - 2}" class="maximo">${esc(itens.maxRotulo || '')}</text></svg>`;
+}
+// barras horizontais com nome e valor escritos
+function graficoBarras(itens) {
+  const max = Math.max(1, ...itens.map(i => i.valor));
+  return `<ul class="barras-h">${itens.map(i => `<li title="${esc(i.dica || '')}"><span class="bh-nome">${esc(i.nome)}</span>` +
+    `<span class="bh-trilho"><span class="bh-barra" style="width:${Math.max(i.valor ? 1.5 : 0, 100 * i.valor / max)}%"></span></span>` +
+    `<span class="bh-valor">${esc(i.texto)}</span></li>`).join('')}</ul>`;
+}
+async function carregarIndicadores() {
+  if (!$('#ind-de').value) periodo('hoje');
+  let r;
+  try { r = await pdv.indicadores({ de: $('#ind-de').value, ate: $('#ind-ate').value }); }
+  catch (err) { return toast(err.message, 'erro'); }
+  const pct = (a, b) => b ? Math.round((a - b) / b * 100) : null;
+  const varFat = pct(r.faturamentoCentavos, r.anterior.faturamentoCentavos);
+  const comp = v => v === null ? '<small class="ajuda">sem vendas no período anterior</small>'
+    : `<small class="${v >= 0 ? 'sobe' : 'desce'}">${v >= 0 ? '▲' : '▼'} ${Math.abs(v)}% vs ${diaCurto(r.anterior.de)}${r.dias > 1 ? '–' + diaCurto(r.anterior.ate) : ''}</small>`;
+  $('#ind-cards').innerHTML = [
+    ['Faturamento', reais(r.faturamentoCentavos), comp(varFat)],
+    ['Vendas pagas', r.vendas, comp(pct(r.vendas, r.anterior.vendas))],
+    ['Ticket médio', reais(r.ticketMedioCentavos), `<small class="ajuda">${String(r.itensPorVenda).replace('.', ',')} itens por venda</small>`],
+    ['Canceladas', r.canceladas, `<small class="ajuda">${reais(r.canceladasCentavos)}</small>`],
+    ['Preparo médio', r.preparoMinutos === null ? '—' : `${String(r.preparoMinutos).replace('.', ',')} min`, `<small class="ajuda">${r.preparosMedidos} pedido(s) marcados prontos</small>`]
+  ].map(([t, v, extra]) => `<div class="card-resumo"><small>${t}</small><strong>${v}</strong>${extra}</div>`).join('') +
+    (r.aguardando ? `<p class="aviso-ind">${r.aguardando} pedido(s) ainda aguardando pagamento no balcão: ficam fora destes números até serem recebidos.</p>` : '');
+
+  // fluxo de caixa
+  const col = r.fluxo.map(f => ({ rotulo: diaCurto(f.dia), valor: f.total, dica: `${diaCurto(f.dia)}: ${reais(f.total)} em ${f.vendas} venda(s)` }));
+  col.maxRotulo = 'maior dia: ' + reais(Math.max(0, ...r.fluxo.map(f => f.total)));
+  $('#ind-fluxo-grafico').innerHTML = r.dias > 1 ? graficoColunas(col, { largura: 1200, altura: 190, rotuloCada: Math.ceil(r.dias / 15) }) : '';
+  const c = v => v ? reais(v) : '<span class="ajuda">—</span>';
+  $('#ind-fluxo').innerHTML = r.fluxo.slice().reverse().map(f => `<tr><td>${diaCurto(f.dia)}</td><td>${c(f.dinheiro)}</td><td>${c(f.pix)}</td><td>${c(f.cartao)}</td><td>${c(f.balcao)}</td><td><b>${c(f.total)}</b></td><td>${reais(f.acumulado)}</td></tr>`).join('');
+  const t = k => r.fluxo.reduce((s, f) => s + f[k], 0);
+  $('#ind-fluxo-total').innerHTML = `<tr><th>Total</th><th>${reais(t('dinheiro'))}</th><th>${reais(t('pix'))}</th><th>${reais(t('cartao'))}</th><th>${reais(t('balcao'))}</th><th>${reais(t('total'))}</th><th></th></tr>`;
+
+  const tot = r.faturamentoCentavos || 1;
+  const parte = v => `${reais(v)} · ${Math.round(100 * v / tot)}%`;
+  $('#ind-meio').innerHTML = graficoBarras(['dinheiro', 'pix', 'cartao', 'balcao'].filter(k => k !== 'balcao' || r.porMeio.balcao)
+    .map(k => ({ nome: meiosNome[k], valor: r.porMeio[k], texto: parte(r.porMeio[k]) })));
+  // das 6h às 22h, ampliando se houve venda fora desse horário
+  const comVenda = r.porHora.filter(h => h.vendas).map(h => h.hora);
+  const h0 = Math.min(6, ...comVenda), h1 = Math.max(22, ...comVenda);
+  const horas = r.porHora.filter(h => h.hora >= h0 && h.hora <= h1);
+  const colH = horas.map(h => ({ rotulo: `${h.hora}h`, valor: h.vendas, dica: `${h.hora}h–${h.hora + 1}h: ${h.vendas} venda(s), ${reais(h.totalCentavos)}` }));
+  colH.maxRotulo = 'pico: ' + Math.max(0, ...horas.map(h => h.vendas)) + ' venda(s)';
+  $('#ind-hora').innerHTML = r.vendas ? graficoColunas(colH, { rotuloCada: 2 }) : '<p class="ajuda">Sem vendas no período.</p>';
+  $('#ind-categoria').innerHTML = r.porSecao.length
+    ? `<p class="secoes-ind">${r.porSecao.map(x => `<b>${esc(x.nome)}</b> ${parte(x.totalCentavos)}`).join(' · ')}</p>` +
+      graficoBarras(r.porCategoria.slice(0, 8).map(x => ({ nome: x.nome, valor: x.totalCentavos, texto: parte(x.totalCentavos) })))
+    : '<p class="ajuda">Sem vendas no período.</p>';
+  $('#ind-top').innerHTML = r.maisVendidos.length ? r.maisVendidos.map((p, i) =>
+    `<tr><td>${i + 1}º</td><td>${esc(p.nome)}</td><td>${p.qtd} un.</td><td>${reais(p.totalCentavos)}</td></tr>`).join('')
+    : '<tr><td class="vazio">Sem vendas no período.</td></tr>';
+}
+
 async function carregarFechamentos() {
   const lista = await pdv.fechamentos();
   $('#tabela-fechamentos').innerHTML = lista.length ? lista.slice(0, 31).map(f => `
     <tr><td><b>${f.dia.split('-').reverse().join('/')}</b>${f.tipo === 'automatico' ? ' <small class="ajuda">(automático)</small>' : ''}</td>
-      <td><b>${reais(f.totalCentavos)}</b></td><td>${reais(f.pixCentavos)}</td><td>${reais(f.cartaoCentavos)}</td><td>${reais(f.caixaCentavos)}</td>
+      <td><b>${reais(f.totalCentavos)}</b></td><td>${reais(f.pixCentavos)}</td><td>${reais(f.cartaoCentavos)}</td><td>${reais(f.caixaCentavos)}</td><td>${f.dinheiroCentavos !== undefined ? reais(f.dinheiroCentavos) : '—'}</td>
       <td>${f.vendasPagas}${f.canceladas ? ` <small class="ajuda">(${f.canceladas} canc.)</small>` : ''}</td>
       <td>${esc(f.por)}${f.observacao ? `<br><small class="ajuda">${esc(f.observacao)}</small>` : ''}</td>
       <td><button class="btn btn-pequeno" data-imprimir-fechamento="${f.id}">Imprimir</button></td></tr>`).join('')
@@ -630,7 +760,7 @@ $('#btn-fechar-caixa').onclick = async () => {
     $('#fechamento-dia').textContent = `Dia ${r.dia.split('-').reverse().join('/')} — fechado por ${quemEstaNoPainel?.nome || ''}`;
     $('#fechamento-resumo').innerHTML = [
       ['Total pago', reais(r.totalCentavos)], ['PIX', reais(r.pixCentavos)], ['Cartão', reais(r.cartaoCentavos)],
-      ['Pago no balcão', reais(r.caixaCentavos)], ['Vendas pagas', r.vendasPagas], ['Canceladas', r.canceladas]
+      ['Pago no balcão', reais(r.caixaCentavos)], ['Dinheiro na gaveta', reais(r.dinheiroCentavos || 0)], ['Vendas pagas', r.vendasPagas], ['Canceladas', r.canceladas]
     ].map(([t, v]) => `<div class="card-resumo"><small>${t}</small><strong>${v}</strong></div>`).join('');
     const aviso = $('#fechamento-aviso');
     aviso.hidden = !r.aguardando;
@@ -660,10 +790,8 @@ $('#aba-vendas').onclick = async e => {
   const b = e.target.closest('button');
   if (!b) return;
   try {
-    if (b.dataset.pagar) {
-      const { avisos } = await pdv.atualizarVenda(Number(b.dataset.pagar), { status: 'paga' });
-      toast(avisos[0] || 'Pedido marcado como pago', avisos.length ? 'erro' : 'ok');
-    } else if (b.dataset.cancelar) {
+    if (b.dataset.pagar) return abrirReceber(Number(b.dataset.pagar));
+    else if (b.dataset.cancelar) {
       if (!confirm(`Cancelar a venda ${b.dataset.cancelar}? O estoque será devolvido se ela estava paga.`)) return;
       await pdv.atualizarVenda(Number(b.dataset.cancelar), { status: 'cancelada' });
       toast('Venda cancelada');
@@ -686,7 +814,10 @@ async function carregarConfig() {
   const c = await pdv.configAdmin();
   const f = $('#form-config');
   ['nomeLoja', 'cnpj', 'endereco', 'mensagemCupom', 'pixChave', 'pixNome', 'pixCidade',
-    'pinAdmin', 'tempoInatividadeSeg', 'horarioFechamento', 'pastaBackup'].forEach(k => (f[k].value = c[k] ?? ''));
+    'tempoInatividadeSeg', 'horarioFechamento', 'pastaBackup'].forEach(k => (f[k].value = c[k] ?? ''));
+  f.pinAdmin.value = '';
+  $('#aviso-pin-padrao').hidden = !c.pinAdminPadrao;
+  carregarBackups();
   f.backupAutomatico.checked = c.backupAutomatico !== false;
   f.atendentePodeCancelar.checked = !!c.atendentePodeCancelar;
   f.controlarEstoqueGeral.checked = c.controlarEstoque !== false;
@@ -718,7 +849,7 @@ async function carregarConfig() {
 $('#form-config').onsubmit = async e => {
   e.preventDefault();
   const f = e.target;
-  if (!/^\d{4,8}$/.test(f.pinAdmin.value)) return toast('O PIN do admin deve ter de 4 a 8 números.', 'erro');
+  if (f.pinAdmin.value && !/^\d{4,8}$/.test(f.pinAdmin.value)) return toast('O PIN do admin deve ter de 4 a 8 números.', 'erro');
   if (!f.formaPix.checked && !f.formaCartao.checked && !f.formaCaixa.checked) return toast('Deixe pelo menos uma forma de pagamento no totem.', 'erro');
   if (f.fiscalModo.value === 'pasta' && !f.fiscalPasta.value)
     return toast('Escolha a pasta de integração fiscal.', 'erro');
@@ -740,9 +871,31 @@ $('#form-config').onsubmit = async e => {
       fiscal: { modo: f.fiscalModo.value, pastaIntegracao: f.fiscalPasta.value }
     });
     await carregarDados();
+    if (f.pinAdmin.value) { f.pinAdmin.value = ''; $('#aviso-pin-padrao').hidden = true; }
     toast('Configurações salvas', 'ok');
   } catch (err) { toast(err.message, 'erro'); }
 };
+// ---------- restaurar backup ----------
+async function carregarBackups() {
+  try {
+    const lista = await pdv.listarBackups();
+    $('#sel-backup').innerHTML = lista.length ? lista.map(b => `<option value="${esc(b.nome)}">${new Date(b.em).toLocaleString('pt-BR')} — ${esc(b.nome)} (${Math.max(1, Math.round(b.tamanho / 1024))} KB)</option>`).join('')
+      : '<option value="">Nenhum backup ainda</option>';
+    $('#btn-restaurar-backup').disabled = !lista.length;
+  } catch { /* sem pasta de backup */ }
+}
+$('#btn-restaurar-backup').onclick = async () => {
+  const nome = $('#sel-backup').value;
+  if (!nome) return;
+  if (!confirm(`Restaurar o backup "${nome}"?\n\nProdutos, vendas e configurações voltam para como estavam nesse dia. O estado de agora fica guardado antes, por segurança.`)) return;
+  try {
+    const r = await pdv.restaurarBackup(nome);
+    toast(`Backup restaurado: ${r.produtos} produtos, ${r.vendas} vendas`, 'ok');
+    await carregarDados();
+    await carregarConfig();
+  } catch (err) { toast(err.message, 'erro'); }
+};
+
 // ---------- atendentes ----------
 let atendenteEditando = null;
 async function renderAtendentes() {

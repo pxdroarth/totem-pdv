@@ -7,7 +7,8 @@
   "scripts": {
     "start": "electron . --dev",
     "kiosk": "electron .",
-    "dist": "electron-builder --win nsis"
+    "dist": "electron-builder --win nsis",
+    "test": "node testes/rodar.js"
   },
   "dependencies": {
     "exceljs": "^4.4.0",
@@ -15,7 +16,8 @@
   },
   "devDependencies": {
     "electron": "^44.7.0",
-    "electron-builder": "^26.0.0"
+    "electron-builder": "^26.0.0",
+    "playwright-core": "^1.64.0"
   },
   "build": {
     "appId": "br.loja.pdvsuplementos",

@@ -263,12 +263,13 @@ async function exportarVendas(arquivo, vendas) {
   wv.columns = [
     { header: 'Nº', key: 'numero', width: 8 }, { header: 'Data', key: 'data', width: 12 },
     { header: 'Hora', key: 'hora', width: 8 }, { header: 'Situação', key: 'status', width: 18 },
-    { header: 'Pagamento', key: 'forma', width: 12 }, { header: 'Itens', key: 'itens', width: 8 },
+    { header: 'Pagamento', key: 'forma', width: 12 }, { header: 'Recebido como', key: 'meio', width: 15 }, { header: 'Itens', key: 'itens', width: 8 },
     { header: 'Total', key: 'total', width: 14, style: { numFmt: FORMATO_REAIS } }
   ];
   vendas.forEach(v => {
     const [data, hora] = dataHora(v);
     wv.addRow({ numero: v.numero, data, hora, status: statusNome[v.status] || v.status, forma: formas[v.formaPagamento] || '',
+      meio: { dinheiro: 'Dinheiro', pix: 'PIX', cartao: 'Cartão' }[v.formaPagamento === 'caixa' ? v.recebidoComo : v.formaPagamento] || '',
       itens: v.itens.reduce((s, i) => s + i.qtd, 0), total: v.totalCentavos / 100 });
   });
   const pagas = vendas.filter(v => v.status === 'paga');

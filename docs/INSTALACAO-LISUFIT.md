@@ -26,7 +26,7 @@ Sem o leitor o totem funciona pelo toque: o cliente acha o produto pela categori
 - (O formulário dizia 2626; a mensagem do Pedro, 2597. Confirmar o número.)
 
 **Gateway de pagamento**
-- Formas no totem: **PIX** ✓ · **Cartão** ✓ · **Pagar no caixa** ✗ (a loja não usa)
+- Formas no totem: **PIX** ✓ · **Cartão** ✓ · **Pagar no caixa** ✓ (é por onde entra o **dinheiro**: o atendente recebe no balcão, escolhe Dinheiro/PIX/Cartão e o sistema calcula o troco)
 - PIX: **Manual** · Cartão: **Manual** (veja "Pagamento automático" abaixo)
 - "Se o gateway falhar, o atendente pode confirmar com PIN": ✓
 
@@ -34,7 +34,7 @@ Sem o leitor o totem funciona pelo toque: o cliente acha o produto pela categori
 - Chave: liviarachelribeiro@gmail.com (tipo e-mail, Nubank) · Nome do recebedor: **(falta: nome completo da titular)** · Cidade: Cascavel
 
 **Segurança e pagamento**
-- PIN do admin: trocar o 1234 (só a Lívia entra no painel)
+- PIN do admin: trocar o 1234 (só a Lívia entra no painel). Enquanto for o de fábrica, aparece um aviso vermelho. O PIN fica guardado só como código embaralhado, e 5 PINs errados seguidos bloqueiam o painel por 5 minutos.
 - Exigir PIN do atendente para confirmar PIX e cartão: ✓ (necessário no modo manual)
 
 **Atendentes** (um PIN diferente para cada um; apagar o "Atendente" de exemplo)
@@ -49,7 +49,7 @@ Sem o leitor o totem funciona pelo toque: o cliente acha o produto pela categori
 - Controlar estoque: ✗ (a loja não vai controlar por enquanto; nada fica esgotado)
 - Totem pergunta o nome do cliente: ✓ · Comer aqui ou levar: ✓
 - Tela de pedidos no 2º monitor: ✗ (não terão) · Via de preparo impressa com a senha: ✓
-- Pedido "pagar no balcão": não se aplica (forma desativada)
+- Pedido "pagar no balcão": fica em Vendas › Pedidos aguardando; o atendente toca em **Marcar como pago** e escolhe como recebeu
 
 **Nota fiscal**
 - Integração: **Desativada**. Sem CNPJ ainda, o totem sai com cupom não fiscal. Regularizar com o contador.
@@ -73,6 +73,23 @@ Entrega na mesa: o atendente chama pelo nome do cliente (confirmado; não precis
 - Os preços são **de exemplo**. Quando a Lívia mandar os preços: digitar na tabela de Produtos (Enter salva) ou preencher `Produtos Emporio Lisufit.xlsx` e importar. O aviso amarelo some quando não sobrar nenhum preço de exemplo.
 - Confira os nomes que eu deduzi pela foto, principalmente **Caldo de Mocotó**, **Guaraná Natural 300ml** e **Folhado de Presunto e Queijo**.
 - Os suplementos: **Produtos › Planilha › Baixar modelo em branco**, mandar para a loja e importar de volta.
+
+## Decisões de 01/11
+
+- **Granel:** fora do sistema (sem integração com balança). Continua sendo vendido no balcão como hoje.
+- **Carnes:** congeladas, pacote de preço fixo: cadastro normal.
+- **Validade e alérgenos:** a loja controla por fora; os alérgenos estão nas embalagens.
+- **Queda de energia:** o totem fica parado e a loja vende no balcão, fora do sistema. Ao voltar, o sistema abre sozinho (atalho no `shell:startup`) com os dados até a última venda gravada.
+- **Privacidade:** o nome do cliente serve só para chamar o pedido e é apagado das vendas depois de 30 dias.
+
+## Indicadores e fluxo de caixa
+
+**Admin › Indicadores:** faturamento, vendas, ticket médio, cancelamentos e tempo médio de preparo, comparando com o período anterior; fluxo de caixa com as entradas de cada dia por Dinheiro, PIX e Cartão e o acumulado; vendas por hora; faturamento por seção e categoria; mais vendidos. Filtros: hoje, 7 dias, 30 dias, este mês ou datas.
+
+## Se algo der errado
+
+- **Restaurar backup:** Admin › Configurações › Fechamento e backup › Restaurar um backup. O estado de antes fica guardado na pasta `seguranca` dos backups.
+- **Registro de erros:** `%APPDATA%\Lisufit PDV\logs\erros-AAAA-MM.log` (impressora, pagamento, backup, PIN bloqueado).
 
 ## Fica para depois da inauguração
 

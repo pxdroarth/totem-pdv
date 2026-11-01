@@ -124,6 +124,20 @@ Painel admin → Produtos → Editar → **Variações (opcional)**:
 - **Vendas › Exportar planilha do período** gera um `.xlsx` com duas abas, Vendas e Itens vendidos (com as opções escolhidas), para a gestora.
 - Também aceita `.csv` separado por ponto e vírgula.
 
+## Indicadores e fluxo de caixa
+- **Admin › Indicadores** (só o admin): faturamento, vendas pagas e ticket médio comparados ao período anterior, cancelamentos, tempo médio de preparo, fluxo de caixa diário (entradas por Dinheiro, PIX e Cartão, com acumulado), vendas por hora, faturamento por seção e categoria e os 10 mais vendidos.
+- **Dinheiro:** entra pela forma "Pagar no caixa". Em Vendas › Marcar como pago, o atendente escolhe Dinheiro, PIX ou Cartão; no dinheiro, digita o valor recebido e vê o troco. O fechamento mostra o **dinheiro que deve estar na gaveta**.
+
+## Segurança e continuidade
+- O PIN do admin fica gravado só como hash; o campo em Configurações fica em branco (em branco = mantém o atual). Enquanto for 1234, aparece um aviso.
+- 5 PINs errados seguidos (painel ou confirmação de pagamento) bloqueiam novas tentativas por 5 minutos.
+- **Restaurar backup** pela tela, em Configurações. Antes, o estado atual é copiado para `backups/seguranca`.
+- Erros de impressora, pagamento, nota fiscal, backup e bloqueio de PIN vão para `logs/erros-AAAA-MM.log`, na pasta de dados.
+- O nome do cliente é apagado das vendas depois de 30 dias.
+
+## Testes
+`npm test` (no Linux sem tela: `xvfb-run -a npm test`) abre o sistema de verdade e confere os fluxos principais. Detalhes em `testes/README.md`.
+
 ## Estoque
 - Cada produto tem **estoque mínimo** (padrão 3). Abaixo dele, aparece o aviso vermelho no painel e o filtro "Estoque baixo".
 - Em Configurações › Pedidos e estoque, defina o que acontece quando o produto acaba: aparece como esgotado, some do totem ou continua vendendo.
