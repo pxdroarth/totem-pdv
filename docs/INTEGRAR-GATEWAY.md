@@ -52,9 +52,10 @@ PIX e cartão podem usar gateways diferentes. Por exemplo, PIX pelo banco e cart
 
 Confira sempre a documentação atual de cada um, porque as APIs mudam.
 
-- **Mercado Pago:** a integração de maquininha (Point) com sistema de PDV é feita pela **API Orders**, que substitui a integração antiga do Point. Você cria uma "order" para a maquininha (pelo ID do terminal) e consulta o status. O PIX também sai pela API, com QR dinâmico. Tem credenciais de teste no painel de desenvolvedor.
+- **Mercado Pago:** já implementado em `provedores/mercadopago.js` (guia em `docs/MERCADO-PAGO.md`). A integração de maquininha (Point) com sistema de PDV é feita pela **API Orders**, que substitui a integração antiga do Point. Você cria uma "order" para a maquininha (pelo ID do terminal) e consulta o status. O PIX também sai pela API, com QR dinâmico. Tem credenciais de teste no painel de desenvolvedor.
 - **Cielo:** tem soluções de pagamento integrado (Cielo Conecta, LIO). Verifique qual modelo de maquininha a loja vai ter.
-- **Stone e PagBank:** os dois têm integração com PDV. Em geral é preciso pedir a habilitação ao comercial deles.
+- **Stone:** já implementado em `provedores/stone.js` (guia em `docs/STONE.md`).
+- **PagBank:** os dois têm integração com PDV. Em geral é preciso pedir a habilitação ao comercial deles.
 
 Antes de fechar com um gateway, pergunte:
 

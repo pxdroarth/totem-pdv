@@ -94,8 +94,9 @@ Entrega na mesa: o atendente chama pelo nome do cliente (confirmado; não precis
 ## Fica para depois da inauguração
 
 - **Pagamento automático:** a loja quer, mas não fica pronto até terça.
-  - **O conector da Stone já está pronto** (cartão e PIX na maquininha). Falta a Stone liberar: veja o checklist em `docs/STONE.md`.
-  - PIX: o Nubank não tem integração para confirmar o PIX sozinho. Pela Stone, o QR aparece na maquininha e o dinheiro cai na conta Stone.
+  - **A maquininha é Mercado Pago (Point Pro 3, S/N 1733216565)** e o conector já está pronto (cartão e PIX na maquininha). Não precisa de homologação: é criar uma aplicação na conta Mercado Pago da loja e colar o Access Token. Passo a passo em `docs/MERCADO-PAGO.md`. Dá até para ligar antes da inauguração.
+  - PIX: pela Point, o QR aparece na maquininha e o dinheiro cai no Mercado Pago (precisa de chave PIX cadastrada lá). O QR fixo do Nubank continua como plano B no modo manual.
+  - Se um dia a loja trocar para Stone, o conector dela também existe (`docs/STONE.md`).
   - Até lá, o atendente confirma com o PIN.
 - **Cupom de desconto e programa de fidelidade:** ainda não existem no sistema.
 - **Relatório diário por e-mail:** por enquanto, exportar a planilha do dia em Admin › Vendas.
