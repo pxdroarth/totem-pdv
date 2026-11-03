@@ -304,6 +304,7 @@ tratar('categorias:mover', soAdmin((id, direcao) => banco.moverCategoria(id, dir
 tratar('produtos:listar', () => sessao?.perfil === 'admin' ? banco.getProdutos() : banco.getProdutos().map(({ custoCentavos, ...p }) => p));
 tratar('produtos:salvar', soAdmin(p => banco.salvarProduto(p)));
 tratar('produtos:excluir', soAdmin(id => banco.excluirProduto(id)));
+tratar('catalogo:carregar', soAdmin(() => banco.carregarCatalogo()));
 tratar('produtos:emMassa', soAdmin((ids, acao, valor) => banco.produtosEmMassa(ids, acao, valor)));
 
 // ---------- fotos dos produtos ----------

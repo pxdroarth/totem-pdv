@@ -50,6 +50,7 @@ contextBridge.exposeInMainWorld('pdv', {
   reimprimir: numero => chamar('vendas:reimprimir', numero),
   exportarProdutos: () => chamar('produtos:exportar'),
   baixarModelo: () => chamar('produtos:modelo'),
+  carregarCatalogo: () => chamar('catalogo:carregar'),
   indicadores: filtro => chamar('indicadores:ver', filtro),
   listarBackups: () => chamar('backup:listar'),
   restaurarBackup: nome => chamar('backup:restaurar', nome),

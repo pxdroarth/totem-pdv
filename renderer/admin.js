@@ -405,6 +405,16 @@ $('#btn-modelo-produtos').onclick = async () => {
   try { const arq = await pdv.baixarModelo(); if (arq) toast('Modelo salvo em ' + arq, 'ok'); }
   catch (err) { toast(err.message, 'erro'); }
 };
+$('#btn-carregar-catalogo').onclick = async () => {
+  fecharMenuPlanilha();
+  if (!confirm('Cadastrar os produtos do catálogo da loja que ainda não estão no sistema e colocar foto nos que estão sem?\n\nProduto que já existe (mesmo nome) não muda: preço, sabores e foto continuam como estão.')) return;
+  try {
+    const r = await pdv.carregarCatalogo();
+    toast(`${r.novos} produto(s) novo(s), ${r.fotos} foto(s) colocada(s)` + (r.categoriasNovas.length ? `, categorias novas: ${r.categoriasNovas.join(', ')}` : ''), 'ok');
+    await renderTabelaProdutos();
+    await carregarDados();
+  } catch (err) { toast(err.message, 'erro'); }
+};
 $('#btn-exportar-produtos').onclick = async () => {
   fecharMenuPlanilha();
   try { const arq = await pdv.exportarProdutos(); if (arq) toast('Planilha salva em ' + arq, 'ok'); }

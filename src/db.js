@@ -193,6 +193,13 @@ class Banco {
         opcoes: limparOpcoes(opcoes.map(g => ({ ...g, itens: g.itens.map(([n, c = 0]) => ({ nome: n, precoCentavos: c })) })))
       }));
     }
+    return this._produtosDoCatalogo();
+  }
+
+  // o catálogo da loja (src/catalogo): prateleira com preço da etiqueta + Empório com preço de exemplo, fotos copiadas
+  _produtosDoCatalogo() {
+    const opcoesDe = sabores => limparOpcoes(sabores ? [{ nome: 'Sabor', min: 1, max: 1,
+      itens: sabores.map(([nome, descricao]) => ({ nome, ...(descricao ? { descricao } : {}), precoCentavos: 0 })) }] : []);
     const copiarFoto = foto => {
       try {
         const destino = path.join(this.pastaImagens, 'catalogo-' + foto + '.webp');
@@ -201,7 +208,7 @@ class Banco {
       } catch { return ''; } // sem a foto o produto entra igual, só sem imagem
     };
     // prateleira (suplementos e mercearia): preço da etiqueta, definitivo; sabores sem ingredientes
-    const suplementos = require('./catalogo/prateleira').PRODUTOS.map(([nome, categoria, precoCentavos, foto, sabores]) => ({
+    const prateleira = require('./catalogo/prateleira').PRODUTOS.map(([nome, categoria, precoCentavos, foto, sabores]) => ({
       id: crypto.randomUUID(), nome, codigoBarras: '', precoCentavos, categoria,
       estoque: 0, estoqueMinimo: 3, controlarEstoque: true, imagem: copiarFoto(foto), ativo: true,
       opcoes: opcoesDe(sabores && sabores.map(n => [n, '']))
@@ -211,7 +218,28 @@ class Banco {
       id: crypto.randomUUID(), nome, codigoBarras: '', precoCentavos, precoExemplo: true, categoria,
       estoque: 0, estoqueMinimo: 3, controlarEstoque: !feitoNaHora, imagem: copiarFoto(foto), ativo: true, opcoes: opcoesDe(sabores)
     }));
-    return [...suplementos, ...emporio];
+    return [...prateleira, ...emporio];
+  }
+
+  // Botão "Carregar catálogo da loja" (instalação que já existia antes do catálogo):
+  // cadastra o que falta e põe foto em quem está sem. Produto que já existe (mesmo nome) não muda: preço, sabores e foto ficam.
+  carregarCatalogo() {
+    const res = { novos: 0, fotos: 0, jaTinham: 0, categoriasNovas: [] };
+    for (const [nome, secao, icone] of CATEGORIAS_PADRAO) {
+      if (!this.dados.categorias.some(c => normalizar(c.nome) === normalizar(nome))) {
+        this.dados.categorias.push({ id: crypto.randomUUID(), nome, secao, icone, ordem: this.dados.categorias.length, ativo: true });
+        res.categoriasNovas.push(nome);
+      }
+    }
+    for (const novo of this._produtosDoCatalogo()) {
+      const atual = this.dados.produtos.find(p => normalizar(p.nome) === normalizar(novo.nome));
+      if (!atual) { this.dados.produtos.push(novo); res.novos++; continue; }
+      res.jaTinham++;
+      if ((!atual.imagem || !fs.existsSync(atual.imagem)) && novo.imagem) { atual.imagem = novo.imagem; res.fotos++; }
+      else if (novo.imagem && novo.imagem !== atual.imagem) { try { fs.unlinkSync(novo.imagem); } catch {} } // cópia que não foi usada
+    }
+    this._salvar();
+    return res;
   }
 
   // Bases antigas (sem lista de categorias): cria a lista a partir dos produtos + padrões
