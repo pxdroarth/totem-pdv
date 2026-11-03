@@ -192,6 +192,7 @@ function abrirProduto(p, { novo = false } = {}) {
   f.nome.value = produtoEditando.nome || '';
   f.codigoBarras.value = produtoEditando.codigoBarras || '';
   f.preco.value = produtoEditando.precoCentavos ? (produtoEditando.precoCentavos / 100).toFixed(2).replace('.', ',') : '';
+  f.custo.value = produtoEditando.custoCentavos ? (produtoEditando.custoCentavos / 100).toFixed(2).replace('.', ',') : '';
   f.estoque.value = produtoEditando.estoque ?? 0;
   f.estoqueMinimo.value = produtoEditando.estoqueMinimo ?? 3;
   preencherSelectCategoria(produtoEditando.categoria || $('#filtro-categoria-admin').value);
@@ -223,6 +224,7 @@ $('#form-produto').onsubmit = async e => {
       nome: f.nome.value,
       codigoBarras: f.codigoBarras.value,
       precoCentavos: paraCentavos(f.preco.value),
+      custoCentavos: f.custo.value.trim() ? paraCentavos(f.custo.value) : 0,
       estoque: f.estoque.value,
       estoqueMinimo: f.estoqueMinimo.value,
       categoria: f.categoria.value,
@@ -710,6 +712,9 @@ async function carregarIndicadores() {
     ['Vendas pagas', r.vendas, comp(pct(r.vendas, r.anterior.vendas))],
     ['Ticket médio', reais(r.ticketMedioCentavos), `<small class="ajuda">${String(r.itensPorVenda).replace('.', ',')} itens por venda</small>`],
     ['Canceladas', r.canceladas, `<small class="ajuda">${reais(r.canceladasCentavos)}</small>`],
+    ['Lucro bruto', r.lucro.margem === null ? '—' : reais(r.lucro.lucroCentavos),
+      r.lucro.margem === null ? '<small class="ajuda">cadastre o custo dos produtos para ver</small>'
+        : `<small class="ajuda">margem ${String(r.lucro.margem).replace('.', ',')}%${r.lucro.cobertura < 100 ? ` · ${r.lucro.cobertura}% das vendas com custo` : ''}</small>`],
     ['Preparo médio', r.preparoMinutos === null ? '—' : `${String(r.preparoMinutos).replace('.', ',')} min`, `<small class="ajuda">${r.preparosMedidos} pedido(s) marcados prontos</small>`]
   ].map(([t, v, extra]) => `<div class="card-resumo"><small>${t}</small><strong>${v}</strong>${extra}</div>`).join('') +
     (r.aguardando ? `<p class="aviso-ind">${r.aguardando} pedido(s) ainda aguardando pagamento no balcão: ficam fora destes números até serem recebidos.</p>` : '');
@@ -739,7 +744,7 @@ async function carregarIndicadores() {
       graficoBarras(r.porCategoria.slice(0, 8).map(x => ({ nome: x.nome, valor: x.totalCentavos, texto: parte(x.totalCentavos) })))
     : '<p class="ajuda">Sem vendas no período.</p>';
   $('#ind-top').innerHTML = r.maisVendidos.length ? r.maisVendidos.map((p, i) =>
-    `<tr><td>${i + 1}º</td><td>${esc(p.nome)}</td><td>${p.qtd} un.</td><td>${reais(p.totalCentavos)}</td></tr>`).join('')
+    `<tr><td>${i + 1}º</td><td>${esc(p.nome)}</td><td>${p.qtd} un.</td><td>${reais(p.totalCentavos)}</td><td>${p.semCusto ? '<small class="ajuda">sem custo</small>' : `<small class="ajuda">lucro</small> ${reais(p.lucroCentavos)}`}</td></tr>`).join('')
     : '<tr><td class="vazio">Sem vendas no período.</td></tr>';
 }
 

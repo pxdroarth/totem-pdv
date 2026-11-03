@@ -295,7 +295,8 @@ tratar('categorias:listar', () => banco.getCategorias());
 tratar('categorias:salvar', soAdmin(c => banco.salvarCategoria(c)));
 tratar('categorias:excluir', soAdmin(id => banco.excluirCategoria(id)));
 tratar('categorias:mover', soAdmin((id, direcao) => banco.moverCategoria(id, direcao)));
-tratar('produtos:listar', () => banco.getProdutos());
+// o custo dos produtos só vai para o painel do admin, nunca para a tela do cliente
+tratar('produtos:listar', () => sessao?.perfil === 'admin' ? banco.getProdutos() : banco.getProdutos().map(({ custoCentavos, ...p }) => p));
 tratar('produtos:salvar', soAdmin(p => banco.salvarProduto(p)));
 tratar('produtos:excluir', soAdmin(id => banco.excluirProduto(id)));
 tratar('produtos:emMassa', soAdmin((ids, acao, valor) => banco.produtosEmMassa(ids, acao, valor)));

@@ -24,8 +24,16 @@ const { ok, fim } = verificador('caixa-indicadores');
   const texto = fs.readFileSync(dadosArq, 'utf8');
   ok(!texto.includes('"4321"') && !lerDados().config.pinAdminPadrao, 'PIN novo gravado só como hash');
   ok(!(await pg.evaluate(() => pdv.configAdmin())).pinAdminHash, 'hash do PIN não vai para a tela');
+  // custo: café R$ 2,00 e feijoada R$ 10,00 (para o lucro bruto)
+  await pg.evaluate(async () => {
+    for (const p of await pdv.produtos()) {
+      if (p.nome === 'Café Expresso') await pdv.salvarProduto({ ...p, custoCentavos: 200 });
+      if (p.nome === 'Feijoada') await pdv.salvarProduto({ ...p, custoCentavos: 1000 });
+    }
+  });
   await pg.click('#btn-sair-admin'); await pg.waitForTimeout(300);
   ok(await pg.evaluate(() => pdv.entrarPainel('1234').then(() => 'entrou', e => e.message)) === 'PIN incorreto', 'PIN antigo não entra mais');
+  ok(!(await pg.evaluate(() => pdv.produtos())).some(p => 'custoCentavos' in p), 'a tela do cliente não recebe o custo dos produtos');
 
   // ---- vendas: PIX no totem + 2 pedidos "pagar no caixa" ----
   await pg.evaluate(() => carregarDados()); await pg.waitForTimeout(300);
@@ -60,6 +68,7 @@ const { ok, fim } = verificador('caixa-indicadores');
   await pg.evaluate(() => trocarAba('indicadores')); await pg.waitForTimeout(700);
   const cards = (await pg.textContent('#ind-cards')).replace(/\s+/g, ' ');
   ok(cards.includes('R$ 40,00') && cards.includes('Vendas pagas3') && cards.includes('R$ 13,33'), 'cards: faturamento R$ 40, 3 vendas, ticket R$ 13,33 — ' + cards.slice(0, 120));
+  ok(/Lucro brutoR\$ 24,00margem 60%/.test(cards), 'lucro bruto R$ 24,00 (margem 60%) com o custo cadastrado');
   const fluxo = (await pg.textContent('#ind-fluxo')).replace(/\s+/g, ' ');
   ok(fluxo.includes('R$ 25,00') && fluxo.includes('R$ 10,00') && fluxo.includes('R$ 5,00') && fluxo.includes('R$ 40,00'), 'fluxo do dia: dinheiro 25, PIX 10, cartão 5, total 40');
   const meio = (await pg.textContent('#ind-meio')).replace(/\s+/g, ' ');

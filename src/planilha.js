@@ -10,6 +10,7 @@ const COLUNAS_PRODUTO = [
   { chave: 'sabor', titulo: 'Sabor', largura: 18 },
   { chave: 'codigoBarras', titulo: 'Código de barras', largura: 20, texto: true },
   { chave: 'preco', titulo: 'Preço', largura: 12, dinheiro: true },
+  { chave: 'custo', titulo: 'Custo', largura: 12, dinheiro: true },
   { chave: 'categoria', titulo: 'Categoria', largura: 20 },
   { chave: 'secao', titulo: 'Seção', largura: 16 },
   { chave: 'estoque', titulo: 'Estoque', largura: 10 },
@@ -26,6 +27,7 @@ const APELIDOS = {
   sabor: 'sabor', variacao: 'sabor', 'sabor/variacao': 'sabor', 'sabor / variacao': 'sabor', 'sabor ou variacao': 'sabor',
   'codigo de barras': 'codigoBarras', codigo: 'codigoBarras', ean: 'codigoBarras', 'cod barras': 'codigoBarras', gtin: 'codigoBarras',
   preco: 'preco', 'preco de venda': 'preco', valor: 'preco', 'preco venda': 'preco',
+  custo: 'custo', custos: 'custo', 'preco de custo': 'custo', 'custo unitario': 'custo', 'valor de custo': 'custo',
   categoria: 'categoria', secao: 'secao',
   estoque: 'estoque', quantidade: 'estoque', qtd: 'estoque', 'qtd estoque': 'estoque',
   'estoque minimo': 'estoqueMinimo', minimo: 'estoqueMinimo',
@@ -145,6 +147,11 @@ async function lerPlanilhaProdutos(arquivo) {
       if (Number.isNaN(p) || p <= 0) { erro(`Preço inválido: "${cel.preco}".`); continue; }
       d.precoCentavos = p;
     }
+    if ('custo' in cel && cel.custo !== '' && cel.custo != null) {
+      const c = lerPreco(cel.custo);
+      if (Number.isNaN(c) || c < 0) { erro(`Custo inválido: "${cel.custo}".`); continue; }
+      d.custoCentavos = c;
+    }
     for (const k of ['estoque', 'estoqueMinimo']) {
       if (k in cel && cel[k] !== '') {
         const v = lerInteiro(cel[k]);
@@ -184,10 +191,10 @@ function estilizarCabecalho(ws) {
 
 // modelo para a loja preencher: só cabeçalhos, linhas de exemplo em cinza (ignoradas ao importar) e a aba de ajuda
 const LINHAS_MODELO = [
-  { nome: 'Creatina Monohidratada 300g', sabor: '', codigoBarras: '7890000000000', preco: 89.9, categoria: 'Creatina', secao: 'Suplementos', estoque: 10, estoqueMinimo: 3, feitoNaHora: 'Não', ativo: 'Sim' },
-  { nome: 'Whey Isolado 900g', sabor: 'Chocolate', codigoBarras: '7891111111111', preco: 199.9, categoria: 'Proteínas', secao: 'Suplementos', feitoNaHora: 'Não', ativo: 'Sim' },
-  { nome: 'Whey Isolado 900g', sabor: 'Baunilha', codigoBarras: '7892222222222', preco: 199.9, categoria: 'Proteínas', secao: 'Suplementos', feitoNaHora: 'Não', ativo: 'Sim' },
-  { nome: 'Shake de Frutas 500ml', sabor: 'Morango', codigoBarras: '', preco: 22, categoria: 'Shakes', secao: 'Empório', feitoNaHora: 'Sim', ativo: 'Sim', ingredientes: 'Iogurte, morango, banana e whey baunilha' }
+  { nome: 'Creatina Monohidratada 300g', sabor: '', codigoBarras: '7890000000000', preco: 89.9, custo: 55, categoria: 'Creatina', secao: 'Suplementos', estoque: 10, estoqueMinimo: 3, feitoNaHora: 'Não', ativo: 'Sim' },
+  { nome: 'Whey Isolado 900g', sabor: 'Chocolate', codigoBarras: '7891111111111', preco: 199.9, custo: 130, categoria: 'Proteínas', secao: 'Suplementos', feitoNaHora: 'Não', ativo: 'Sim' },
+  { nome: 'Whey Isolado 900g', sabor: 'Baunilha', codigoBarras: '7892222222222', preco: 199.9, custo: 130, categoria: 'Proteínas', secao: 'Suplementos', feitoNaHora: 'Não', ativo: 'Sim' },
+  { nome: 'Shake de Frutas 500ml', sabor: 'Morango', codigoBarras: '', preco: 22, custo: 9, categoria: 'Shakes', secao: 'Empório', feitoNaHora: 'Sim', ativo: 'Sim', ingredientes: 'Iogurte, morango, banana e whey baunilha' }
 ];
 async function exportarModelo(arquivo) {
   return exportarProdutos(arquivo, [], [], { modelo: true });
@@ -203,7 +210,7 @@ async function exportarProdutos(arquivo, produtos, categorias, { modelo = false 
   const semAcentoMin = t => semAcento(t).toLowerCase().trim();
   [...produtos].sort((a, b) => a.categoria.localeCompare(b.categoria) || a.nome.localeCompare(b.nome)).forEach(p => {
     const base = {
-      nome: p.nome, preco: p.precoCentavos / 100,
+      nome: p.nome, preco: p.precoCentavos / 100, custo: p.custoCentavos ? p.custoCentavos / 100 : '',
       categoria: p.categoria, secao: secao(p.categoria),
       estoque: p.controlarEstoque === false ? '' : p.estoque,
       estoqueMinimo: p.controlarEstoque === false ? '' : (p.estoqueMinimo ?? 3),
@@ -234,6 +241,7 @@ async function exportarProdutos(arquivo, produtos, categorias, { modelo = false 
     ['Sabor', 'Só para produto com vários sabores (ex.: Whey Isolado Pro Fit). Uma linha por sabor, com o MESMO nome, o sabor e o código de barras daquela embalagem. No totem vira um produto só, e o cliente escolhe o sabor. Se um sabor custar mais, coloque o preço dele na linha.'],
     ['Código de barras', 'O número embaixo do código no rótulo. A coluna já está como Texto para o Excel não estragar o número.'],
     ['Preço', 'Preço de venda. Ex.: 129,90'],
+    ['Custo', 'Opcional: quanto o produto custa para a loja. Ex.: 85,00. Com o custo, os Indicadores mostram o lucro bruto. O cliente nunca vê. Produto com vários sabores: o custo vale para todos.'],
     ['Categoria', 'Ex.: Proteínas, Sorvetes. Categoria nova é criada sozinha.'],
     ['Seção', 'Usada só quando a categoria é nova: Suplementos ou Empório.'],
     ['Estoque', 'Quantidade que tem na loja agora.'],

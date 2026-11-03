@@ -709,7 +709,7 @@ body.kds { background: var(--superficie); display: flex; flex-direction: column;
 /* ---------- indicadores e fluxo de caixa ---------- */
 .periodos { display: flex; gap: .4rem; }
 .periodos .btn.ativo, .receber-formas .btn.ativo { background: var(--marca); border-color: var(--marca); color: var(--sobre-marca); }
-.cards-ind { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.cards-ind { grid-template-columns: repeat(6, minmax(0, 1fr)); }
 .cards-ind .card-resumo small.sobe { color: var(--verde); font-weight: 600; }
 .cards-ind .card-resumo small.desce { color: var(--perigo); font-weight: 600; }
 .aviso-ind { grid-column: 1 / -1; margin: 0; color: #6b5a17; background: var(--ouro-suave); padding: .6rem .9rem; border-radius: var(--raio-p); }

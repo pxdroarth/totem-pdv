@@ -424,6 +424,7 @@ class Banco {
       nome: String(p.nome || '').trim(),
       codigoBarras: String(p.codigoBarras || '').trim(),
       precoCentavos: Math.round(Number(p.precoCentavos) || 0),
+      custoCentavos: Math.max(0, Math.round(Number(p.custoCentavos) || 0)), // opcional: quanto custa para a loja (lucro nos indicadores)
       categoria: String(p.categoria || 'Outros').trim(),
       estoque: Math.round(Number(p.estoque) || 0),
       estoqueMinimo: Math.max(0, Math.round(Number(p.estoqueMinimo ?? 3) || 0)),
@@ -513,6 +514,7 @@ class Banco {
       const unit = p.precoCentavos + adicionalCentavos;
       return { id: p.id, nome: p.nome, codigoBarras: p.codigoBarras, qtd: q,
         precoCentavos: unit, totalCentavos: unit * q,
+        ...(p.custoCentavos ? { custoCentavos: p.custoCentavos * q } : {}), // custo da linha na hora da venda
         ...(p.controlarEstoque === false ? { preparo: true } : {}), // feito na hora: vai para a via de preparo
         ...(descricao ? { opcoes: descricao, escolhas } : {}) };
     });
@@ -644,7 +646,8 @@ class Banco {
         sabores.push({ linha: l.linha, nome: l.dados.sabor, codigoBarras: l.dados.codigoBarras || '', descricao: l.dados.ingredientes || '',
           precoCentavos: l.dados.precoCentavos && base ? l.dados.precoCentavos - base : 0 });
       }
-      const d = { ...primeira.dados, precoCentavos: base, codigoBarras: undefined, _sabores: sabores };
+      const custo = lista.map(l => l.dados.custoCentavos).find(c => c !== undefined);
+      const d = { ...primeira.dados, precoCentavos: base, codigoBarras: undefined, _sabores: sabores, custoCentavos: custo };
       delete d.sabor; delete d.estoque; delete d.estoqueMinimo;
       comuns.push({ linha: primeira.linha, dados: d, erro: null });
     }
@@ -672,7 +675,7 @@ class Banco {
           res.novos++;
         } else res.atualizados++;
         if (d.precoCentavos !== undefined) delete p.precoExemplo; // preço vindo da planilha conta como definitivo
-        for (const k of ['precoCentavos', 'categoria', 'ativo']) if (d[k] !== undefined) p[k] = d[k];
+        for (const k of ['precoCentavos', 'custoCentavos', 'categoria', 'ativo']) if (d[k] !== undefined) p[k] = d[k];
         if (d.feitoNaHora !== undefined) p.controlarEstoque = !d.feitoNaHora;
         // atualiza o grupo "Sabor" mantendo os ids dos sabores que já existiam (vendas antigas continuam batendo)
         const opcoes = (p.opcoes || []).map(g => ({ ...g, itens: [...g.itens] }));
@@ -712,7 +715,7 @@ class Banco {
         }
       }
       const campos = {};
-      for (const k of ['nome', 'codigoBarras', 'precoCentavos', 'categoria', 'estoque', 'estoqueMinimo', 'ativo']) if (d[k] !== undefined) campos[k] = d[k];
+      for (const k of ['nome', 'codigoBarras', 'precoCentavos', 'custoCentavos', 'categoria', 'estoque', 'estoqueMinimo', 'ativo']) if (d[k] !== undefined) campos[k] = d[k];
       if (d.feitoNaHora !== undefined) campos.controlarEstoque = !d.feitoNaHora;
       if (p) {
         if (campos.precoCentavos !== undefined) delete p.precoExemplo;
@@ -757,7 +760,7 @@ class Banco {
     const fluxo = dias.map(dia => ({ dia, dinheiro: 0, pix: 0, cartao: 0, balcao: 0, total: 0, vendas: 0 }));
     const porMeio = { dinheiro: 0, pix: 0, cartao: 0, balcao: 0 };
     const porCategoria = {}, porSecao = {}, produtos = {};
-    let itens = 0;
+    let itens = 0, comCusto = 0, custoTotal = 0;
     for (const v of pagas) {
       const h = new Date(v.data).getHours();
       porHora[h].vendas++; porHora[h].totalCentavos += v.totalCentavos;
@@ -772,8 +775,10 @@ class Banco {
         const sec = secaoDe(cat);
         porSecao[sec] = (porSecao[sec] || 0) + l.totalCentavos;
         const k = l.nome;
-        produtos[k] = produtos[k] || { nome: k, qtd: 0, totalCentavos: 0 };
+        produtos[k] = produtos[k] || { nome: k, qtd: 0, totalCentavos: 0, lucroCentavos: 0, semCusto: false };
         produtos[k].qtd += l.qtd; produtos[k].totalCentavos += l.totalCentavos;
+        if (l.custoCentavos) { comCusto += l.totalCentavos; custoTotal += l.custoCentavos; produtos[k].lucroCentavos += l.totalCentavos - l.custoCentavos; }
+        else produtos[k].semCusto = true;
       }
     }
     let acumulado = 0;
@@ -794,6 +799,10 @@ class Banco {
       porHora, porMeio, fluxo,
       porCategoria: lista(porCategoria), porSecao: lista(porSecao),
       maisVendidos: Object.values(produtos).sort((a, b) => b.qtd - a.qtd || b.totalCentavos - a.totalCentavos).slice(0, 10),
+      // lucro bruto = vendas com custo cadastrado − custo delas (vendas sem custo ficam de fora da conta)
+      lucro: { lucroCentavos: comCusto - custoTotal, vendasComCustoCentavos: comCusto,
+        margem: comCusto ? Math.round((comCusto - custoTotal) / comCusto * 1000) / 10 : null,
+        cobertura: fat ? Math.round(comCusto / fat * 100) : 0 },
       preparoMinutos: preparos.length ? Math.round(preparos.reduce((a, b) => a + b, 0) / preparos.length * 10) / 10 : null,
       preparosMedidos: preparos.length
     };

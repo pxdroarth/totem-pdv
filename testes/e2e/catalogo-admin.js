@@ -94,7 +94,7 @@ const OUT = path.join(SAIDA, 'catalogo-admin');
   ok(linhas[0] === 'Nome' && linhas.slice(1).every(n => String(n).startsWith('(exemplo)')) && linhas.length === 5 && wb.worksheets[1].name === 'Como preencher',
     'modelo: cabeçalho, 4 linhas de exemplo e aba de ajuda');
   // importar o modelo como veio: nada entra; com uma linha real a mais, só ela entra
-  ws.addRow(['Tapioca de Frango', '', '', 12, 'Salgados', 'Empório', '', '', 'Sim', 'Sim']);
+  ws.addRow(['Tapioca de Frango', '', '', 12, 4.5, 'Salgados', 'Empório', '', '', 'Sim', 'Sim']);
   await wb.xlsx.writeFile(modelo);
   await set('__abrir', modelo);
   await pg.click('.menu-planilha summary'); await pg.click('#btn-importar-produtos'); await pg.waitForTimeout(800);
@@ -102,6 +102,7 @@ const OUT = path.join(SAIDA, 'catalogo-admin');
   ok(/novos ?1/.test(resumo) && /problema ?0/.test(resumo), 'importar modelo: linhas de exemplo ignoradas, só a Tapioca entra — ' + resumo);
   await pg.click('#btn-importar-confirmar'); await pg.waitForTimeout(600);
   ok((await pg.evaluate(() => pdv.produtos())).length === 30, 'produtos que não estavam na planilha continuam cadastrados');
+  ok((await pg.evaluate(() => pdv.produtos())).find(p => p.nome === 'Tapioca de Frango').custoCentavos === 450, 'coluna Custo importada (R$ 4,50)');
   // importar preço pela planilha tira o "exemplo"
   const exp = path.join(OUT, 'arquivos', 'export.xlsx'); await set('__salvar', exp);
   await pg.click('.menu-planilha summary'); await pg.click('#btn-exportar-produtos'); await pg.waitForTimeout(1000);

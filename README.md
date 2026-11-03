@@ -130,6 +130,7 @@ Painel admin → Produtos → Editar → **Variações (opcional)**:
 
 ## Indicadores e fluxo de caixa
 - **Admin › Indicadores** (só o admin): faturamento, vendas pagas e ticket médio comparados ao período anterior, cancelamentos, tempo médio de preparo, fluxo de caixa diário (entradas por Dinheiro, PIX e Cartão, com acumulado), vendas por hora, faturamento por seção e categoria e os 10 mais vendidos.
+- **Custo e lucro:** coluna opcional **Custo** na planilha e no cadastro. Com ela, os Indicadores mostram o lucro bruto e a margem, e o lucro de cada item nos mais vendidos. O custo fica gravado em cada venda e nunca vai para a tela do cliente.
 - **Dinheiro:** entra pela forma "Pagar no caixa". Em Vendas › Marcar como pago, o atendente escolhe Dinheiro, PIX ou Cartão; no dinheiro, digita o valor recebido e vê o troco. O fechamento mostra o **dinheiro que deve estar na gaveta**.
 
 ## Segurança e continuidade
