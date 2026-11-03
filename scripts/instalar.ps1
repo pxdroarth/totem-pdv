@@ -19,7 +19,8 @@ param(
   [switch]$SemIniciarComWindows,
   [switch]$SemEnergia,
   [switch]$NaoAbrir,
-  [string]$Token = ''
+  [string]$Token = '',
+  [string]$PastaToken = ''   # onde procurar o token.txt (o instalador de arquivo único passa a pasta onde ele foi baixado)
 )
 
 # 'Continue': no PowerShell 5, programas como git e npm escrevem progresso no stderr e 'Stop' trataria isso como erro.
@@ -49,6 +50,7 @@ if (-not $admin) {
   if ($SemEnergia) { $argumentos += '-SemEnergia' }
   if ($NaoAbrir) { $argumentos += '-NaoAbrir' }
   if ($Token) { $argumentos += @('-Token', $Token) }
+  if ($PastaToken) { $argumentos += @('-PastaToken', "`"$PastaToken`"") }
   Start-Process powershell.exe -Verb RunAs -ArgumentList $argumentos
   exit 0
 }
@@ -135,7 +137,9 @@ Passo 2 'Baixar o sistema'
 $env:GIT_TERMINAL_PROMPT = '0'
 $env:GCM_INTERACTIVE = 'never'
 if (-not $Token) {
-  foreach ($arq in @((Join-Path (Split-Path -Parent $PSCommandPath) 'token.txt'), (Join-Path (Split-Path -Parent (Split-Path -Parent $PSCommandPath)) 'token.txt'))) {
+  $lugares = @((Join-Path (Split-Path -Parent $PSCommandPath) 'token.txt'), (Join-Path (Split-Path -Parent (Split-Path -Parent $PSCommandPath)) 'token.txt'))
+  if ($PastaToken) { $lugares = @((Join-Path $PastaToken 'token.txt')) + $lugares }
+  foreach ($arq in $lugares) {
     if (Test-Path $arq) { $Token = (Get-Content $arq -Raw).Trim(); Ok "Token lido de $arq"; break }
   }
 }

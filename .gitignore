@@ -15,3 +15,4 @@ Thumbs.db
 *.log
 .env
 token.txt
+dist-instalador/

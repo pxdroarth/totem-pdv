@@ -21,6 +21,15 @@ Sem o leitor o totem funciona pelo toque: o cliente acha o produto pela categori
 5. Impressora: instalar o driver **(falta: marca e modelo)**.
 6. Reinicie o Dell e confira se o totem abre sozinho.
 
+**Sem entrada de pendrive à vista:** o Dell costuma ficar dentro do gabinete do totem, e as portas USB ficam atrás dele (abrir a tampa). Dá para ligar ali o pendrive e também um teclado e mouse para a instalação. Se não der, use o **instalador de arquivo único**:
+1. No seu computador, rode `node scripts/gerar-instalador-unico.js`. Ele gera `dist-instalador/instalar-lisufit.zip`, com tudo num arquivo só.
+2. Mande para você mesmo o `instalar-lisufit.zip` e, em outra mensagem, o token (por WhatsApp Web, e-mail ou Google Drive).
+3. No navegador do totem, baixe o zip para Downloads, clique com o botão direito › **Extrair tudo** e dê dois cliques no `instalar-lisufit.bat`.
+4. Se aparecer "O Windows protegeu o computador": **Mais informações › Executar assim mesmo**.
+5. Quando pedir o token, cole (Ctrl+V, ou segure o dedo no campo e escolha Colar). Depois **apague a mensagem com o token**.
+
+Sem teclado físico, use o teclado da tela: ícone de teclado na barra de tarefas, ou Configurações › Acessibilidade › Teclado › Teclado virtual.
+
 ## Admin › Configurações
 
 **Loja**

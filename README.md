@@ -28,7 +28,7 @@ fácil de editar. Roda no Dell com Windows em tela cheia travada (modo quiosque)
 
 Pode rodar de novo quando quiser: o que já existe é pulado e o sistema é atualizado. Opções: `instalar.bat -SemIniciarComWindows`, `-SemEnergia`, `-Pasta D:\outra\pasta`.
 
-Para levar só o instalador num pendrive, copie `instalar.bat` e `scripts\instalar.ps1` para a mesma pasta.
+Para levar só o instalador num pendrive, copie `instalar.bat` e `scripts\instalar.ps1` para a mesma pasta. **Sem pendrive:** `node scripts/gerar-instalador-unico.js` gera `dist-instalador/instalar-lisufit.zip`, um arquivo único para baixar direto no navegador do totem. O token pode ficar num `token.txt` na mesma pasta ou ser colado quando pedir.
 
 **Manual (se preferir):** instale o Node.js LTS e o Git, rode `git clone https://github.com/pxdroarth/lisufit-pdv.git` e `npm ci`, e abra pelo `iniciar-totem.bat`.
 
