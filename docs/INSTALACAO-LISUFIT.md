@@ -33,8 +33,7 @@ Sem teclado físico, use o teclado da tela: ícone de teclado na barra de tarefa
 ## Admin › Configurações
 
 **Loja**
-- Nome: Lisufit · Endereço: R. Cel. Bia, 2597 – Cascavel/CE · CNPJ: em branco (ainda não tem)
-- (O formulário dizia 2626; a mensagem do Pedro, 2597. Confirmar o número.)
+- Nome: Lisufit · Endereço: o da loja (sai no cupom) · CNPJ: em branco (ainda não tem)
 
 **Gateway de pagamento**
 - Formas no totem: **PIX** ✓ · **Cartão** ✓ · **Pagar no caixa** ✓ (é por onde entra o **dinheiro**: o atendente recebe no balcão, escolhe Dinheiro/PIX/Cartão e o sistema calcula o troco)
@@ -42,14 +41,14 @@ Sem teclado físico, use o teclado da tela: ícone de teclado na barra de tarefa
 - "Se o gateway falhar, o atendente pode confirmar com PIN": ✓
 
 **PIX com QR fixo**
-- Chave: liviarachelribeiro@gmail.com (tipo e-mail, Nubank) · Nome do recebedor: **(falta: nome completo da titular)** · Cidade: Cascavel
+- Chave: a chave PIX da loja · Nome do recebedor: o nome do titular, igual ao do banco · Cidade: a da loja
 
 **Segurança e pagamento**
 - PIN do admin: trocar o 1234 (só a Lívia entra no painel). Enquanto for o de fábrica, aparece um aviso vermelho. O PIN fica guardado só como código embaralhado, e 5 PINs errados seguidos bloqueiam o painel por 5 minutos.
 - Exigir PIN do atendente para confirmar PIX e cartão: ✓ (necessário no modo manual)
 
 **Atendentes** (um PIN diferente para cada um; apagar o "Atendente" de exemplo)
-- Lívia Rachel · Suzana Rhayna · Ednardo Nogueira · Aline Ribeiro
+- Um atendente para cada funcionário (4 hoje), cada um com o seu PIN
 - Atendente pode cancelar venda já paga: ✗ (só a gerente ou a dona)
 
 **Fechamento e backup**
@@ -105,7 +104,7 @@ Entrega na mesa: o atendente chama pelo nome do cliente (confirmado; não precis
 ## Fica para depois da inauguração
 
 - **Pagamento automático:** a loja quer, mas não fica pronto até terça.
-  - **A maquininha é Mercado Pago (Point Pro 3, S/N 1733216565)** e o conector já está pronto (cartão e PIX na maquininha). Não precisa de homologação: é criar uma aplicação na conta Mercado Pago da loja e colar o Access Token. Passo a passo em `docs/MERCADO-PAGO.md`. Dá até para ligar antes da inauguração.
+  - **A maquininha é Mercado Pago (Point Pro 3)** e o conector já está pronto (cartão e PIX na maquininha). Não precisa de homologação: é criar uma aplicação na conta Mercado Pago da loja e colar o Access Token. Passo a passo em `docs/MERCADO-PAGO.md`. Dá até para ligar antes da inauguração.
   - PIX: pela Point, o QR aparece na maquininha e o dinheiro cai no Mercado Pago (precisa de chave PIX cadastrada lá). O QR fixo do Nubank continua como plano B no modo manual.
   - Se um dia a loja trocar para Stone, o conector dela também existe (`docs/STONE.md`).
   - Até lá, o atendente confirma com o PIN.

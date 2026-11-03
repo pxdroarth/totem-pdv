@@ -5,7 +5,7 @@ const { abrir, verificador } = require('./_base');
 const { ok, fim } = verificador('mercadopago');
 
 const TOKEN = 'TEST-1234-lisufit';
-const SERIAL = '1733216565', TERMINAL = 'PAX_Q92__' + SERIAL;
+const SERIAL = '1700000001', TERMINAL = 'PAX_Q92__' + SERIAL;
 let modoTerminal = 'STANDALONE';
 const orders = new Map(); const chamadas = [];
 let aprovarNaConsulta = 2, recusar = false;

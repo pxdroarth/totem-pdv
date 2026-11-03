@@ -1,6 +1,6 @@
 # Mercado Pago: ligar a Point integrada
 
-A maquininha da Lisufit é uma **Point Pro 3** (S/N `1733216565`), compatível com a integração de PDV do Mercado Pago. O conector já está pronto e testado (`src/pagamentos/provedores/mercadopago.js`; teste em `testes/e2e/mercadopago.js`).
+A maquininha da Lisufit é uma **Point Pro 3**, compatível com a integração de PDV do Mercado Pago. O conector já está pronto e testado (`src/pagamentos/provedores/mercadopago.js`; teste em `testes/e2e/mercadopago.js`).
 
 **Não precisa de homologação nem de cadastro como parceiro**, ao contrário da Stone. Basta criar uma aplicação **na conta Mercado Pago da loja**: o dinheiro cai na conta dona do Access Token.
 
@@ -34,7 +34,7 @@ Se o Mercado Pago ou a internet cair, o totem volta para o modo manual: a Point 
 | PIX | Mercado Pago (Point integrada) |
 | Cartão | Mercado Pago (Point integrada) |
 | Access Token | o `APP_USR-...` |
-| Número de série | `1733216565` (o S/N da etiqueta) |
+| Número de série | o S/N da etiqueta atrás da Point |
 | Cartão | Cliente escolhe crédito ou débito |
 | Comprovante na maquininha | Não (o totem já imprime) |
 
