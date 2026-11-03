@@ -17,19 +17,22 @@ fácil de editar. Roda no Dell com Windows em tela cheia travada (modo quiosque)
 - Volta sozinho para a tela inicial após inatividade
 
 ## Instalar e rodar (no Windows)
-**Recomendado para o totem: rodar pela pasta do GitHub.** Assim dá para atualizar pelo botão do painel e voltar de versão se precisar.
-1. Instale o **Node.js LTS** (https://nodejs.org) e o **Git** (https://git-scm.com).
-2. No Prompt de Comando:
-   ```
-   cd C:\
-   git clone https://github.com/pxdroarth/lisufit-pdv.git
-   cd lisufit-pdv
-   npm install
-   ```
-3. Para abrir em modo totem, dê dois cliques em **`iniciar-totem.bat`**.
-4. Para abrir sozinho quando ligar o PC, aperte Win+R, digite `shell:startup` e coloque ali um atalho para o `iniciar-totem.bat`.
+**PC zerado: dois cliques no `instalar.bat`.** Ele pede permissão de administrador e faz tudo sozinho:
+1. Instala o **Git** e o **Node.js LTS** (pelo winget; se não tiver winget ou ele falhar, baixa dos sites oficiais).
+2. Baixa o sistema do GitHub em `C:\lisufit-pdv` (repositório privado: abre a janela do GitHub para entrar). Se o `instalar.bat` estiver dentro da pasta do sistema (pendrive/zip), usa essa pasta.
+3. Instala as bibliotecas (`npm ci`), incluindo o Electron.
+4. Libera a pasta para o usuário do totem, para o botão **Atualizar** do painel funcionar.
+5. Cria o atalho **Lisufit PDV** na Área de Trabalho e faz o sistema abrir sozinho quando o PC liga.
+6. Deixa o PC sem suspender e sem apagar a tela, porque é um totem.
+7. Confere tudo e mostra um resumo. O registro fica em `instalacao.log`.
 
-Outros comandos: `npm start` abre em modo desenvolvimento (janela normal com DevTools). `npm run dist` gera o instalador .exe em `dist\`, mas com o instalador o botão de atualizar não funciona.
+Pode rodar de novo quando quiser: o que já existe é pulado e o sistema é atualizado. Opções: `instalar.bat -SemIniciarComWindows`, `-SemEnergia`, `-Pasta D:\outra\pasta`.
+
+Para levar só o instalador num pendrive, copie `instalar.bat` e `scripts\instalar.ps1` para a mesma pasta.
+
+**Manual (se preferir):** instale o Node.js LTS e o Git, rode `git clone https://github.com/pxdroarth/lisufit-pdv.git` e `npm ci`, e abra pelo `iniciar-totem.bat`.
+
+Outros comandos: `npm start` abre em modo desenvolvimento (janela normal com DevTools). `npm test` roda os testes. `npm run dist` gera o instalador .exe em `dist\`, mas com ele o botão de atualizar não funciona.
 
 ## Atualizar o sistema (1 clique)
 - Você sobe a versão nova no GitHub (`git push`). No totem, abra **Admin › Configurações › Atualização do sistema**.

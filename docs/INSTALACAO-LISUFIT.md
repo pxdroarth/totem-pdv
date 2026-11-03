@@ -14,10 +14,12 @@ Sem o leitor o totem funciona pelo toque: o cliente acha o produto pela categori
 
 ## Instalar no Dell (tela de toque: sim)
 
-1. Instalar **Node.js LTS** e **Git**.
-2. `git clone https://github.com/pxdroarth/lisufit-pdv.git`, entrar na pasta e rodar `npm install`.
-3. Abrir pelo `iniciar-totem.bat`. Para abrir sozinho ao ligar: `Win + R` › `shell:startup` › colar um atalho do `.bat`.
-4. Internet: cabo. Impressora: instalar o driver **(falta: marca e modelo)**.
+1. Ligue o Dell na internet (cabo) e faça o login no Windows.
+2. Copie `instalar.bat` e `scripts\instalar.ps1` para a mesma pasta no Dell (pendrive) e dê **dois cliques no `instalar.bat`**. Aceite o pedido de administrador.
+3. Quando abrir a janela do GitHub, entre com a conta que tem acesso ao repositório.
+4. Espere o resumo "Instalação concluída!", que leva de 5 a 15 minutos. Ele instala Git, Node.js, o sistema e as bibliotecas, cria os atalhos, faz o sistema abrir sozinho ao ligar o PC e tira a suspensão.
+5. Impressora: instalar o driver **(falta: marca e modelo)**.
+6. Reinicie o Dell e confira se o totem abre sozinho.
 
 ## Admin › Configurações
 
