@@ -19,7 +19,7 @@ const OUT = path.join(SAIDA, 'catalogo-admin');
   ok(!prods.some(p => /Whey Protein Concentrado/.test(p.nome)), 'sem os produtos fictícios de suplementos');
   await pg.click('#btn-comecar'); await pg.waitForTimeout(500);
   const cats = await pg.$$eval('[data-cat]', b => b.map(x => x.dataset.cat));
-  ok(['Salgados', 'Refeições', 'Shakes', 'Sucos', 'Cafés', 'Sobremesas', 'Bebidas'].every(c => cats.includes(c)) && ['Proteínas', 'Pré-Treino', 'Creatina', 'Vitaminas'].every(c => cats.includes(c)) && !cats.includes('Aminoácidos'),
+  ok(['Salgados', 'Refeições', 'Shakes', 'Sucos', 'Cafés', 'Sobremesas', 'Bebidas'].every(c => cats.includes(c)) && ['Proteínas', 'Pré-Treino', 'Creatina', 'Vitaminas'].every(c => cats.includes(c)) && !cats.includes('Snacks') && !cats.includes('Acessórios'),
     'totem mostra as categorias com produto (e esconde as vazias): ' + cats.join(', '));
   await pg.click('[data-cat="Bebidas"]'); await pg.waitForTimeout(400);
   ok(await pg.$$eval('.card-produto.esgotado', e => e.length) === 0, 'latas não aparecem esgotadas (estoque desligado na Lisufit)');
