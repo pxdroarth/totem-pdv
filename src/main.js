@@ -37,6 +37,7 @@ if (!app.requestSingleInstanceLock()) app.quit();
 
 function criarJanela() {
   janela = new BrowserWindow({
+    icon: ICONE,
     width: 1280,
     height: 800,
     kiosk: !DEV,                 // tela cheia travada no modo totem
@@ -72,7 +73,7 @@ function abrirTelaPedidos() {
   const area = (outra || principal).workArea;
   janelaPedidos = new BrowserWindow({
     x: area.x + 30, y: area.y + 30, width: Math.min(1280, area.width - 60), height: Math.min(800, area.height - 60),
-    autoHideMenuBar: true, backgroundColor: '#ffffff', title: 'Pedidos — Lisufit', show: false,
+    autoHideMenuBar: true, backgroundColor: '#ffffff', title: 'Pedidos — Lisufit', show: false, icon: ICONE,
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false,
       autoplayPolicy: 'no-user-gesture-required' } // aviso sonoro sem precisar tocar na tela antes
   });
@@ -83,6 +84,10 @@ function abrirTelaPedidos() {
 }
 
 let atualizador, pagamentos;
+// ícone do app: janela, barra de tarefas e Alt+Tab (o .ico tem todos os tamanhos que o Windows usa)
+const ICONE = path.join(__dirname, '..', 'renderer', 'assets', process.platform === 'win32' ? 'icone.ico' : 'icone.png');
+if (process.platform === 'win32') app.setAppUserModelId('br.loja.pdvsuplementos'); // agrupa na barra com o ícone certo
+
 app.whenReady().then(() => {
   banco = new Banco(app.getPath('userData'));
   pagamentos = new Pagamentos({ getConfig: () => banco.getConfig() });

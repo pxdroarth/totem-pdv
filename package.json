@@ -8,7 +8,8 @@
     "start": "electron . --dev",
     "kiosk": "electron .",
     "dist": "electron-builder --win nsis",
-    "test": "node testes/rodar.js"
+    "test": "node testes/rodar.js",
+    "icones": "node scripts/gerar-icones.js"
   },
   "dependencies": {
     "exceljs": "^4.4.0",
@@ -28,12 +29,19 @@
       "package.json"
     ],
     "win": {
-      "target": "nsis"
+      "target": "nsis",
+      "icon": "renderer/assets/icone.ico"
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true
+      "createDesktopShortcut": true,
+      "installerIcon": "renderer/assets/icone.ico",
+      "uninstallerIcon": "renderer/assets/icone.ico",
+      "installerHeaderIcon": "renderer/assets/icone.ico"
+    },
+    "linux": {
+      "icon": "renderer/assets/icone.png"
     }
   }
 }

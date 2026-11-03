@@ -757,3 +757,4 @@ body.kds { background: var(--superficie); display: flex; flex-direction: column;
 .cartao-tipo-botoes { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; max-width: 34rem; }
 .cartao-tipo-botoes .btn { font-size: 1.4rem; min-height: 5.5rem; }
 #tela-cartao[data-etapa="tipo"] .passos-enviado, #tela-cartao[data-etapa="tipo"] .status-pagamento { display: none !important; }
+.admin-logo { height: 3rem; width: auto; flex-shrink: 0; }
