@@ -5,6 +5,8 @@
 #  O que faz, nesta ordem (pode rodar de novo quantas vezes quiser: o que já existe é pulado):
 #   1. Instala o Git e o Node.js LTS (pelo winget; sem winget, baixa os instaladores oficiais)
 #   2. Baixa o sistema do GitHub em C:\lisufit-pdv (ou atualiza, se já existir)
+#      - SEM LOGIN: com um token só de leitura (arquivo token.txt ao lado do instalar.bat, ou digitado
+#        quando pedir). O token fica guardado na pasta do sistema para o botão "Atualizar" do painel.
 #      - se este arquivo já estiver dentro da pasta do sistema (pendrive/zip), usa essa pasta
 #   3. Instala as bibliotecas do projeto (npm ci), incluindo o Electron
 #   4. Cria os atalhos: Área de Trabalho e "abrir sozinho ao ligar o PC"
@@ -16,7 +18,8 @@ param(
   [string]$Repositorio = 'https://github.com/pxdroarth/lisufit-pdv.git',
   [switch]$SemIniciarComWindows,
   [switch]$SemEnergia,
-  [switch]$NaoAbrir
+  [switch]$NaoAbrir,
+  [string]$Token = ''
 )
 
 # 'Continue': no PowerShell 5, programas como git e npm escrevem progresso no stderr e 'Stop' trataria isso como erro.
@@ -45,6 +48,7 @@ if (-not $admin) {
   if ($SemIniciarComWindows) { $argumentos += '-SemIniciarComWindows' }
   if ($SemEnergia) { $argumentos += '-SemEnergia' }
   if ($NaoAbrir) { $argumentos += '-NaoAbrir' }
+  if ($Token) { $argumentos += @('-Token', $Token) }
   Start-Process powershell.exe -Verb RunAs -ArgumentList $argumentos
   exit 0
 }
@@ -127,29 +131,62 @@ try {
 
 # ---------- 2. O sistema ----------
 Passo 2 'Baixar o sistema'
+# nunca abrir janela de login do GitHub: ou o repositório é público, ou usa o token só de leitura
+$env:GIT_TERMINAL_PROMPT = '0'
+$env:GCM_INTERACTIVE = 'never'
+if (-not $Token) {
+  foreach ($arq in @((Join-Path (Split-Path -Parent $PSCommandPath) 'token.txt'), (Join-Path (Split-Path -Parent (Split-Path -Parent $PSCommandPath)) 'token.txt'))) {
+    if (Test-Path $arq) { $Token = (Get-Content $arq -Raw).Trim(); Ok "Token lido de $arq"; break }
+  }
+}
+function Url-Com-Token($t) {
+  if (-not $t) { return $Repositorio }
+  return ($Repositorio -replace '^https://', "https://x-access-token:$t@")
+}
+function Pedir-Token {
+  Write-Host ''
+  Write-Host '  O repositório é privado. Cole o token do GitHub (github_pat_...) e aperte Enter.' -ForegroundColor Yellow
+  Write-Host '  (o que você colar não aparece na tela)' -ForegroundColor Yellow
+  $seguro = Read-Host '  Token' -AsSecureString
+  $b = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($seguro)
+  try { return ([Runtime.InteropServices.Marshal]::PtrToStringBSTR($b)).Trim() } finally { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($b) }
+}
+# atualiza uma pasta que já é do sistema; se pedir acesso, grava o token no endereço do repositório
+function Atualizar-Pasta($p) {
+  Push-Location $p
+  if ($Token) { git remote set-url origin (Url-Com-Token $Token) }
+  git pull --ff-only
+  $r = $LASTEXITCODE
+  Pop-Location
+  return ($r -eq 0)
+}
 $daqui = Split-Path -Parent (Split-Path -Parent $PSCommandPath)   # scripts\ -> pasta do projeto
 if (Test-Path (Join-Path $daqui 'package.json')) {
   $Pasta = $daqui
   Ok "Usando a pasta onde este instalador está: $Pasta"
   if (Test-Path (Join-Path $Pasta '.git')) {
-    Push-Location $Pasta
-    git pull --ff-only
-    if ($LASTEXITCODE -eq 0) { Ok 'Atualizado com o GitHub' } else { Aviso 'Não consegui atualizar pelo GitHub agora; segue com a versão desta pasta.' }
-    Pop-Location
+    if (Atualizar-Pasta $Pasta) { Ok 'Atualizado com o GitHub' } else { Aviso 'Não consegui atualizar pelo GitHub agora; segue com a versão desta pasta.' }
   } else { Aviso 'Esta pasta não veio do GitHub: o botão "Atualizar" do painel não vai funcionar. Para ter o botão, rode o instalador fora desta pasta.' }
 } elseif (Test-Path (Join-Path $Pasta '.git')) {
-  Push-Location $Pasta
-  git pull --ff-only
-  if ($LASTEXITCODE -eq 0) { Ok "Sistema já existia em $Pasta e foi atualizado" }
-  else { Aviso "Sistema já existe em $Pasta, mas não consegui atualizar (segue com a versão que está lá)." }
-  Pop-Location
+  if (Atualizar-Pasta $Pasta) { Ok "Sistema já existia em $Pasta e foi atualizado" }
+  else { Aviso "Sistema já existe em $Pasta, mas não consegui atualizar (segue com a versão que está lá). Se o token venceu, rode de novo com um token novo." }
 } else {
   if ((Test-Path $Pasta) -and (Get-ChildItem $Pasta -Force | Select-Object -First 1)) { Falha "A pasta $Pasta já existe e não é do sistema. Apague ou rode com -Pasta outra\pasta." }
   Write-Host "  Baixando de $Repositorio"
-  Write-Host '  (se o repositório for privado, vai abrir uma janela do GitHub para entrar com a sua conta)'
-  git clone $Repositorio $Pasta
-  if ($LASTEXITCODE -ne 0 -or -not (Test-Path (Join-Path $Pasta 'package.json'))) { Falha 'Não consegui baixar do GitHub. Confira a internet e o acesso ao repositório.' }
+  $baixou = $false
+  for ($i = 1; $i -le 4 -and -not $baixou; $i++) {
+    if ($i -gt 1 -or -not $Token) {
+      if (-not $Token -and $i -eq 1) { Write-Host '  Tentando sem token (repositório público)...' }
+      else { $Token = Pedir-Token; if (-not $Token) { break } }
+    }
+    if (Test-Path $Pasta) { Remove-Item $Pasta -Recurse -Force -ErrorAction SilentlyContinue }
+    git clone (Url-Com-Token $Token) $Pasta
+    $baixou = ($LASTEXITCODE -eq 0) -and (Test-Path (Join-Path $Pasta 'package.json'))
+    if (-not $baixou -and $Token) { Aviso 'O GitHub recusou: token errado, vencido ou sem acesso a este repositório.'; $Token = '' }
+  }
+  if (-not $baixou) { Falha 'Não consegui baixar do GitHub. Confira a internet e o token (veja docs\TOKEN-GITHUB.md no repositório).' }
   Ok "Sistema baixado em $Pasta"
+  if ($Token) { Ok 'Token guardado na pasta do sistema: o botão "Atualizar" do painel funciona sem login' }
 }
 
 # a instalação roda como administrador, mas o totem e o botão "Atualizar" rodam como usuário comum:

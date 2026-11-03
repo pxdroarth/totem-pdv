@@ -14,3 +14,4 @@ imagens/
 Thumbs.db
 *.log
 .env
+token.txt

@@ -19,7 +19,7 @@ fácil de editar. Roda no Dell com Windows em tela cheia travada (modo quiosque)
 ## Instalar e rodar (no Windows)
 **PC zerado: dois cliques no `instalar.bat`.** Ele pede permissão de administrador e faz tudo sozinho:
 1. Instala o **Git** e o **Node.js LTS** (pelo winget; se não tiver winget ou ele falhar, baixa dos sites oficiais).
-2. Baixa o sistema do GitHub em `C:\lisufit-pdv` (repositório privado: abre a janela do GitHub para entrar). Se o `instalar.bat` estiver dentro da pasta do sistema (pendrive/zip), usa essa pasta.
+2. Baixa o sistema do GitHub em `C:\lisufit-pdv` **sem login**, com um token só de leitura: um `token.txt` ao lado do `instalar.bat` ou colado quando pedir (veja `docs/TOKEN-GITHUB.md`). Se o `instalar.bat` estiver dentro da pasta do sistema (pendrive/zip), usa essa pasta.
 3. Instala as bibliotecas (`npm ci`), incluindo o Electron.
 4. Libera a pasta para o usuário do totem, para o botão **Atualizar** do painel funcionar.
 5. Cria o atalho **Lisufit PDV** na Área de Trabalho e faz o sistema abrir sozinho quando o PC liga.

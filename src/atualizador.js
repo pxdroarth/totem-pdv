@@ -10,7 +10,9 @@ const WIN = process.platform === 'win32';
 
 function rodar(cmd, args, { timeout = 60000, shell = false } = {}) {
   return new Promise((resolve, reject) => {
-    execFile(cmd, args, { cwd: RAIZ, timeout, shell, windowsHide: true, maxBuffer: 10 * 1024 * 1024 }, (err, out, errOut) => {
+    // nunca abrir janela de login do GitHub no totem: o acesso vem do token gravado pelo instalador
+    const env = { ...process.env, GIT_TERMINAL_PROMPT: '0', GCM_INTERACTIVE: 'never' };
+    execFile(cmd, args, { cwd: RAIZ, timeout, shell, env, windowsHide: true, maxBuffer: 10 * 1024 * 1024 }, (err, out, errOut) => {
       if (err) reject(new Error(String(errOut || err.message).trim().split('\n').slice(-3).join(' ')));
       else resolve(String(out).trim());
     });
@@ -44,7 +46,11 @@ class Atualizador {
     let erroRede = '';
     if (buscar) {
       try { await rodar('git', ['fetch', '--quiet', 'origin', ramo], { timeout: 30000 }); }
-      catch (e) { erroRede = 'Não consegui falar com o GitHub agora. Confira a internet e tente de novo.'; }
+      catch (e) {
+        erroRede = /authentication|could not read username|403|401|terminal prompts disabled|repository .* not found/i.test(e.message)
+          ? 'O GitHub recusou o acesso: o token do sistema venceu ou foi apagado. Rode o instalar.bat de novo com um token novo (docs/TOKEN-GITHUB.md).'
+          : 'Não consegui falar com o GitHub agora. Confira a internet e tente de novo.';
+      }
     }
     let novidades = [];
     try {
