@@ -51,6 +51,8 @@ contextBridge.exposeInMainWorld('pdv', {
   exportarProdutos: () => chamar('produtos:exportar'),
   baixarModelo: () => chamar('produtos:modelo'),
   carregarCatalogo: () => chamar('catalogo:carregar'),
+  statusCatalogo: () => chamar('catalogo:status'),
+  catalogoVisto: () => chamar('catalogo:visto'),
   indicadores: filtro => chamar('indicadores:ver', filtro),
   listarBackups: () => chamar('backup:listar'),
   restaurarBackup: nome => chamar('backup:restaurar', nome),

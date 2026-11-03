@@ -175,7 +175,8 @@ class Banco {
       vendas: [],
       atendentes: [{ id: crypto.randomUUID(), nome: 'Atendente', pinHash: hashPin('0000'), ativo: true }],
       fechamentos: [],
-      proximoNumero: 1
+      proximoNumero: 1,
+      ...(this._catalogoInicial ? { catalogo: this._catalogoInicial } : {})
     };
     this.dados = d;
     this._salvar();
@@ -196,51 +197,89 @@ class Banco {
     return this._produtosDoCatalogo();
   }
 
-  // o catálogo da loja (src/catalogo): prateleira com preço da etiqueta + Empório com preço de exemplo, fotos copiadas
-  _produtosDoCatalogo() {
-    const opcoesDe = sabores => limparOpcoes(sabores ? [{ nome: 'Sabor', min: 1, max: 1,
-      itens: sabores.map(([nome, descricao]) => ({ nome, ...(descricao ? { descricao } : {}), precoCentavos: 0 })) }] : []);
-    const copiarFoto = foto => {
-      try {
-        const destino = path.join(this.pastaImagens, 'catalogo-' + foto + '.webp');
-        fs.copyFileSync(path.join(CATALOGO.pastaFotos, foto + '.webp'), destino);
-        return destino;
-      } catch { return ''; } // sem a foto o produto entra igual, só sem imagem
-    };
-    // prateleira (suplementos e mercearia): preço da etiqueta, definitivo; sabores sem ingredientes
-    const prateleira = require('./catalogo/prateleira').PRODUTOS.map(([nome, categoria, precoCentavos, foto, sabores]) => ({
-      id: crypto.randomUUID(), nome, codigoBarras: '', precoCentavos, categoria,
-      estoque: 0, estoqueMinimo: 3, controlarEstoque: true, imagem: copiarFoto(foto), ativo: true,
-      opcoes: opcoesDe(sabores && sabores.map(n => [n, '']))
-    }));
-    // Empório: preços de exemplo até a loja confirmar
-    const emporio = CATALOGO.PRODUTOS.map(([nome, categoria, precoCentavos, feitoNaHora, foto, sabores]) => ({
-      id: crypto.randomUUID(), nome, codigoBarras: '', precoCentavos, precoExemplo: true, categoria,
-      estoque: 0, estoqueMinimo: 3, controlarEstoque: !feitoNaHora, imagem: copiarFoto(foto), ativo: true, opcoes: opcoesDe(sabores)
-    }));
+  // ---------- catálogo da loja (src/catalogo) ----------
+  // O Pedro cadastra produtos novos no catálogo do projeto (prateleira.js / emporio.js + fotos), sobe no GitHub
+  // e a loja aperta "Atualizar": ao abrir a versão nova, o sistema sincroniza sozinho (sincronizarCatalogo).
+  static entradasCatalogo() {
+    const prateleira = require('./catalogo/prateleira').PRODUTOS.map(([nome, categoria, preco, foto, sabores]) =>
+      ({ nome, categoria, preco, foto, sabores: (sabores || []).map(n => [n, '']), exemplo: false, feitoNaHora: false }));
+    // Empório: preço de exemplo até a loja confirmar (7º campo true = preço definitivo)
+    const emporio = CATALOGO.PRODUTOS.map(([nome, categoria, preco, feitoNaHora, foto, sabores, definitivo]) =>
+      ({ nome, categoria, preco, foto, sabores: sabores || [], exemplo: !definitivo, feitoNaHora: !!feitoNaHora }));
     return [...prateleira, ...emporio];
   }
+  static versaoCatalogo() {
+    return crypto.createHash('sha1').update(JSON.stringify(Banco.entradasCatalogo())).digest('hex').slice(0, 12);
+  }
+  _copiarFotoCatalogo(foto) {
+    try {
+      const destino = path.join(this.pastaImagens, 'catalogo-' + foto + '.webp');
+      fs.copyFileSync(path.join(CATALOGO.pastaFotos, foto + '.webp'), destino);
+      return destino;
+    } catch { return ''; } // sem a foto o produto entra igual, só sem imagem
+  }
+  _produtoDoCatalogo(e) {
+    return { id: crypto.randomUUID(), nome: e.nome, codigoBarras: '', precoCentavos: e.preco, ...(e.exemplo ? { precoExemplo: true } : {}),
+      categoria: e.categoria, estoque: 0, estoqueMinimo: 3, controlarEstoque: !e.feitoNaHora, imagem: this._copiarFotoCatalogo(e.foto), ativo: true,
+      opcoes: limparOpcoes(e.sabores.length ? [{ nome: 'Sabor', min: 1, max: 1,
+        itens: e.sabores.map(([nome, descricao]) => ({ nome, ...(descricao ? { descricao } : {}), precoCentavos: 0 })) }] : []) };
+  }
+  // o que o catálogo aplicou por último em cada produto: serve para saber se a loja mudou algo por conta própria
+  static _marca(e) { return { preco: e.preco, foto: e.foto, sabores: e.sabores.map(([n]) => n).join('|') }; }
+  _produtosDoCatalogo() {
+    const entradas = Banco.entradasCatalogo();
+    this._catalogoInicial = { versao: Banco.versaoCatalogo(), produtos: Object.fromEntries(entradas.map(e => [normalizar(e.nome), Banco._marca(e)])) };
+    return entradas.map(e => this._produtoDoCatalogo(e));
+  }
 
-  // Botão "Carregar catálogo da loja" (instalação que já existia antes do catálogo):
-  // cadastra o que falta e põe foto em quem está sem. Produto que já existe (mesmo nome) não muda: preço, sabores e foto ficam.
-  carregarCatalogo() {
-    const res = { novos: 0, fotos: 0, jaTinham: 0, categoriasNovas: [] };
+  // Sincroniza com o catálogo: cadastra o que falta e atualiza o que o Pedro mudou no catálogo (preço, foto, sabores).
+  // Só atualiza um campo se a loja não mexeu nele desde a última sincronização. Nunca apaga produto.
+  sincronizarCatalogo() {
+    const d = this.dados;
+    const reg = d.catalogo = d.catalogo || { versao: '', produtos: {} };
+    const res = { novos: [], precos: [], fotos: 0, sabores: 0, categoriasNovas: [], versao: Banco.versaoCatalogo() };
     for (const [nome, secao, icone] of CATEGORIAS_PADRAO) {
-      if (!this.dados.categorias.some(c => normalizar(c.nome) === normalizar(nome))) {
-        this.dados.categorias.push({ id: crypto.randomUUID(), nome, secao, icone, ordem: this.dados.categorias.length, ativo: true });
+      if (!d.categorias.some(c => normalizar(c.nome) === normalizar(nome))) {
+        d.categorias.push({ id: crypto.randomUUID(), nome, secao, icone, ordem: d.categorias.length, ativo: true });
         res.categoriasNovas.push(nome);
       }
     }
-    for (const novo of this._produtosDoCatalogo()) {
-      const atual = this.dados.produtos.find(p => normalizar(p.nome) === normalizar(novo.nome));
-      if (!atual) { this.dados.produtos.push(novo); res.novos++; continue; }
-      res.jaTinham++;
-      if ((!atual.imagem || !fs.existsSync(atual.imagem)) && novo.imagem) { atual.imagem = novo.imagem; res.fotos++; }
-      else if (novo.imagem && novo.imagem !== atual.imagem) { try { fs.unlinkSync(novo.imagem); } catch {} } // cópia que não foi usada
+    for (const e of Banco.entradasCatalogo()) {
+      const k = normalizar(e.nome), marca = Banco._marca(e), antes = reg.produtos[k];
+      const atual = d.produtos.find(p => normalizar(p.nome) === k);
+      if (!atual) { d.produtos.push(this._produtoDoCatalogo(e)); res.novos.push(e.nome); reg.produtos[k] = marca; continue; }
+      const fotoDoCatalogo = !atual.imagem || !fs.existsSync(atual.imagem) || path.basename(atual.imagem).startsWith('catalogo-');
+      if (!antes) { // produto que a loja já tinha antes de sincronizar: só põe foto se faltar
+        if ((!atual.imagem || !fs.existsSync(atual.imagem))) { const f = this._copiarFotoCatalogo(e.foto); if (f) { atual.imagem = f; res.fotos++; } }
+        reg.produtos[k] = { ...marca, preco: atual.precoCentavos }; // o preço da loja vira a referência
+        continue;
+      }
+      if (marca.preco !== antes.preco && atual.precoCentavos === antes.preco) {
+        res.precos.push(`${e.nome}: ${(antes.preco / 100).toFixed(2)} → ${(e.preco / 100).toFixed(2)}`);
+        atual.precoCentavos = e.preco;
+        if (e.exemplo) atual.precoExemplo = true; else delete atual.precoExemplo;
+      }
+      if (marca.foto !== antes.foto && fotoDoCatalogo) { const f = this._copiarFotoCatalogo(e.foto); if (f) { atual.imagem = f; res.fotos++; } }
+      const g = (atual.opcoes || []).find(x => normalizar(x.nome) === 'sabor');
+      const saboresLoja = g ? g.itens.map(i => i.nome).join('|') : '';
+      if (marca.sabores !== antes.sabores && saboresLoja === antes.sabores) {
+        const novos = limparOpcoes([{ nome: 'Sabor', min: 1, max: 1, itens: e.sabores.map(([nome, descricao]) => {
+          const velho = g?.itens.find(i => normalizar(i.nome) === normalizar(nome));
+          return { ...(velho || {}), nome, ...(descricao ? { descricao } : {}), precoCentavos: velho?.precoCentavos || 0 };
+        }) }]);
+        atual.opcoes = [...(novos[0].itens.length ? [{ ...novos[0], id: g?.id || novos[0].id }] : []), ...(atual.opcoes || []).filter(x => x !== g)];
+        res.sabores++;
+      }
+      reg.produtos[k] = { preco: atual.precoCentavos === e.preco ? e.preco : antes.preco, foto: e.foto, sabores: marca.sabores };
     }
+    reg.versao = res.versao;
+    d.ultimaSincronizacao = { em: new Date().toISOString(), novos: res.novos.length, precos: res.precos.length, fotos: res.fotos, sabores: res.sabores,
+      detalhes: [...res.novos.map(n => 'Novo: ' + n), ...res.precos.map(t => 'Preço: ' + t)].slice(0, 50) };
     this._salvar();
     return res;
   }
+  catalogoDesatualizado() { return (this.dados.catalogo?.versao || '') !== Banco.versaoCatalogo(); }
+  carregarCatalogo() { return this.sincronizarCatalogo(); } // nome antigo do botão
 
   // Bases antigas (sem lista de categorias): cria a lista a partir dos produtos + padrões
   _migrarCategorias(d) {

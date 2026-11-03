@@ -113,7 +113,9 @@ Painel admin → Produtos → Editar → **Variações (opcional)**:
 ## Catálogo inicial do Empório
 - Na primeira vez que o sistema abre (base nova), já entram os 28 produtos do Empório com foto, categoria e o Shake Protein Premium com os 6 sabores e ingredientes. Ficam em `src/catalogo/` (lista em `emporio.js`, fotos em `fotos/`).
 - Os preços são **de exemplo**. No admin, o aviso amarelo e o filtro **Preço de exemplo** mostram quais faltam. O selo some quando o preço é digitado na tabela, confirmado com Enter, confirmado em massa ou importado pela planilha.
-- **Instalação que já existia antes do catálogo:** Produtos › Planilha › **Carregar catálogo da loja (produtos e fotos)**. Cadastra o que falta e coloca foto em quem está sem. Produto que já existe, reconhecido pelo nome, não muda: preço, sabores e foto ficam como estão. Pode clicar de novo sem duplicar.
+- **Produtos novos sem ir na loja:** mande as fotos e os preços pro Claude. Ele cadastra no catálogo do projeto (`src/catalogo/prateleira.js` e as fotos em `src/catalogo/fotos`) e sobe no GitHub. Na loja, **Configurações › Atualizar agora**: o sistema reinicia e **sincroniza o catálogo sozinho**. O admin vê o aviso com quantos produtos entraram.
+  - Produto novo entra com foto. Preço, foto ou sabor que mudou no catálogo também é atualizado, **só se a loja não mexeu nele por conta própria** (o preço da loja nunca é sobrescrito). Nada é apagado.
+  - Botão **Atualizar produtos**, ao lado do Atualizar, e Produtos › Planilha › **Atualizar produtos do catálogo** fazem a mesma sincronização na hora. Pode clicar quantas vezes quiser.
 - Para demonstração e testes automáticos há os produtos fictícios de suplementos: abra com `PDV_CATALOGO=exemplo`.
 
 ## Lista de produtos no admin

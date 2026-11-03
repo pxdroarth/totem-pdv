@@ -90,6 +90,13 @@ if (process.platform === 'win32') app.setAppUserModelId('br.loja.pdvsuplementos'
 
 app.whenReady().then(() => {
   banco = new Banco(app.getPath('userData'));
+  // versão nova do sistema com produtos novos no catálogo (o "Atualizar" reinicia o app): sincroniza sozinho
+  if (process.env.PDV_CATALOGO !== 'exemplo' && banco.catalogoDesatualizado()) {
+    try {
+      const r = banco.sincronizarCatalogo();
+      console.log(`Catálogo sincronizado: ${r.novos.length} novo(s), ${r.precos.length} preço(s), ${r.fotos} foto(s)`);
+    } catch (e) { registrarErro('catalogo', e); }
+  }
   pagamentos = new Pagamentos({ getConfig: () => banco.getConfig() });
   atualizador = new Atualizador({
     arquivoEstado: path.join(app.getPath('userData'), 'atualizacao.json'),
@@ -304,7 +311,9 @@ tratar('categorias:mover', soAdmin((id, direcao) => banco.moverCategoria(id, dir
 tratar('produtos:listar', () => sessao?.perfil === 'admin' ? banco.getProdutos() : banco.getProdutos().map(({ custoCentavos, ...p }) => p));
 tratar('produtos:salvar', soAdmin(p => banco.salvarProduto(p)));
 tratar('produtos:excluir', soAdmin(id => banco.excluirProduto(id)));
-tratar('catalogo:carregar', soAdmin(() => banco.carregarCatalogo()));
+tratar('catalogo:carregar', soAdmin(() => banco.sincronizarCatalogo()));
+tratar('catalogo:status', soAdmin(() => ({ desatualizado: banco.catalogoDesatualizado(), ultima: banco.dados.ultimaSincronizacao || null })));
+tratar('catalogo:visto', soAdmin(() => { if (banco.dados.ultimaSincronizacao) { banco.dados.ultimaSincronizacao.vista = true; banco._salvar(); } }));
 tratar('produtos:emMassa', soAdmin((ids, acao, valor) => banco.produtosEmMassa(ids, acao, valor)));
 
 // ---------- fotos dos produtos ----------

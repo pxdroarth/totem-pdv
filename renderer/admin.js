@@ -25,7 +25,7 @@ function trocarAba(nome) {
   if (quemEstaNoPainel?.perfil !== 'admin' && nome !== 'vendas') nome = 'vendas';
   $$('.aba').forEach(a => a.classList.toggle('ativa', a.dataset.aba === nome));
   $$('.aba-conteudo').forEach(c => c.classList.toggle('ativa', c.id === 'aba-' + nome));
-  if (nome === 'produtos') renderTabelaProdutos();
+  if (nome === 'produtos') { renderTabelaProdutos(); avisoCatalogo(); }
   if (nome === 'categorias') renderTabelaCategorias();
   if (nome === 'vendas') carregarVendas();
   if (nome === 'indicadores') carregarIndicadores();
@@ -405,16 +405,39 @@ $('#btn-modelo-produtos').onclick = async () => {
   try { const arq = await pdv.baixarModelo(); if (arq) toast('Modelo salvo em ' + arq, 'ok'); }
   catch (err) { toast(err.message, 'erro'); }
 };
-$('#btn-carregar-catalogo').onclick = async () => {
-  fecharMenuPlanilha();
-  if (!confirm('Cadastrar os produtos do catálogo da loja que ainda não estão no sistema e colocar foto nos que estão sem?\n\nProduto que já existe (mesmo nome) não muda: preço, sabores e foto continuam como estão.')) return;
+// catálogo da loja: produtos novos, preços e fotos que o Pedro cadastra no projeto e chegam pelo "Atualizar"
+const resumoCatalogo = r => [`${r.novos.length ?? r.novos} produto(s) novo(s)`, `${r.precos.length ?? r.precos} preço(s) atualizado(s)`, `${r.fotos} foto(s)`]
+  .concat(r.categoriasNovas?.length ? [`categorias novas: ${r.categoriasNovas.join(', ')}`] : []).join(', ');
+async function atualizarProdutosCatalogo() {
+  if (!confirm('Buscar no catálogo da loja os produtos novos, preços e fotos?\n\nProduto ou preço que a loja mudou por conta própria não é alterado. Nada é apagado.')) return;
   try {
     const r = await pdv.carregarCatalogo();
-    toast(`${r.novos} produto(s) novo(s), ${r.fotos} foto(s) colocada(s)` + (r.categoriasNovas.length ? `, categorias novas: ${r.categoriasNovas.join(', ')}` : ''), 'ok');
+    toast(resumoCatalogo(r), 'ok');
     await renderTabelaProdutos();
     await carregarDados();
+    infoCatalogo();
   } catch (err) { toast(err.message, 'erro'); }
-};
+}
+async function infoCatalogo() {
+  try {
+    const st = await pdv.statusCatalogo();
+    const u = st.ultima;
+    $('#info-catalogo').textContent = (u ? `Produtos do catálogo atualizados em ${new Date(u.em).toLocaleString('pt-BR')}: ${u.novos} novo(s), ${u.precos} preço(s), ${u.fotos} foto(s). ` : '')
+      + (st.desatualizado ? 'Há novidades no catálogo: toque em "Atualizar produtos".' : 'Catálogo em dia.');
+  } catch { /* sem permissão */ }
+}
+// aviso uma vez, quando a atualização trouxe produtos novos ou preços
+async function avisoCatalogo() {
+  try {
+    const { ultima: u } = await pdv.statusCatalogo();
+    if (u && !u.vista && (u.novos || u.precos || u.fotos)) {
+      toast(`Produtos atualizados pelo catálogo: ${u.novos} novo(s), ${u.precos} preço(s), ${u.fotos} foto(s)`, 'ok');
+      await pdv.catalogoVisto();
+    }
+  } catch { /* atendente não vê */ }
+}
+$('#btn-carregar-catalogo').onclick = () => { fecharMenuPlanilha(); atualizarProdutosCatalogo(); };
+$('#btn-atualizar-produtos').onclick = atualizarProdutosCatalogo;
 $('#btn-exportar-produtos').onclick = async () => {
   fecharMenuPlanilha();
   try { const arq = await pdv.exportarProdutos(); if (arq) toast('Planilha salva em ' + arq, 'ok'); }
@@ -843,6 +866,7 @@ async function carregarConfig() {
   await renderAtendentes();
   await carregarGateways(c.pagamentos || {});
   verificarAtualizacao(); // em segundo plano: consulta o GitHub
+  infoCatalogo();
   f.confirmarPagamentoComPin.checked = !!c.confirmarPagamentoComPin;
   f.imprimirCupom.checked = !!c.imprimirCupom;
   f.quandoEsgotar.value = c.quandoEsgotar || 'esgotado';
