@@ -8,16 +8,19 @@ const OUT = path.join(SAIDA, 'catalogo-admin');
   const { app, pg, erros, set, shot } = await abrir('catalogo-admin');
   // ---- catálogo inicial ----
   const prods = await pg.evaluate(() => pdv.produtos());
-  ok(prods.length === 28, `abre com os 28 produtos do Empório (veio ${prods.length})`);
+  ok(prods.length === 33, `abre com os 28 produtos do Empório + 5 suplementos (veio ${prods.length})`);
   ok(prods.every(p => p.imagem && fs.existsSync(p.imagem)), 'todos com foto copiada para a pasta do sistema');
-  ok(prods.every(p => p.precoExemplo && p.precoCentavos > 0), 'todos com preço de exemplo marcado');
+  ok(prods.filter(p => p.precoExemplo).length === 28 && prods.every(p => p.precoCentavos > 0), 'Empório com preço de exemplo marcado');
+  const whey = prods.find(p => p.nome === '100% Whey Profit 900g');
+  ok(whey && whey.precoCentavos === 11990 && !whey.precoExemplo && whey.opcoes[0].itens.map(i => i.nome).join() === 'Baunilha,Chocolate,Morango' &&
+    prods.find(p => p.nome.startsWith('Força do Vaqueiro')).precoCentavos === 12000, 'suplementos com preço da loja e sabores do whey');
   const shake = prods.find(p => p.nome === 'Shake Protein Premium');
   ok(shake && shake.opcoes[0].itens.length === 6 && shake.opcoes[0].itens[0].descricao.startsWith('Suco de maçã'), 'Shake Protein Premium com 6 sabores e ingredientes');
   ok(!prods.some(p => /Whey Protein Concentrado/.test(p.nome)), 'sem os produtos fictícios de suplementos');
   await pg.click('#btn-comecar'); await pg.waitForTimeout(500);
   const cats = await pg.$$eval('[data-cat]', b => b.map(x => x.dataset.cat));
-  ok(['Salgados', 'Refeições', 'Shakes', 'Sucos', 'Cafés', 'Sobremesas', 'Bebidas'].every(c => cats.includes(c)) && !cats.includes('Proteínas'),
-    'totem mostra as categorias do Empório (e esconde as vazias): ' + cats.join(', '));
+  ok(['Salgados', 'Refeições', 'Shakes', 'Sucos', 'Cafés', 'Sobremesas', 'Bebidas'].every(c => cats.includes(c)) && ['Proteínas', 'Pré-Treino', 'Creatina', 'Vitaminas'].every(c => cats.includes(c)) && !cats.includes('Aminoácidos'),
+    'totem mostra as categorias com produto (e esconde as vazias): ' + cats.join(', '));
   await pg.click('[data-cat="Bebidas"]'); await pg.waitForTimeout(400);
   ok(await pg.$$eval('.card-produto.esgotado', e => e.length) === 0, 'latas não aparecem esgotadas (estoque desligado na Lisufit)');
   await shot('1-totem-bebidas');
@@ -81,7 +84,7 @@ const OUT = path.join(SAIDA, 'catalogo-admin');
   await pg.click('#form-produto button[type=submit]'); await pg.waitForTimeout(500);
   const todos = await pg.evaluate(() => pdv.produtos());
   const nova = todos.find(p => p.nome === 'Salada de Fruta com Iogurte 700ml');
-  ok(todos.length === 29 && nova && nova.imagem === sal.imagem && nova.categoria === 'Sobremesas' && !nova.precoExemplo, 'cópia salva com a foto e a categoria do original');
+  ok(todos.length === 34 && nova && nova.imagem === sal.imagem && nova.categoria === 'Sobremesas' && !nova.precoExemplo, 'cópia salva com a foto e a categoria do original');
 
   // ---- modelo de planilha ----
   const modelo = path.join(OUT, 'arquivos', 'modelo.xlsx'); fs.rmSync(modelo, { force: true });
@@ -101,7 +104,7 @@ const OUT = path.join(SAIDA, 'catalogo-admin');
   const resumo = (await pg.textContent('#importar-resumo')).replace(/\s+/g, ' ');
   ok(/novos ?1/.test(resumo) && /problema ?0/.test(resumo), 'importar modelo: linhas de exemplo ignoradas, só a Tapioca entra — ' + resumo);
   await pg.click('#btn-importar-confirmar'); await pg.waitForTimeout(600);
-  ok((await pg.evaluate(() => pdv.produtos())).length === 30, 'produtos que não estavam na planilha continuam cadastrados');
+  ok((await pg.evaluate(() => pdv.produtos())).length === 35, 'produtos que não estavam na planilha continuam cadastrados');
   ok((await pg.evaluate(() => pdv.produtos())).find(p => p.nome === 'Tapioca de Frango').custoCentavos === 450, 'coluna Custo importada (R$ 4,50)');
   // importar preço pela planilha tira o "exemplo"
   const exp = path.join(OUT, 'arquivos', 'export.xlsx'); await set('__salvar', exp);

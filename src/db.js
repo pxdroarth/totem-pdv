@@ -185,7 +185,7 @@ class Banco {
   // Produtos da primeira abertura: o catálogo do Empório, com as fotos copiadas para a pasta de imagens
   _produtosIniciais() {
     const opcoesDe = sabores => limparOpcoes(sabores ? [{ nome: 'Sabor', min: 1, max: 1,
-      itens: sabores.map(([nome, descricao]) => ({ nome, descricao, precoCentavos: 0 })) }] : []);
+      itens: sabores.map(([nome, descricao]) => ({ nome, ...(descricao ? { descricao } : {}), precoCentavos: 0 })) }] : []);
     if (process.env.PDV_CATALOGO === 'exemplo') {
       return require('./catalogo/exemplo').PRODUTOS.map(([nome, codigoBarras, precoCentavos, categoria, controlarEstoque = true, opcoes = []]) => ({
         id: crypto.randomUUID(), nome, codigoBarras, precoCentavos, categoria,
@@ -193,16 +193,25 @@ class Banco {
         opcoes: limparOpcoes(opcoes.map(g => ({ ...g, itens: g.itens.map(([n, c = 0]) => ({ nome: n, precoCentavos: c })) })))
       }));
     }
-    return CATALOGO.PRODUTOS.map(([nome, categoria, precoCentavos, feitoNaHora, foto, sabores]) => {
-      let imagem = '';
-      const origem = path.join(CATALOGO.pastaFotos, foto + '.webp');
+    const copiarFoto = foto => {
       try {
-        imagem = path.join(this.pastaImagens, 'catalogo-' + foto + '.webp');
-        fs.copyFileSync(origem, imagem);
-      } catch { imagem = ''; } // sem a foto o produto entra igual, só sem imagem
-      return { id: crypto.randomUUID(), nome, codigoBarras: '', precoCentavos, precoExemplo: true, categoria,
-        estoque: 0, estoqueMinimo: 3, controlarEstoque: !feitoNaHora, imagem, ativo: true, opcoes: opcoesDe(sabores) };
-    });
+        const destino = path.join(this.pastaImagens, 'catalogo-' + foto + '.webp');
+        fs.copyFileSync(path.join(CATALOGO.pastaFotos, foto + '.webp'), destino);
+        return destino;
+      } catch { return ''; } // sem a foto o produto entra igual, só sem imagem
+    };
+    // suplementos: preço passado pela loja (definitivo); sabores sem ingredientes
+    const suplementos = require('./catalogo/suplementos').PRODUTOS.map(([nome, categoria, precoCentavos, foto, sabores]) => ({
+      id: crypto.randomUUID(), nome, codigoBarras: '', precoCentavos, categoria,
+      estoque: 0, estoqueMinimo: 3, controlarEstoque: true, imagem: copiarFoto(foto), ativo: true,
+      opcoes: opcoesDe(sabores && sabores.map(n => [n, '']))
+    }));
+    // Empório: preços de exemplo até a loja confirmar
+    const emporio = CATALOGO.PRODUTOS.map(([nome, categoria, precoCentavos, feitoNaHora, foto, sabores]) => ({
+      id: crypto.randomUUID(), nome, codigoBarras: '', precoCentavos, precoExemplo: true, categoria,
+      estoque: 0, estoqueMinimo: 3, controlarEstoque: !feitoNaHora, imagem: copiarFoto(foto), ativo: true, opcoes: opcoesDe(sabores)
+    }));
+    return [...suplementos, ...emporio];
   }
 
   // Bases antigas (sem lista de categorias): cria a lista a partir dos produtos + padrões
