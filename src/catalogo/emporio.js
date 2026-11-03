@@ -59,6 +59,9 @@ const CATEGORIAS = [
   ['Cafés', 'Empório', 'coffee'],
   ['Sobremesas', 'Empório', 'iceCream'],
   ['Bebidas', 'Empório', 'glassWater'],
+  ['Doces e Pastas', 'Empório', 'candy'],
+  ['Mercearia', 'Empório', 'bag'],
+  ['Farinhas e Naturais', 'Empório', 'wheat'],
   ['Congelados', 'Empório', 'snowflake'],
   ['Carnes', 'Empório', 'beef']
 ];

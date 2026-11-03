@@ -53,7 +53,7 @@ const pinValido = pin => /^\d{4,8}$/.test(String(pin || ''));
 
 // ícone automático para categoria nova criada pela planilha (dá para trocar no admin)
 const ICONE_POR_PALAVRA = [
-  ['salgad', 'croissant'], ['lanche', 'sandwich'], ['sanduic', 'sandwich'], ['refei', 'utensils'], ['prato', 'utensils'],
+  ['farinha', 'wheat'], ['mercearia', 'bag'], ['salgad', 'croissant'], ['lanche', 'sandwich'], ['sanduic', 'sandwich'], ['refei', 'utensils'], ['prato', 'utensils'],
   ['suco', 'cupSoda'], ['smoothie', 'cupSoda'], ['shake', 'milk'], ['bebida', 'glassWater'], ['agua', 'glassWater'],
   ['refrigerante', 'cupSoda'], ['cafe', 'coffee'], ['sobremesa', 'iceCream'], ['sorvete', 'iceCream'], ['doce', 'candy'],
   ['salada', 'salad'], ['fruta', 'apple'], ['carne', 'beef'], ['frango', 'drumstick'], ['peixe', 'fish'], ['congelad', 'snowflake'],
@@ -200,8 +200,8 @@ class Banco {
         return destino;
       } catch { return ''; } // sem a foto o produto entra igual, só sem imagem
     };
-    // suplementos: preço passado pela loja (definitivo); sabores sem ingredientes
-    const suplementos = require('./catalogo/suplementos').PRODUTOS.map(([nome, categoria, precoCentavos, foto, sabores]) => ({
+    // prateleira (suplementos e mercearia): preço da etiqueta, definitivo; sabores sem ingredientes
+    const suplementos = require('./catalogo/prateleira').PRODUTOS.map(([nome, categoria, precoCentavos, foto, sabores]) => ({
       id: crypto.randomUUID(), nome, codigoBarras: '', precoCentavos, categoria,
       estoque: 0, estoqueMinimo: 3, controlarEstoque: true, imagem: copiarFoto(foto), ativo: true,
       opcoes: opcoesDe(sabores && sabores.map(n => [n, '']))
