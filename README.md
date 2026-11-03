@@ -142,7 +142,7 @@ Painel admin → Produtos → Editar → **Variações (opcional)**:
 ## Modo teste e limpar vendas
 - **Configurações › Modo teste:** com ele ligado, as vendas ficam marcadas como teste (numeração 900001, 900002…) e **não entram** em Vendas, Indicadores, fechamento de caixa nem planilha. O totem mostra a faixa "MODO TESTE" e o cupom sai marcado. Não baixa estoque e não emite nota. Com a maquininha integrada, o pagamento é cobrado de verdade: estorne pelo app.
 - **Apagar vendas de teste:** tira só as vendas de teste.
-- **Zerar todas as vendas:** apaga vendas e fechamentos e volta a numeração para 1, para começar do zero antes de abrir a loja. Uma cópia vai antes para a pasta de backups.
+- **Zerar todas as vendas:** pede o PIN do admin de novo; apaga vendas e fechamentos e volta a numeração para 1, para começar do zero antes de abrir a loja. Uma cópia vai antes para a pasta de backups.
 
 ## Segurança e continuidade
 - O PIN do admin fica gravado só como hash; o campo em Configurações fica em branco (em branco = mantém o atual). Enquanto for 1234, aparece um aviso.

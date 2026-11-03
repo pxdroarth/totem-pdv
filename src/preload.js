@@ -48,7 +48,7 @@ contextBridge.exposeInMainWorld('pdv', {
   atualizarVenda: (numero, mudancas) => chamar('venda:atualizar', numero, mudancas),
   vendas: filtro => chamar('vendas:listar', filtro),
   apagarVendasTeste: () => chamar('vendas:apagarTeste'),
-  zerarVendas: () => chamar('vendas:zerar'),
+  zerarVendas: pin => chamar('vendas:zerar', pin),
   reimprimir: numero => chamar('vendas:reimprimir', numero),
   exportarProdutos: () => chamar('produtos:exportar'),
   baixarModelo: () => chamar('produtos:modelo'),

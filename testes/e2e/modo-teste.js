@@ -46,8 +46,11 @@ const { ok, fim } = verificador('modo-teste');
   await shot('2-config');
   // zerar tudo
   pg.on('dialog', d => d.accept());
-  await pg.click('#btn-zerar-vendas'); await pg.waitForTimeout(800);
-  ok((await pg.evaluate(() => pdv.vendas({ incluirTeste: true }))).length === 0, 'zerar apaga todas as vendas');
+  ok(await pg.evaluate(() => pdv.zerarVendas('9999').then(() => 'zerou', e => e.message)) === 'PIN do admin incorreto. Nada foi apagado.' &&
+    (await pg.evaluate(() => pdv.vendas({ incluirTeste: true }))).length === 1, 'PIN errado não zera nada');
+  await pg.click('#btn-zerar-vendas'); await pg.waitForSelector('#modal-pin.aberto');
+  await pg.keyboard.type('1234'); await pg.keyboard.press('Enter'); await pg.waitForTimeout(900);
+  ok((await pg.evaluate(() => pdv.vendas({ incluirTeste: true }))).length === 0, 'com o PIN do admin, zera todas as vendas');
   const copias = fs.readdirSync(path.join(dadosDir, 'backups')).filter(f => f.startsWith('antes-de-zerar-vendas'));
   ok(copias.length === 1, 'cópia de segurança antes de zerar');
   await pg.uncheck('#form-config [name=modoTesteVendas]');

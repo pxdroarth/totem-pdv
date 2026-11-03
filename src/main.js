@@ -477,7 +477,10 @@ tratar('backup:restaurar', soAdmin(nome => {
 }));
 tratar('vendas:listar', logado(filtro => banco.listarVendas(filtro)));
 tratar('vendas:apagarTeste', soAdmin(() => banco.apagarVendasTeste()));
-tratar('vendas:zerar', soAdmin(() => {
+tratar('vendas:zerar', soAdmin(pin => {
+  // pede de novo o PIN do admin: ninguém zera as vendas só porque o painel ficou aberto
+  const quem = conferirPinComBloqueio(pin);
+  if (!quem || quem.perfil !== 'admin') throw new Error('PIN do admin incorreto. Nada foi apagado.');
   // cópia de segurança antes de apagar (fica na pasta de backups)
   const pasta = pastaBackup(); fs.mkdirSync(pasta, { recursive: true });
   const copia = path.join(pasta, `antes-de-zerar-vendas-${new Date().toISOString().replace(/[:.]/g, '-')}.json`);

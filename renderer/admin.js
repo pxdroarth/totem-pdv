@@ -933,9 +933,10 @@ $('#btn-apagar-teste').onclick = async () => {
 };
 $('#btn-zerar-vendas').onclick = async () => {
   if (!confirm('Zerar TODAS as vendas e fechamentos de caixa e voltar a numeração para 1?\n\nUse só antes de abrir a loja. Uma cópia é guardada na pasta de backups.')) return;
-  if (!confirm('Tem certeza? As vendas somem dos relatórios, dos indicadores e do fechamento.')) return;
+  const pin = await pedirPin('PIN do admin para zerar as vendas');
+  if (pin === null) return;
   try {
-    const r = await pdv.zerarVendas();
+    const r = await pdv.zerarVendas(pin);
     toast(`${r.vendas} venda(s) e ${r.fechamentos} fechamento(s) apagados. Cópia guardada nos backups.`, 'ok');
     infoTeste();
   } catch (err) { toast(err.message, 'erro'); }
