@@ -8,7 +8,7 @@ const OUT = path.join(SAIDA, 'catalogo-admin');
   const { app, pg, erros, set, shot } = await abrir('catalogo-admin');
   // ---- catálogo inicial ----
   const prods = await pg.evaluate(() => pdv.produtos());
-  ok(prods.length === 52, `abre com os 28 itens do Empório + 24 de prateleira (veio ${prods.length})`);
+  ok(prods.length === 53, `abre com os 28 itens do Empório + 25 de prateleira (veio ${prods.length})`);
   ok(prods.every(p => p.imagem && fs.existsSync(p.imagem)), 'todos com foto copiada para a pasta do sistema');
   ok(prods.filter(p => p.precoExemplo).length === 28 && prods.every(p => p.precoCentavos > 0), 'Empório com preço de exemplo marcado');
   const whey = prods.find(p => p.nome === '100% Whey Profit 900g');
@@ -84,7 +84,7 @@ const OUT = path.join(SAIDA, 'catalogo-admin');
   await pg.click('#form-produto button[type=submit]'); await pg.waitForTimeout(500);
   const todos = await pg.evaluate(() => pdv.produtos());
   const nova = todos.find(p => p.nome === 'Salada de Fruta com Iogurte 700ml');
-  ok(todos.length === 53 && nova && nova.imagem === sal.imagem && nova.categoria === 'Sobremesas' && !nova.precoExemplo, 'cópia salva com a foto e a categoria do original');
+  ok(todos.length === 54 && nova && nova.imagem === sal.imagem && nova.categoria === 'Sobremesas' && !nova.precoExemplo, 'cópia salva com a foto e a categoria do original');
 
   // ---- modelo de planilha ----
   const modelo = path.join(OUT, 'arquivos', 'modelo.xlsx'); fs.rmSync(modelo, { force: true });
@@ -104,7 +104,7 @@ const OUT = path.join(SAIDA, 'catalogo-admin');
   const resumo = (await pg.textContent('#importar-resumo')).replace(/\s+/g, ' ');
   ok(/novos ?1/.test(resumo) && /problema ?0/.test(resumo), 'importar modelo: linhas de exemplo ignoradas, só a Tapioca entra — ' + resumo);
   await pg.click('#btn-importar-confirmar'); await pg.waitForTimeout(600);
-  ok((await pg.evaluate(() => pdv.produtos())).length === 54, 'produtos que não estavam na planilha continuam cadastrados');
+  ok((await pg.evaluate(() => pdv.produtos())).length === 55, 'produtos que não estavam na planilha continuam cadastrados');
   ok((await pg.evaluate(() => pdv.produtos())).find(p => p.nome === 'Tapioca de Frango').custoCentavos === 450, 'coluna Custo importada (R$ 4,50)');
   // importar preço pela planilha tira o "exemplo"
   const exp = path.join(OUT, 'arquivos', 'export.xlsx'); await set('__salvar', exp);

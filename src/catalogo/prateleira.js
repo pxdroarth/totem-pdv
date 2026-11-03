@@ -12,7 +12,8 @@ const PRODUTOS = [
   ['Whey 100% com Creatina Vitamin Horse 1kg', 'Proteínas', 13990, 'whey-vitamin-horse'],
   ['Whey High Protein Absolut Doce de Leite', 'Proteínas', 12990, 'whey-absolut'],
   ['Whey Protein Black Code Pride Morango 900g', 'Proteínas', 12990, 'whey-pride'],
-  ['JoyPro Protein Shark Pro 900g', 'Proteínas', 14990, 'joypro', ['Morango com Framboesa', 'Paçoca', 'Cookies de Banana com Canela', 'Brigadeiro']],
+  ['JoyPro Protein Shark Pro 900g', 'Proteínas', 15000, 'joypro', ['Morango com Framboesa', 'Paçoca', 'Cookies de Banana com Canela', 'Brigadeiro']],
+  ['100% Whey Synthesize First Line Baunilha 907g', 'Proteínas', 15000, 'whey-synthesize'],
   ['Amino 3500 Vitamin Horse 120 cápsulas', 'Aminoácidos', 3990, 'amino-3500'],
   // ---- Empório: doces e pastas ----
   ['Chocolate em Pó 50% Cacau Guimarães 200g', 'Doces e Pastas', 2600, 'chocolate-po'],
