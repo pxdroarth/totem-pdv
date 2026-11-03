@@ -611,9 +611,9 @@ async function carregarVendas() {
   ].map(([t, v]) => `<div class="card-resumo"><small>${t}</small><strong>${v}</strong></div>`).join('');
 
   // pedidos "pagar no caixa" de qualquer dia que ainda não foram resolvidos
-  const aguardando = (await pdv.vendas({})).filter(v => v.status === 'aguardando_caixa');
+  const aguardando = (await pdv.vendas({ incluirTeste: true })).filter(v => v.status === 'aguardando_caixa');
   $('#tabela-aguardando').innerHTML = aguardando.length ? aguardando.map(v => `
-    <tr><td><b>Pedido ${v.numero}</b></td><td>${new Date(v.data).toLocaleString('pt-BR')}</td>
+    <tr><td><b>Pedido ${v.numero}</b>${v.teste ? '<span class="selo-venda-teste">teste</span>' : ''}</td><td>${new Date(v.data).toLocaleString('pt-BR')}</td>
     <td>${v.itens.map(i => `${i.qtd}× ${esc(i.nome)}${i.opcoes ? ` <small class="ajuda">(${esc(i.opcoes)})</small>` : ''}`).join('<br>')}</td><td><b>${reais(v.totalCentavos)}</b></td>
     <td><button class="btn btn-primario btn-pequeno" data-pagar="${v.numero}">Marcar como pago</button>
         <button class="btn btn-perigo btn-pequeno" data-cancelar="${v.numero}">Cancelar</button></td></tr>`).join('')
@@ -654,7 +654,7 @@ function quemFez(v) {
 // ---------- receber pedido no balcão: dinheiro, PIX ou cartão (entra certo no fluxo de caixa) ----------
 let receber = null;
 async function abrirReceber(numero) {
-  const v = (await pdv.vendas({})).find(x => x.numero === numero);
+  const v = (await pdv.vendas({ incluirTeste: true })).find(x => x.numero === numero);
   if (!v) return toast('Pedido não encontrado', 'erro');
   receber = { numero, total: v.totalCentavos, meio: '' };
   $('#receber-titulo').textContent = `Receber pedido ${numero}`;
@@ -859,6 +859,8 @@ async function carregarConfig() {
   f.backupAutomatico.checked = c.backupAutomatico !== false;
   f.atendentePodeCancelar.checked = !!c.atendentePodeCancelar;
   f.controlarEstoqueGeral.checked = c.controlarEstoque !== false;
+  f.modoTesteVendas.checked = !!c.modoTesteVendas;
+  infoTeste();
   const formas = c.formasTotem || { pix: true, cartao: true, caixa: true };
   f.formaPix.checked = formas.pix !== false; f.formaCartao.checked = formas.cartao !== false; f.formaCaixa.checked = formas.caixa !== false;
   $('#info-backup').textContent = (c.ultimoBackup ? `Último backup: ${new Date(c.ultimoBackup).toLocaleString('pt-BR')}. ` : 'Nenhum backup feito ainda. ') +
@@ -899,6 +901,7 @@ $('#form-config').onsubmit = async e => {
       pinAdmin: f.pinAdmin.value,
       pagamentos: lerGateways(),
       controlarEstoque: f.controlarEstoqueGeral.checked,
+      modoTesteVendas: f.modoTesteVendas.checked,
       formasTotem: { pix: f.formaPix.checked, cartao: f.formaCartao.checked, caixa: f.formaCaixa.checked },
       horarioFechamento: f.horarioFechamento.value, atendentePodeCancelar: f.atendentePodeCancelar.checked, backupAutomatico: f.backupAutomatico.checked, pastaBackup: f.pastaBackup.value,
       confirmarPagamentoComPin: f.confirmarPagamentoComPin.checked,
@@ -914,6 +917,30 @@ $('#form-config').onsubmit = async e => {
     toast('Configurações salvas', 'ok');
   } catch (err) { toast(err.message, 'erro'); }
 };
+// ---------- modo teste e limpeza de vendas ----------
+async function infoTeste() {
+  try {
+    const todas = await pdv.vendas({ incluirTeste: true });
+    const n = todas.filter(v => v.teste).length, reais_ = todas.length - n;
+    $('#info-teste').textContent = `${reais_} venda(s) de verdade e ${n} de teste no sistema.`;
+    $('#btn-apagar-teste').disabled = !n;
+  } catch { /* sem permissão */ }
+}
+$('#btn-apagar-teste').onclick = async () => {
+  if (!confirm('Apagar todas as vendas de teste? As vendas de verdade não são tocadas.')) return;
+  try { const n = await pdv.apagarVendasTeste(); toast(`${n} venda(s) de teste apagada(s)`, 'ok'); infoTeste(); }
+  catch (err) { toast(err.message, 'erro'); }
+};
+$('#btn-zerar-vendas').onclick = async () => {
+  if (!confirm('Zerar TODAS as vendas e fechamentos de caixa e voltar a numeração para 1?\n\nUse só antes de abrir a loja. Uma cópia é guardada na pasta de backups.')) return;
+  if (!confirm('Tem certeza? As vendas somem dos relatórios, dos indicadores e do fechamento.')) return;
+  try {
+    const r = await pdv.zerarVendas();
+    toast(`${r.vendas} venda(s) e ${r.fechamentos} fechamento(s) apagados. Cópia guardada nos backups.`, 'ok');
+    infoTeste();
+  } catch (err) { toast(err.message, 'erro'); }
+};
+
 // ---------- restaurar backup ----------
 async function carregarBackups() {
   try {

@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+<div class="faixa-teste" id="faixa-teste" hidden>MODO TESTE · as vendas não entram nos relatórios</div>
 
 <!-- ===== TELA INICIAL ===== -->
 <section id="tela-inicio" class="tela ativa">
@@ -379,6 +380,15 @@
               <option value="-1">Cancela sozinho no dia seguinte</option>
             </select>
           </label>
+        </fieldset>
+        <fieldset><legend>Modo teste</legend>
+          <label class="check-label"><input type="checkbox" name="modoTesteVendas"> Modo teste: as vendas não entram em relatório, fechamento de caixa, indicadores nem planilha</label>
+          <p class="ajuda dica-campo">Use para treinar atendentes e testar a impressora. O totem mostra uma faixa "MODO TESTE" e o cupom sai marcado. <b>Com a maquininha integrada, o pagamento é cobrado de verdade</b>: estorne pelo app.</p>
+          <div class="acoes">
+            <button type="button" class="btn" id="btn-apagar-teste">Apagar vendas de teste</button>
+            <button type="button" class="btn btn-perigo" id="btn-zerar-vendas">Zerar todas as vendas</button>
+          </div>
+          <p class="ajuda dica-campo" id="info-teste"></p>
         </fieldset>
         <fieldset><legend>Atualização do sistema</legend>
           <p class="versao-atual" id="versao-atual">Versão instalada: verificando…</p>

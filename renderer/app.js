@@ -22,6 +22,7 @@ async function carregarDados() {
   renderProdutos();
   renderCarrinho();
   $$('[data-modo-teste]').forEach(e => (e.hidden = !estado.config.pagamentos?.modoTeste));
+  $('#faixa-teste').hidden = !estado.config.modoTesteVendas;
   // formas de pagamento que a loja usa no totem
   const formas = estado.config.formasTotem || { pix: true, cartao: true, caixa: true };
   $$('.opcao[data-forma]').forEach(b => (b.hidden = formas[b.dataset.forma] === false));

@@ -183,7 +183,7 @@ function htmlCupom(venda, cfg) {
     hr { border: 0; border-top: 1px dashed #000; }
   </style></head><body>
     <div class="c"><b>${esc(cfg.nomeLoja)}</b><br>${esc(cfg.endereco)}<br>${cfg.cnpj ? 'CNPJ ' + esc(cfg.cnpj) : ''}</div>
-    <hr><div class="c">CUPOM NÃO FISCAL</div><hr>
+    <hr><div class="c">CUPOM NÃO FISCAL</div>${venda.teste ? '<div class="c"><b>*** VENDA DE TESTE ***</b><br>não vale como compra</div>' : ''}<hr>
     ${caixa}${linhaCliente}
     <table>${linhas}</table><hr>
     <table><tr><td><b>TOTAL</b></td><td class="d"><b>${reais(venda.totalCentavos)}</b></td></tr>
@@ -379,7 +379,7 @@ tratar('venda:registrar', async ({ pin, transacaoId, ...dadosVenda }) => {
   }
   const venda = banco.registrarVenda({ ...dadosVenda, por, pagamento });
   const avisos = [];
-  if (venda.status === 'paga') {
+  if (venda.status === 'paga' && !venda.teste) { // venda de teste não emite nota
     try { venda.fiscal = await fiscal.emitir(venda, banco.getConfig()); banco.atualizarVenda(venda.numero, { fiscal: venda.fiscal }); }
     catch (e) { avisos.push('Fiscal: ' + e.message); registrarErro('fiscal', e); }
   }
@@ -389,7 +389,7 @@ tratar('venda:registrar', async ({ pin, transacaoId, ...dadosVenda }) => {
 });
 
 tratar('venda:atualizar', logado(async (numero, mudancas) => {
-  const atual = banco.listarVendas().find(x => x.numero === numero);
+  const atual = banco.venda(numero);
   if (mudancas.status === 'cancelada' && atual?.status === 'paga' && sessao.perfil !== 'admin' && !banco.getConfig().atendentePodeCancelar)
     throw new Error('Só o administrador pode cancelar uma venda já paga.');
   const v = banco.atualizarVenda(numero, { status: mudancas.status,
@@ -397,7 +397,7 @@ tratar('venda:atualizar', logado(async (numero, mudancas) => {
   const avisos = [];
   if (mudancas.status === 'paga') {
     try { await imprimirPreparo(v); } catch (e) { avisos.push('Preparo: ' + e.message); registrarErro('impressora', e); }
-    try { v.fiscal = await fiscal.emitir(v, banco.getConfig()); banco.atualizarVenda(v.numero, { fiscal: v.fiscal }); }
+    if (!v.teste) try { v.fiscal = await fiscal.emitir(v, banco.getConfig()); banco.atualizarVenda(v.numero, { fiscal: v.fiscal }); }
     catch (e) { avisos.push('Fiscal: ' + e.message); registrarErro('fiscal', e); }
   }
   return { venda: v, avisos };
@@ -476,8 +476,17 @@ tratar('backup:restaurar', soAdmin(nome => {
   return r;
 }));
 tratar('vendas:listar', logado(filtro => banco.listarVendas(filtro)));
+tratar('vendas:apagarTeste', soAdmin(() => banco.apagarVendasTeste()));
+tratar('vendas:zerar', soAdmin(() => {
+  // cópia de segurança antes de apagar (fica na pasta de backups)
+  const pasta = pastaBackup(); fs.mkdirSync(pasta, { recursive: true });
+  const copia = path.join(pasta, `antes-de-zerar-vendas-${new Date().toISOString().replace(/[:.]/g, '-')}.json`);
+  fs.copyFileSync(banco.arquivo, copia);
+  registrarErro('vendas', `Vendas zeradas pelo admin (cópia em ${copia})`);
+  return { ...banco.zerarVendas(), copia };
+}));
 tratar('vendas:reimprimir', numero => {
-  const v = banco.listarVendas().find(x => x.numero === numero);
+  const v = banco.venda(numero);
   if (!v) throw new Error('Venda não encontrada.');
   return imprimirCupom(v);
 });

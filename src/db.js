@@ -25,6 +25,7 @@ const CONFIG_PADRAO = {
   horarioFechamento: '22:00',     // fecha o caixa sozinho neste horário se ninguém fechar ('' = só manual)
   atendentePodeCancelar: false,   // atendente pode cancelar venda já paga? (pedido não pago ele sempre pode)
   controlarEstoque: true,         // false = a loja não controla estoque: nada fica esgotado e nada é baixado
+  modoTesteVendas: false,         // true = vendas marcadas como teste: não entram em relatório, fechamento, indicadores nem planilha
   formasTotem: { pix: true, cartao: true, caixa: true }, // formas de pagamento que aparecem no totem
   backupAutomatico: true,         // cópia diária dos dados (mantém os últimos 30 dias)
   pastaBackup: '',                // vazio = pasta "backups" junto dos dados; pode apontar para OneDrive/Google Drive
@@ -379,7 +380,7 @@ class Banco {
   }
 
   resumoDia(dia) {
-    const vendas = this.dados.vendas.filter(v => (v.dia || v.data.slice(0, 10)) === dia);
+    const vendas = this.dados.vendas.filter(v => !v.teste && (v.dia || v.data.slice(0, 10)) === dia);
     const pagas = vendas.filter(v => v.status === 'paga');
     const soma = arr => arr.reduce((s, v) => s + v.totalCentavos, 0);
     const porForma = f => soma(pagas.filter(v => v.formaPagamento === f));
@@ -416,7 +417,7 @@ class Banco {
   diasParaFecharSozinho(agora = new Date()) {
     const hoje = diaLocal(agora);
     const fechados = new Set(this.dados.fechamentos.map(f => f.dia));
-    const dias = new Set(this.dados.vendas.map(v => v.dia || v.data.slice(0, 10)).filter(d => d < hoje && !fechados.has(d)));
+    const dias = new Set(this.dados.vendas.filter(v => !v.teste).map(v => v.dia || v.data.slice(0, 10)).filter(d => d < hoje && !fechados.has(d)));
     const h = this.dados.config.horarioFechamento;
     if (/^\d{2}:\d{2}$/.test(h || '')) {
       const [hh, mm] = h.split(':').map(Number);
@@ -598,8 +599,12 @@ class Banco {
 
   registrarVenda({ itens, formaPagamento, status, por, cliente, pagamento }) {
     const linhas = this._montarLinhas(itens);
+    // modo teste: numeração própria (900001, 900002...) para não pular números das vendas de verdade
+    const teste = !!this.dados.config.modoTesteVendas;
+    const numero = teste ? (this.dados.proximoNumeroTeste = Math.max(900000, this.dados.proximoNumeroTeste || 900000) + 1) : this.dados.proximoNumero++;
     const venda = {
-      numero: this.dados.proximoNumero++,
+      numero,
+      ...(teste ? { teste: true } : {}),
       data: new Date().toISOString(),
       dia: this.diaOperacional(),  // data no fuso do computador; depois do fechamento vai para o dia seguinte
       itens: linhas,
@@ -613,7 +618,7 @@ class Banco {
     const cli = limparCliente(cliente);
     if (cli) venda.cliente = cli;
     this._entrarNaFila(venda);
-    if (venda.status === 'paga') this._baixarEstoque(venda);
+    if (venda.status === 'paga' && !venda.teste) this._baixarEstoque(venda);
     this.dados.vendas.push(venda);
     this._salvar();
     return venda;
@@ -666,8 +671,8 @@ class Banco {
       v.historico.push({ acao: mudancas.status === 'paga' ? 'paga' : mudancas.status === 'cancelada' ? 'cancelada' : mudancas.status,
         por: por || 'Painel', em: new Date().toISOString() });
     }
-    if (antes !== 'paga' && v.status === 'paga') { this._baixarEstoque(v); this._entrarNaFila(v); }
-    if (antes === 'paga' && v.status === 'cancelada' && this.dados.config.controlarEstoque !== false) {
+    if (antes !== 'paga' && v.status === 'paga') { if (!v.teste) this._baixarEstoque(v); this._entrarNaFila(v); }
+    if (antes === 'paga' && v.status === 'cancelada' && !v.teste && this.dados.config.controlarEstoque !== false) {
       for (const l of v.itens) {
         const p = this.dados.produtos.find(x => x.id === l.id);
         if (p && p.controlarEstoque !== false) p.estoque += l.qtd;
@@ -817,7 +822,7 @@ class Banco {
     de = de || hoje; ate = ate || de;
     if (ate < de) [de, ate] = [ate, de];
     const diaDe = v => v.dia || v.data.slice(0, 10);
-    const noPeriodo = (a, b) => this.dados.vendas.filter(v => diaDe(v) >= a && diaDe(v) <= b);
+    const noPeriodo = (a, b) => this.dados.vendas.filter(v => !v.teste && diaDe(v) >= a && diaDe(v) <= b);
     const vendas = noPeriodo(de, ate);
     const pagas = vendas.filter(v => v.status === 'paga');
     const soma = arr => arr.reduce((s, v) => s + v.totalCentavos, 0);
@@ -910,11 +915,30 @@ class Banco {
     return { seguranca, produtos: this.dados.produtos.length, vendas: this.dados.vendas.length };
   }
 
-  listarVendas({ de, ate } = {}) {
+  // relatórios nunca veem venda de teste; incluirTeste = telas que precisam achar o pedido (receber, reimprimir)
+  listarVendas({ de, ate, incluirTeste = false } = {}) {
     return this.dados.vendas.filter(v => {
+      if (v.teste && !incluirTeste) return false;
       const d = v.dia || v.data.slice(0, 10);
       return (!de || d >= de) && (!ate || d <= ate);
     });
+  }
+  venda(numero) { return this.dados.vendas.find(x => x.numero === numero) || null; }
+
+  apagarVendasTeste() {
+    const n = this.dados.vendas.filter(v => v.teste).length;
+    this.dados.vendas = this.dados.vendas.filter(v => !v.teste);
+    this.dados.proximoNumeroTeste = 900000;
+    this._salvar();
+    return n;
+  }
+  // começa do zero (antes de abrir a loja): apaga vendas e fechamentos e volta a numeração para 1
+  zerarVendas() {
+    const r = { vendas: this.dados.vendas.length, fechamentos: this.dados.fechamentos.length };
+    this.dados.vendas = []; this.dados.fechamentos = [];
+    this.dados.proximoNumero = 1; this.dados.proximoNumeroTeste = 900000;
+    this._salvar();
+    return r;
   }
 }
 
