@@ -208,6 +208,14 @@ for ($i = 1; $i -le 3 -and -not $ok; $i++) {
   if ($LASTEXITCODE -eq 0) { $ok = $true } else { Aviso "Tentativa $i falhou; tentando de novo..."; Start-Sleep -Seconds 5 }
 }
 $electron = Join-Path $Pasta 'node_modules\electron\dist\electron.exe'
+# npm 11+ (Node 24/26) pode pular os scripts de instalação dos pacotes; o do Electron é o que baixa o electron.exe.
+# Se ele não veio, roda o download do Electron direto (até 3 tentativas).
+$instalaElectron = Join-Path $Pasta 'node_modules\electron\install.js'
+for ($i = 1; $i -le 3 -and $ok -and -not (Test-Path $electron) -and (Test-Path $instalaElectron); $i++) {
+  Aviso "Baixando o Electron (tentativa $i)..."
+  node $instalaElectron
+  if (-not (Test-Path $electron)) { Start-Sleep -Seconds 5 }
+}
 if (-not $ok -or -not (Test-Path $electron)) { Pop-Location; Falha 'As bibliotecas não instalaram. Confira a internet e rode o instalador de novo.' }
 Ok 'Bibliotecas instaladas (Electron, Excel, QR Code)'
 Pop-Location

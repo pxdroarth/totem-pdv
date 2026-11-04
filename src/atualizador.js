@@ -71,6 +71,10 @@ class Atualizador {
 
   async _instalarDependencias() {
     await rodar(WIN ? 'npm.cmd' : 'npm', ['install', '--no-audit', '--no-fund'], { timeout: 15 * 60000, shell: WIN });
+    // npm 11+ pode pular o script que baixa o Electron; garante o binário
+    const instala = path.join(RAIZ, 'node_modules', 'electron', 'install.js');
+    const binario = path.join(RAIZ, 'node_modules', 'electron', 'dist', WIN ? 'electron.exe' : 'electron');
+    if (fs.existsSync(instala) && !fs.existsSync(binario)) await rodar('node', [instala], { timeout: 10 * 60000, shell: WIN });
   }
 
   // vai de "de" para "para"; se falhar no meio, volta para "de"
