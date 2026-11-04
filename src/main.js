@@ -248,6 +248,8 @@ async function imprimirCupom(venda) {
 async function imprimirHtml(html, cfg) {
   const w = new BrowserWindow({ show: false, webPreferences: { javascript: false } });
   await w.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html));
+  // espera a página ser desenhada: imprimir logo após carregar pode sair papel em branco em alguns drivers
+  await new Promise(r => setTimeout(r, 400));
   return new Promise((resolve, reject) => {
     w.webContents.print(
       { silent: true, printBackground: false, deviceName: cfg.impressoraCupom || undefined, margins: { marginType: 'none' } },
