@@ -323,7 +323,7 @@
           <button type="button" class="btn" id="btn-testar-gateway" hidden>Testar conexão</button>
         </fieldset>
         <fieldset><legend>PIX com QR fixo (modo manual)</legend>
-          <label>Chave PIX (CNPJ, e-mail, telefone ou aleatória)<input name="pixChave"></label>
+          <label>Chave PIX (CNPJ, e-mail, telefone ou aleatória)<input name="pixChave" autocapitalize="off"></label>
           <label>Nome do recebedor (como está no banco)<input name="pixNome" maxlength="25"></label>
           <label>Cidade<input name="pixCidade" maxlength="15"></label>
         </fieldset>
@@ -365,6 +365,13 @@
               <option value="esgotado">Aparece como esgotado no totem</option>
               <option value="ocultar">Some do totem até repor</option>
               <option value="vender">Continua vendendo (estoque fica negativo)</option>
+            </select>
+          </label>
+          <label>Teclado na tela
+            <select name="tecladoVirtual">
+              <option value="sempre">Sempre que tocar num campo (totem sem teclado)</option>
+              <option value="toque">Só quando o campo é tocado com o dedo</option>
+              <option value="nunca">Nunca (tem teclado físico)</option>
             </select>
           </label>
           <label class="check-label"><input type="checkbox" name="pedirNomeCliente"> Totem pergunta o nome do cliente</label>
@@ -560,7 +567,7 @@
     <h2 id="produto-titulo">Produto</h2>
     <input type="hidden" name="produtoId">
     <label>Nome<input name="nome" required></label>
-    <label>Código de barras (passe no leitor)<input name="codigoBarras"></label>
+    <label>Código de barras (passe no leitor)<input name="codigoBarras" autocapitalize="off"></label>
     <div class="linha">
       <label>Preço (R$)<input name="preco" inputmode="decimal" required></label>
       <label>Custo (R$)<input name="custo" inputmode="decimal" placeholder="opcional"></label>
@@ -619,6 +626,7 @@
 
 <script src="icons.js"></script>
 <script src="util.js"></script>
+<script src="teclado.js"></script>
 <script src="app.js"></script>
 <script src="admin.js"></script>
 </body>

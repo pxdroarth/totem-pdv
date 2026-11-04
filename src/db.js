@@ -18,6 +18,7 @@ const CONFIG_PADRAO = {
   tempoInatividadeSeg: 90,
   mensagemCupom: 'Obrigado pela preferência!',
   quandoEsgotar: 'esgotado',      // 'esgotado' (aparece esgotado) | 'ocultar' (some do totem) | 'vender' (deixa vender)
+  tecladoVirtual: 'sempre',       // teclado na tela: 'sempre' | 'toque' (só com o dedo) | 'nunca' (tem teclado físico)
   pedirNomeCliente: false,        // totem pergunta o nome do cliente antes de pagar
   perguntarLocal: false,          // totem pergunta "comer aqui ou levar"
   abrirTelaPedidos: false,        // abre a tela de pedidos (2º monitor) junto com o sistema

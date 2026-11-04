@@ -346,7 +346,7 @@ function renderEditorOpcoes() {
         <div class="item-edit">
           <input class="i-nome" value="${esc(i.nome || '')}" placeholder="Opção (ex.: Morango)">
           <input class="i-preco" value="${centavosParaTexto(i.precoCentavos)}" placeholder="+ R$ 0,00" inputmode="decimal">
-          <input class="i-codigo" value="${esc(i.codigoBarras || '')}" placeholder="Código (opcional)" inputmode="numeric" title="Código de barras deste sabor, se ele tiver embalagem própria">
+          <input class="i-codigo" autocapitalize="off" value="${esc(i.codigoBarras || '')}" placeholder="Código (opcional)" inputmode="numeric" title="Código de barras deste sabor, se ele tiver embalagem própria">
           <button type="button" class="btn-mini" data-rem-i="${gi}:${ii}" aria-label="Remover opção">${icone('fechar', 16)}</button>
           <input class="i-desc" value="${esc(i.descricao || '')}" placeholder="Ingredientes ou descrição (opcional, aparece no totem)" maxlength="160">
         </div>`).join('')}
@@ -877,6 +877,7 @@ async function carregarConfig() {
   f.perguntarLocal.checked = !!c.perguntarLocal;
   f.abrirTelaPedidos.checked = !!c.abrirTelaPedidos;
   f.cancelarAguardandoMin.value = String(c.cancelarAguardandoMin || 0);
+  f.tecladoVirtual.value = c.tecladoVirtual || 'sempre';
   f.fiscalModo.value = c.fiscal?.modo || 'desativado';
   f.fiscalPasta.value = c.fiscal?.pastaIntegracao || '';
   try {
@@ -910,6 +911,7 @@ $('#form-config').onsubmit = async e => {
       quandoEsgotar: f.quandoEsgotar.value, imprimirViaPreparo: f.imprimirViaPreparo.checked,
       pedirNomeCliente: f.pedirNomeCliente.checked, perguntarLocal: f.perguntarLocal.checked, abrirTelaPedidos: f.abrirTelaPedidos.checked,
       cancelarAguardandoMin: Number(f.cancelarAguardandoMin.value) || 0,
+      tecladoVirtual: f.tecladoVirtual.value,
       fiscal: { modo: f.fiscalModo.value, pastaIntegracao: f.fiscalPasta.value }
     });
     await carregarDados();
@@ -1050,7 +1052,7 @@ function renderCamposGateway() {
         const attrs = `data-prov="${esc(p.id)}" data-chave="${esc(c.chave)}"`;
         const campo = c.tipo === 'opcoes'
           ? `<select ${attrs}>${c.opcoes.map(([val, txt]) => `<option value="${esc(val)}" ${val === v ? 'selected' : ''}>${esc(txt)}</option>`).join('')}</select>`
-          : `<input ${attrs} type="${c.tipo === 'senha' ? 'password' : c.tipo === 'numero' ? 'number' : 'text'}" value="${esc(v)}" autocomplete="off">`;
+          : `<input ${attrs} type="${c.tipo === 'senha' ? 'password' : c.tipo === 'numero' ? 'number' : 'text'}" value="${esc(v)}" autocomplete="off" autocapitalize="off">`;
         return `<label>${esc(c.rotulo)}${campo}${c.ajuda ? `<small class="ajuda">${esc(c.ajuda)}</small>` : ''}</label>`;
       }).join('')}
     </div>`).join('');

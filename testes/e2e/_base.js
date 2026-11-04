@@ -14,7 +14,7 @@ function verificador(nome) {
 }
 
 // catalogo: 'emporio' (padrão da loja) ou 'exemplo' (suplementos fictícios)
-async function abrir(nome, { catalogo = 'emporio', largura = 1366, altura = 768 } = {}) {
+async function abrir(nome, { catalogo = 'emporio', largura = 1366, altura = 768, teclado = false } = {}) {
   const HOME = path.join(SAIDA, nome, 'home');
   const ARQ = path.join(SAIDA, nome, 'arquivos');
   fs.rmSync(path.join(SAIDA, nome), { recursive: true, force: true });
@@ -32,6 +32,8 @@ async function abrir(nome, { catalogo = 'emporio', largura = 1366, altura = 768 
     dialog.showSaveDialog = async () => ({ canceled: false, filePath: global.__salvar });
   }, [largura, altura]);
   await pg.waitForTimeout(1500);
+  // os testes usam mouse e teclado do robô; o teclado da tela é testado à parte (testes/e2e/teclado.js)
+  if (!teclado) await pg.evaluate(() => { Teclado.desligado = true; });
   const dadosDir = await app.evaluate(({ app }) => app.getPath('userData'));
   const set = (k, v) => app.evaluate((_e, [k, v]) => { global[k] = v; }, [k, v]);
   const shot = n => pg.screenshot({ path: path.join(SAIDA, `${nome}-${n}.png`) });

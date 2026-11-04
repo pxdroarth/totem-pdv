@@ -13,6 +13,7 @@ const estado = {
 
 async function carregarDados() {
   estado.config = await pdv.config();
+  Teclado.configurar(estado.config.tecladoVirtual);
   estado.produtos = await pdv.produtos();
   estado.categorias = await pdv.categorias();
   const nome = (estado.config.nomeLoja || 'Lisufit').toUpperCase();
