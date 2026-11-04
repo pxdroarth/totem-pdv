@@ -54,6 +54,9 @@ async function chamar(metodo, caminho, cfg, corpo, extras = {}) {
 
 // o id da maquininha na API é "TIPO__SERIAL"; a loja só informa o número de série (etiqueta atrás)
 const terminais = new Map(); // serial -> { id, modo }
+// compara ignorando traços e espaços: a etiqueta mostra "Q92-1733216565", a API pode trazer sem o traço
+const soLetrasNumeros = t => String(t || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+const ehDaSerie = (id, serial) => soLetrasNumeros(String(id).split('__').pop()).endsWith(soLetrasNumeros(serial)) || soLetrasNumeros(id).endsWith(soLetrasNumeros(serial));
 async function listarTerminais(cfg) {
   const r = await chamar('GET', '/terminals/v1/list?limit=50', cfg);
   return r.data?.terminals || r.terminals || [];
@@ -62,7 +65,7 @@ async function terminalDa(cfg) {
   const serial = String(cfg.serialMaquininha || '').replace(/\s/g, '');
   if (!serial) throw new Error('Informe o número de série da maquininha (S/N na etiqueta atrás dela).');
   if (terminais.has(serial)) return terminais.get(serial);
-  const t = (await listarTerminais(cfg)).find(x => String(x.id).toUpperCase().endsWith(serial.toUpperCase()));
+  const t = (await listarTerminais(cfg)).find(x => ehDaSerie(x.id, serial));
   if (!t) throw new Error(`A maquininha ${serial} não está vinculada a esta conta. No app Mercado Pago, vincule a Point a uma loja e caixa.`);
   const info = { id: t.id, modo: t.operating_mode };
   terminais.set(serial, info);
@@ -121,7 +124,7 @@ module.exports = {
     const lista = await listarTerminais(cfg);
     const serial = String(cfg.serialMaquininha || '').replace(/\s/g, '');
     if (!serial) throw new Error(`Conectado, mas falta o número de série. Maquininhas nesta conta: ${lista.map(t => t.id).join(', ') || 'nenhuma'}.`);
-    const t = lista.find(x => String(x.id).toUpperCase().endsWith(serial.toUpperCase()));
+    const t = lista.find(x => ehDaSerie(x.id, serial));
     if (!t) throw new Error(`Conectado, mas a maquininha ${serial} não está nesta conta. ${lista.length ? 'Encontrei: ' + lista.map(x => x.id).join(', ') + '.' : 'Nenhuma maquininha vinculada: vincule a Point a uma loja e caixa no app Mercado Pago.'}`);
     const teste = String(cfg.accessToken).trim().startsWith('TEST-');
     let modo = '';
