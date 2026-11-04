@@ -250,6 +250,15 @@ if (-not $SemEnergia) {
   Ok 'Na tomada: o PC não suspende e a tela não apaga'
 } else { Aviso 'Configuração de energia não alterada (opção -SemEnergia)' }
 
+# tela de toque: desliga os gestos de deslizar das bordas (central de notificações, widgets, barra de tarefas)
+# para o cliente não sair do totem. Vale depois de reiniciar o PC.
+try {
+  $chave = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\EdgeUI'
+  if (-not (Test-Path $chave)) { New-Item -Path $chave -Force | Out-Null }
+  New-ItemProperty -Path $chave -Name 'AllowEdgeSwipe' -Value 0 -PropertyType DWord -Force | Out-Null
+  Ok 'Gestos das bordas da tela de toque desligados (vale após reiniciar)'
+} catch { Aviso 'Não consegui desligar os gestos das bordas da tela de toque' }
+
 # ---------- 6. Conferência ----------
 Passo 6 'Conferência'
 $tudoOk = $true
