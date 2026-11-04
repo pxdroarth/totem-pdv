@@ -234,6 +234,7 @@ async function finalizar(formaPagamento, pin = '', transacaoId = '') {
   try {
     const { venda, avisos } = await pdv.registrarVenda({ itens: itensVenda(), formaPagamento, status, pin, transacaoId, cliente: estado.cliente });
     avisos.forEach(a => console.warn(a));
+    const falhaImpressao = avisos.some(a => /imprimir|impressora/i.test(a));
     const temPreparo = venda.itens.some(i => i.preparo);
     if (status === 'aguardando_caixa') {
       $('#fim-titulo').textContent = 'Pedido registrado!';
@@ -252,6 +253,9 @@ async function finalizar(formaPagamento, pin = '', transacaoId = '') {
     }
     estado.produtos = await pdv.produtos(); // estoque atualizado
     limparCompra();
+    if (falhaImpressao) $('#fim-msg').textContent = status === 'aguardando_caixa'
+      ? `O ticket não imprimiu: informe o pedido nº ${venda.numero} no caixa e pague ${reais(venda.totalCentavos)}.`
+      : `O cupom não imprimiu. Guarde o número ${venda.numero} e avise um atendente.`;
     mostrarTela('fim');
     setTimeout(() => { if (document.body.dataset.tela === 'fim') mostrarTela('inicio'); }, 10000);
   } catch (e) {

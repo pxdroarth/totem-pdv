@@ -595,7 +595,9 @@ function duplicarProduto(p) {
 async function carregarVendas() {
   if (!$('#vendas-de').value) $('#vendas-de').value = hojeLocal();
   if (!$('#vendas-ate').value) $('#vendas-ate').value = hojeLocal();
-  const vendas = await pdv.vendas({ de: $('#vendas-de').value, ate: $('#vendas-ate').value });
+  // a lista mostra as vendas de teste (marcadas); os totais e o ranking contam só as de verdade
+  const todas = await pdv.vendas({ de: $('#vendas-de').value, ate: $('#vendas-ate').value, incluirTeste: true });
+  const vendas = todas.filter(v => !v.teste);
   const pagas = vendas.filter(v => v.status === 'paga');
   const soma = arr => arr.reduce((s, v) => s + v.totalCentavos, 0);
   const porForma = f => soma(pagas.filter(v => v.formaPagamento === f));
@@ -629,9 +631,9 @@ async function carregarVendas() {
     ? ranking.map(([n, d], i) => `<tr><td>${i + 1}º</td><td>${esc(n)}</td><td>${d.qtd} un.</td><td>${reais(d.total)}</td></tr>`).join('')
     : '<tr><td class="vazio">Sem vendas no período.</td></tr>';
 
-  $('#tabela-vendas').innerHTML = vendas.slice().reverse().map(v => `
+  $('#tabela-vendas').innerHTML = todas.slice().reverse().map(v => `
     <tr class="${v.status === 'cancelada' ? 'inativo' : ''}">
-      <td>${v.numero}</td><td>${new Date(v.data).toLocaleString('pt-BR')}</td>
+      <td>${v.numero}${v.teste ? '<span class="selo-venda-teste">teste</span>' : ''}</td><td>${new Date(v.data).toLocaleString('pt-BR')}</td>
       <td>${v.itens.reduce((s, i) => s + i.qtd, 0)}</td><td>${formas[v.formaPagamento]}${v.recebidoComo ? ` <small class="ajuda">· ${meiosNome[v.recebidoComo]}</small>` : ''}</td>
       <td>${statusNome[v.status]}${quemFez(v)}</td><td>${reais(v.totalCentavos)}</td>
       <td><button class="btn btn-pequeno" data-reimprimir="${v.numero}">Reimprimir</button>
