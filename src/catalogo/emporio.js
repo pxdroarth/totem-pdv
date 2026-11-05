@@ -15,6 +15,9 @@ const SHAKE = [
 const SALGADOS = ['Empada de Frango', 'Salsicha Empanada', 'Folhado de Presunto e Queijo', 'Folhado de Carne', 'Torta de Frango', 'Croissant', 'Misto Quente']
   .map(n => [n, '']);
 
+// sabores do Suco Natural (copo)
+const SUCOS = ['Maracujá', 'Acerola', 'Caju', 'Manga', 'Goiaba'].map(n => [n, '']);
+
 const PRODUTOS = [
   ['Empada de Frango', 'Salgados', 700, true, 'empada-de-frango'],
   ['Salsicha Empanada', 'Salgados', 600, true, 'salsicha-empanada'],
@@ -34,7 +37,7 @@ const PRODUTOS = [
   ['Suco Desintox Vermelho', 'Sucos', 1200, true, 'suco-desintox-vermelho'],
   ['Suco de Laranja 500ml', 'Sucos', 1000, true, 'suco-de-laranja-500ml'],
   ['Guaraná Natural 300ml', 'Sucos', 800, true, 'guarana-natural-300ml'],
-  ['Suco Natural (copo)', 'Sucos', 500, true, 'suco-natural', null, true], // preço da loja (05/11/2026)
+  ['Suco Natural (copo)', 'Sucos', 499, true, 'suco-natural', SUCOS, true], // preço e sabores da loja (05/11/2026)
   ['Café Expresso', 'Cafés', 500, true, 'cafe-expresso'],
   ['Cappuccino', 'Cafés', 800, true, 'cappuccino'],
   ['Chocolate Quente', 'Cafés', 900, true, 'chocolate-quente'],
@@ -45,7 +48,9 @@ const PRODUTOS = [
   ['Fanta Laranja Lata 350ml', 'Bebidas', 600, false, 'fanta-laranja-lata-350ml'],
   ['Fanta Uva Lata 350ml', 'Bebidas', 600, false, 'fanta-uva-lata-350ml'],
   ['Guaraná Kuat Lata 350ml', 'Bebidas', 600, false, 'guarana-kuat-lata-350ml'],
-  ['Água Mineral Naturágua 500ml', 'Bebidas', 400, false, 'agua-mineral-naturagua-500ml']
+  ['Água Mineral Naturágua 500ml', 'Bebidas', 400, false, 'agua-mineral-naturagua-500ml'],
+  ['Água Mineral 1L', 'Bebidas', 500, false, 'agua-mineral-naturagua-500ml', null, true], // preço da loja (05/11/2026); foto da de 500ml até chegar a dela
+  ['Água Mineral 1,5L', 'Bebidas', 500, false, 'agua-mineral-naturagua-500ml', null, true] // preço da loja (05/11/2026); foto da de 500ml até chegar a dela
 ];
 
 // [nome, seção, ícone] na ordem em que aparecem no totem

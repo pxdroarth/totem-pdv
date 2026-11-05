@@ -17,12 +17,12 @@ const { ok, fim } = verificador('catalogo-carregar');
   await pg.click('.menu-planilha summary'); await pg.click('#btn-carregar-catalogo'); await pg.waitForTimeout(1500);
   const toast = await pg.textContent('#toast');
   const depois = await pg.evaluate(() => pdv.produtos());
-  ok(depois.length === antes.length + 2 + 59, `cadastrou os 59 que faltavam (${depois.length - antes.length - 2}) — ${toast}`);
+  ok(depois.length === antes.length + 2 + 61, `cadastrou os 61 que faltavam (${depois.length - antes.length - 2}) — ${toast}`);
   const cafe = depois.filter(p => p.nome === 'Café Expresso');
   ok(cafe.length === 1 && cafe[0].precoCentavos === 700 && cafe[0].imagem && fs.existsSync(cafe[0].imagem), 'Café Expresso: não duplicou, manteve R$ 7,00 e ganhou foto');
   const whey = depois.filter(p => /whey profit/i.test(p.nome));
   ok(whey.length === 1 && whey[0].precoCentavos === 12500 && whey[0].imagem, 'Whey Profit (nome em maiúsculas): reconhecido, manteve preço e ganhou foto');
-  ok(depois.filter(p => p.imagem).length >= 61, 'produtos do catálogo com foto');
+  ok(depois.filter(p => p.imagem).length >= 63, 'produtos do catálogo com foto');
   const cats = await pg.evaluate(() => pdv.categorias());
   ok(['Doces e Pastas', 'Mercearia', 'Farinhas e Naturais', 'Salgados'].every(n => cats.some(c => c.nome === n && c.secao === 'Empório')), 'categorias do Empório criadas');
   // de novo: nada muda
