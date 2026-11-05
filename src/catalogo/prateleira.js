@@ -39,6 +39,7 @@ const PRODUTOS = [
   ['Mentos Pure Fresh Goma de Mascar', 'Doces e Pastas', 0, 'mentos-pure-fresh'],
   ['Stévia Color Andina 10g', 'Mercearia', 0, 'stevia-color-andina'],
   ['Sport Arnica Tacto Gel de Massagem 200ml', 'Acessórios', 0, 'sport-arnica-tacto'],
+  ['Vinagre de Maçã Orgânico São Francisco 500ml', 'Mercearia', 3900, 'vinagre-maca-sao-francisco'],
   // ---- Empório: bebidas (fotos de 05/11/2026) ----
   ['Jungle Endurance Plant Power Tangerina 500ml', 'Bebidas', 990, 'jungle-endurance-tangerina'],
   ['Jungle Low Carb Plant Power Morango e Limão 500ml', 'Bebidas', 990, 'jungle-low-carb-morango-limao'], // etiqueta meio coberta na foto: conferir
