@@ -52,7 +52,12 @@ async function renderTabelaProdutos() {
   const avisoEx = $('#aviso-exemplo');
   avisoEx.hidden = !exemplos.length || fEstoque === 'exemplo';
   avisoEx.innerHTML = `${icone('alerta', 20)} <b>${exemplos.length} produto(s) com preço de exemplo</b> — confira antes de abrir a loja <u>Ver lista</u>`;
+  const semPreco = estado.produtos.filter(p => p.semPreco);
+  const avisoSp = $('#aviso-sem-preco');
+  avisoSp.hidden = !semPreco.length || fEstoque === 'semPreco';
+  avisoSp.innerHTML = `${icone('alerta', 20)} <b>${semPreco.length} produto(s) sem preço</b> — ficam fora do totem até você digitar o preço <u>Ver lista</u>`;
   const situacao = {
+    semPreco: p => p.semPreco,
     baixo: estoqueBaixo,
     zerado: p => p.controlarEstoque !== false && p.estoque <= 0,
     exemplo: p => p.precoExemplo,
@@ -78,7 +83,7 @@ async function renderTabelaProdutos() {
       <td>${esc(p.codigoBarras)}</td>
       <td><span class="cat-tabela">${icone(iconeCategoria(p.categoria), 18)} ${esc(p.categoria)}</span></td>
       <td class="celula-preco"><label class="preco-rapido">R$ <input inputmode="decimal" data-preco="${p.id}" value="${precoTexto(p.precoCentavos)}" aria-label="Preço de ${esc(p.nome)}"></label>
-        ${p.precoExemplo ? '<small class="selo-exemplo" title="Preço de exemplo: digite o preço certo ou aperte Enter para confirmar">exemplo</small>' : ''}</td>
+        ${p.precoExemplo ? '<small class="selo-exemplo" title="Preço de exemplo: digite o preço certo ou aperte Enter para confirmar">exemplo</small>' : ''}${p.semPreco ? '<small class="selo-exemplo selo-sem-preco" title="Digite o preço e aperte Enter: o produto aparece no totem">sem preço</small>' : ''}</td>
       <td class="col-estoque ${estoqueBaixo(p) ? 'alerta' : ''}">${p.controlarEstoque === false ? '<small>feito na hora</small>' : `${p.estoque} <small class="ajuda">mín. ${p.estoqueMinimo ?? 3}</small>`}</td>
       <td><label class="chave"><input type="checkbox" data-ativo="${p.id}" ${p.ativo ? 'checked' : ''} aria-label="${esc(p.nome)} no totem"><span></span></label></td>
       <td class="acoes"><button class="btn btn-pequeno" data-editar="${p.id}">Editar</button><button class="btn btn-pequeno btn-fantasma" data-duplicar="${p.id}">Duplicar</button></td>
@@ -397,6 +402,7 @@ $('#form-produto').controlarEstoque.onchange = e => {
 $('#filtro-estoque-admin').onchange = renderTabelaProdutos;
 $('#aviso-estoque').onclick = () => { $('#filtro-estoque-admin').value = 'baixo'; renderTabelaProdutos(); };
 $('#aviso-exemplo').onclick = () => { $('#filtro-estoque-admin').value = 'exemplo'; renderTabelaProdutos(); };
+$('#aviso-sem-preco').onclick = () => { $('#filtro-estoque-admin').value = 'semPreco'; renderTabelaProdutos(); };
 
 // ---------- planilhas ----------
 const fecharMenuPlanilha = () => $('.menu-planilha').removeAttribute('open');

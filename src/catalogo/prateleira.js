@@ -25,6 +25,20 @@ const PRODUTOS = [
   ["Doce de Cupuaçu Francy's 550g", 'Doces e Pastas', 2000, 'doce-cupuacu', ['Tradicional', 'Com Castanha de Caju']],
   ["Geleia Francy's", 'Doces e Pastas', 2000, 'geleias', ['Cajá', 'Pimenta', 'Morango']],
   ['Creme de Amendoim Guimarães 200g', 'Doces e Pastas', 1900, 'creme-amendoim', ['Chocolate Meio Amargo', 'Biscoito Negresco', 'Coco e Chocolate Prestígio', 'Paçokinha']],
+  // ---- barras e doces (fotos da loja de 05/11/2026) ----
+  ['Barra Rio Protein 33g', 'Snacks', 300, 'rio-protein',
+    ['Brigadeiro', 'Fondue de Chocolate', 'Avelã, Castanha e Chocolate', 'Cookies e Cream', 'Morango e Chocolate', 'Banana e Chocolate']],
+  ["Bendu Soft Bar Cookies'n Cream 45g", 'Snacks', 1150, 'bendu-soft-bar-cookies'],
+  // preço 0 = SEM PREÇO: entram ocultos no totem; aparecem sozinhos quando a loja digitar o preço no painel
+  ['Supino Barra de Banana e Morango', 'Snacks', 0, 'supino-banana-morango'],
+  ['Energel Outdoors Body Action Morango 30g', 'Pré-Treino', 0, 'energel-outdoors-morango'],
+  ['Goiabinha Mais Leve Zero Açúcar 30g', 'Doces e Pastas', 0, 'goiabinha-mais-leve'],
+  ['Pé de Moça Guimarães 25g', 'Doces e Pastas', 0, 'pe-de-moca-guimaraes'],
+  ['Paçoquita Zero Santa Helena 18g', 'Doces e Pastas', 0, 'pacoquita-zero'],
+  ['Halls Extra Forte 27,5g', 'Doces e Pastas', 0, 'halls-extra-forte'],
+  ['Mentos Pure Fresh Goma de Mascar', 'Doces e Pastas', 0, 'mentos-pure-fresh'],
+  ['Stévia Color Andina 10g', 'Mercearia', 0, 'stevia-color-andina'],
+  ['Sport Arnica Tacto Gel de Massagem 200ml', 'Acessórios', 0, 'sport-arnica-tacto'],
   // ---- Empório: bebidas (fotos de 05/11/2026) ----
   ['Jungle Endurance Plant Power Tangerina 500ml', 'Bebidas', 990, 'jungle-endurance-tangerina'],
   ['Jungle Low Carb Plant Power Morango e Limão 500ml', 'Bebidas', 990, 'jungle-low-carb-morango-limao'], // etiqueta meio coberta na foto: conferir

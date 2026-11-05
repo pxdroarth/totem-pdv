@@ -221,8 +221,11 @@ class Banco {
     } catch { return ''; } // sem a foto o produto entra igual, só sem imagem
   }
   _produtoDoCatalogo(e) {
-    return { id: crypto.randomUUID(), nome: e.nome, codigoBarras: '', precoCentavos: e.preco, ...(e.exemplo ? { precoExemplo: true } : {}),
-      categoria: e.categoria, estoque: 0, estoqueMinimo: 3, controlarEstoque: !e.feitoNaHora, imagem: this._copiarFotoCatalogo(e.foto), ativo: true,
+    // preço 0 no catálogo = "sem preço": entra oculto no totem até a loja digitar o preço
+    const semPreco = !(e.preco > 0);
+    return { id: crypto.randomUUID(), nome: e.nome, codigoBarras: '', precoCentavos: e.preco || 0, ...(e.exemplo && !semPreco ? { precoExemplo: true } : {}),
+      ...(semPreco ? { semPreco: true } : {}),
+      categoria: e.categoria, estoque: 0, estoqueMinimo: 3, controlarEstoque: !e.feitoNaHora, imagem: this._copiarFotoCatalogo(e.foto), ativo: !semPreco,
       opcoes: limparOpcoes(e.sabores.length ? [{ nome: 'Sabor', min: 1, max: 1,
         itens: e.sabores.map(([nome, descricao]) => ({ nome, ...(descricao ? { descricao } : {}), precoCentavos: 0 })) }] : []) };
   }
@@ -260,6 +263,7 @@ class Banco {
         res.precos.push(`${e.nome}: ${(antes.preco / 100).toFixed(2)} → ${(e.preco / 100).toFixed(2)}`);
         atual.precoCentavos = e.preco;
         if (e.exemplo) atual.precoExemplo = true; else delete atual.precoExemplo;
+        if (atual.semPreco && e.preco > 0) { delete atual.semPreco; atual.ativo = true; }
       }
       if (marca.foto !== antes.foto && fotoDoCatalogo) { const f = this._copiarFotoCatalogo(e.foto); if (f) { atual.imagem = f; res.fotos++; } }
       const g = (atual.opcoes || []).find(x => normalizar(x.nome) === 'sabor');
@@ -529,6 +533,11 @@ class Banco {
     const i = this.dados.produtos.findIndex(x => x.id === limpo.id);
     // preço de exemplo (catálogo inicial) continua marcado até alguém mudar o preço
     if (i >= 0 && this.dados.produtos[i].precoExemplo && !p.confirmarPreco && this.dados.produtos[i].precoCentavos === limpo.precoCentavos) limpo.precoExemplo = true;
+    // produto "sem preço": continua oculto até ter preço; ao receber o preço, aparece no totem sozinho
+    if (i >= 0 && this.dados.produtos[i].semPreco) {
+      if (limpo.precoCentavos > 0) { if (!this.dados.produtos[i].ativo) limpo.ativo = true; }
+      else { limpo.semPreco = true; limpo.ativo = false; }
+    }
     if (i >= 0) this.dados.produtos[i] = limpo; else this.dados.produtos.push(limpo);
     this._salvar();
     return limpo;
@@ -560,7 +569,7 @@ class Banco {
     const lista = this.dados.produtos.filter(p => alvo.has(p.id));
     if (!lista.length) throw new Error('Nenhum produto selecionado.');
     if (acao === 'excluir') this.dados.produtos = this.dados.produtos.filter(p => !alvo.has(p.id));
-    else if (acao === 'mostrar' || acao === 'ocultar') lista.forEach(p => { p.ativo = acao === 'mostrar'; });
+    else if (acao === 'mostrar' || acao === 'ocultar') lista.forEach(p => { p.ativo = acao === 'mostrar' && !p.semPreco; }); // sem preço só aparece depois de ter preço
     else if (acao === 'confirmarPreco') lista.forEach(p => { delete p.precoExemplo; });
     else if (acao === 'categoria') {
       const cat = this.dados.categorias.find(c => normalizar(c.nome) === normalizar(valor));
@@ -757,6 +766,7 @@ class Banco {
           res.novos++;
         } else res.atualizados++;
         if (d.precoCentavos !== undefined) delete p.precoExemplo; // preço vindo da planilha conta como definitivo
+        if (p.semPreco && d.precoCentavos > 0) { delete p.semPreco; if (d.ativo === undefined) p.ativo = true; }
         for (const k of ['precoCentavos', 'custoCentavos', 'categoria', 'ativo']) if (d[k] !== undefined) p[k] = d[k];
         if (d.feitoNaHora !== undefined) p.controlarEstoque = !d.feitoNaHora;
         // atualiza o grupo "Sabor" mantendo os ids dos sabores que já existiam (vendas antigas continuam batendo)
@@ -801,6 +811,7 @@ class Banco {
       if (d.feitoNaHora !== undefined) campos.controlarEstoque = !d.feitoNaHora;
       if (p) {
         if (campos.precoCentavos !== undefined) delete p.precoExemplo;
+        if (p.semPreco && campos.precoCentavos > 0) { delete p.semPreco; if (campos.ativo === undefined) campos.ativo = true; }
         Object.assign(p, campos); res.atualizados++;
       }
       else {

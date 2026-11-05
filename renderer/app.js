@@ -36,7 +36,7 @@ const ordemCategoria = nome => { const c = estado.categorias.find(x => x.nome ==
 const semEstoque = () => estado.config.controlarEstoque === false; // loja que não controla estoque: nada esgota
 const escondidoPorEstoque = p => !semEstoque() && estado.config.quandoEsgotar === 'ocultar' && p.controlarEstoque !== false && p.estoque <= 0;
 const visiveis = () => estado.produtos
-  .filter(p => p.ativo && !categoriaOculta(p.categoria) && !escondidoPorEstoque(p))
+  .filter(p => p.ativo && p.precoCentavos > 0 && !categoriaOculta(p.categoria) && !escondidoPorEstoque(p)) // sem preço nunca aparece no totem
   .sort((a, b) => ordemCategoria(a.categoria) - ordemCategoria(b.categoria) || a.nome.localeCompare(b.nome));
 const produtoPorId = id => estado.produtos.find(p => p.id === id);
 // produto feito na hora (controlarEstoque = false) nunca esgota

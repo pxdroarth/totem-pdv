@@ -8,7 +8,7 @@ const { ok, fim } = verificador('catalogo-sync');
 const pasta = fs.mkdtempSync(path.join(os.tmpdir(), 'lisufit-sync-'));
 const b = new Banco(pasta);
 const original = Banco.entradasCatalogo;
-ok(!b.catalogoDesatualizado() && b.dados.produtos.length === 63, 'instalação nova já nasce sincronizada');
+ok(!b.catalogoDesatualizado() && b.dados.produtos.length === 74, 'instalação nova já nasce sincronizada');
 
 // a loja muda o preço do JoyPro e oculta a Coca-Cola por conta própria
 const p = n => b.dados.produtos.find(x => x.nome === n);
@@ -32,8 +32,8 @@ ok(p('Feijoada').precoCentavos === 2800 && !p('Feijoada').precoExemplo, 'Empóri
 const whey = p('100% Whey Profit 900g');
 ok(path.basename(whey.imagem) === 'catalogo-whey-pride.webp' && whey.opcoes[0].itens.map(i => i.nome).join() === 'Baunilha,Chocolate,Morango,Cookies', 'foto e sabor novo do Whey Profit');
 ok(p('Coca-Cola Lata 350ml').ativo === false, 'produto oculto pela loja continua oculto');
-ok(b.dados.produtos.length === 64 && !b.catalogoDesatualizado(), 'nada apagado e catálogo em dia');
-ok(b.sincronizarCatalogo().novos.length === 0 && b.dados.produtos.length === 64, 'rodar de novo não muda nada');
+ok(b.dados.produtos.length === 75 && !b.catalogoDesatualizado(), 'nada apagado e catálogo em dia');
+ok(b.sincronizarCatalogo().novos.length === 0 && b.dados.produtos.length === 75, 'rodar de novo não muda nada');
 // base antiga, sem registro do catálogo (instalação do Pedro): na 1ª vez só completa, não mexe nos preços
 const pasta2 = fs.mkdtempSync(path.join(os.tmpdir(), 'lisufit-sync2-'));
 const b2 = new Banco(pasta2);
@@ -43,4 +43,16 @@ b2.dados.produtos = b2.dados.produtos.filter(x => x.nome !== 'Feijoada');
 const r2 = b2.sincronizarCatalogo();
 ok(r2.novos.join() === 'Feijoada' && b2.dados.produtos.find(x => x.nome.startsWith('Megalodon')).precoCentavos === 8500, 'base antiga: completa o que falta e mantém os preços da loja');
 Banco.entradasCatalogo = original;
+
+// produto SEM PREÇO (preço 0 no catálogo): entra oculto; aparece sozinho quando a loja digita o preço
+const pac = p('Paçoquita Zero Santa Helena 18g');
+ok(pac.semPreco === true && pac.ativo === false && pac.precoCentavos === 0, 'sem preço: entra oculto do totem');
+let erro = '';
+try { b.salvarProduto({ ...pac, ativo: true }); } catch (e) { erro = e.message; }
+ok(/preço maior que zero/.test(erro), 'sem preço não dá para mostrar no totem antes de ter preço');
+const salvo = b.salvarProduto({ ...pac, precoCentavos: 250 });
+ok(salvo.ativo === true && !salvo.semPreco && p('Paçoquita Zero Santa Helena 18g').precoCentavos === 250, 'com preço digitado: aparece no totem e perde o selo');
+const hal = p('Halls Extra Forte 27,5g');
+b.produtosEmMassa([hal.id], 'mostrar');
+ok(p('Halls Extra Forte 27,5g').ativo === false, '"Mostrar no totem" em massa não libera produto sem preço');
 fim();
