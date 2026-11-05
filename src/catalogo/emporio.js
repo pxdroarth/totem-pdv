@@ -49,6 +49,7 @@ const PRODUTOS = [
   ['Fanta Uva Lata 350ml', 'Bebidas', 600, false, 'fanta-uva-lata-350ml'],
   ['Guaraná Kuat Lata 350ml', 'Bebidas', 600, false, 'guarana-kuat-lata-350ml'],
   ['Água Mineral Naturágua 500ml', 'Bebidas', 400, false, 'agua-mineral-naturagua-500ml'],
+  ['Água de Coco (coco verde)', 'Bebidas', 300, false, 'agua-de-coco', null, true], // preço da loja (05/11/2026)
   ['Água Mineral 1L', 'Bebidas', 500, false, 'agua-mineral-naturagua-500ml', null, true], // preço da loja (05/11/2026); foto da de 500ml até chegar a dela
   ['Água Mineral 1,5L', 'Bebidas', 500, false, 'agua-mineral-naturagua-500ml', null, true] // preço da loja (05/11/2026); foto da de 500ml até chegar a dela
 ];
