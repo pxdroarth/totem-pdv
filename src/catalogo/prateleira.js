@@ -1,5 +1,5 @@
 // Produtos de prateleira da Lisufit (suplementos e mercearia do Empório) com preço DEFINITIVO,
-// lido das etiquetas nas fotos que a loja mandou em 03/11/2026. Entram cadastrados, com foto,
+// lido das etiquetas nas fotos que a loja mandou (03/11 e 05/11/2026). Entram cadastrados, com foto,
 // na primeira vez que o sistema abre. A seção (Suplementos / Empório) vem da categoria.
 // [nome, categoria, preçoCentavos, foto (em src/catalogo/fotos), sabores?]
 const PRODUTOS = [
@@ -15,11 +15,19 @@ const PRODUTOS = [
   ['JoyPro Protein Shark Pro 900g', 'Proteínas', 15000, 'joypro', ['Morango com Framboesa', 'Paçoca', 'Cookies de Banana com Canela', 'Brigadeiro']],
   ['100% Whey Synthesize First Line Baunilha 907g', 'Proteínas', 15000, 'whey-synthesize'],
   ['Amino 3500 Vitamin Horse 120 cápsulas', 'Aminoácidos', 3990, 'amino-3500'],
+  // fotos da loja de 05/11/2026
+  ['Creatina 100% Pura Absolut Nutrition 300g', 'Creatina', 4990, 'creatina-absolut-300g'],
+  ['Panic Pré-Treino Adaptogen Morango 355ml', 'Pré-Treino', 1590, 'panic-pre-treino-morango'],
+  ['Nuclear Rush Pré-Treino Body Action Guaraná Fusion 269ml', 'Pré-Treino', 1000, 'nuclear-rush-guarana'],
+  ['Agent Orange Pré-Treino New Millen Tangerina com Morango 269ml', 'Pré-Treino', 1000, 'agent-orange-tangerina-morango'],
   // ---- Empório: doces e pastas ----
   ['Chocolate em Pó 50% Cacau Guimarães 200g', 'Doces e Pastas', 2600, 'chocolate-po'],
   ["Doce de Cupuaçu Francy's 550g", 'Doces e Pastas', 2000, 'doce-cupuacu', ['Tradicional', 'Com Castanha de Caju']],
   ["Geleia Francy's", 'Doces e Pastas', 2000, 'geleias', ['Cajá', 'Pimenta', 'Morango']],
   ['Creme de Amendoim Guimarães 200g', 'Doces e Pastas', 1900, 'creme-amendoim', ['Chocolate Meio Amargo', 'Biscoito Negresco', 'Coco e Chocolate Prestígio', 'Paçokinha']],
+  // ---- Empório: bebidas (fotos de 05/11/2026) ----
+  ['Jungle Endurance Plant Power Tangerina 500ml', 'Bebidas', 990, 'jungle-endurance-tangerina'],
+  ['Jungle Low Carb Plant Power Morango e Limão 500ml', 'Bebidas', 990, 'jungle-low-carb-morango-limao'], // etiqueta meio coberta na foto: conferir
   // ---- Empório: mercearia ----
   ['Risotto Dona Antônia 250g', 'Mercearia', 2490, 'risotto', ['Alho Poró', 'Funghi e Shitake', 'Limão Siciliano']],
   ['Café Tradicional Empório Lisufit 250g', 'Mercearia', 2700, 'cafe-lisufit'],

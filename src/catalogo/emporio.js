@@ -1,7 +1,7 @@
 // Catálogo inicial do Empório Lisufit: entra cadastrado (com foto) na primeira vez que o sistema abre.
 // Os preços são DE EXEMPLO (precoExemplo: true) até a loja mandar os definitivos; o admin mostra
 // quais ainda estão com preço de exemplo e o selo some quando o preço é alterado.
-// [nome, categoria, preçoCentavos, feitoNaHora, foto (em src/catalogo/fotos), sabores?]
+// [nome, categoria, preçoCentavos, feitoNaHora, foto (em src/catalogo/fotos), sabores?, preçoDefinitivo?]
 const SHAKE = [
   ['Morango', 'Suco de maçã integral, iogurte zero lactose, proteína baunilha, morango e banana'],
   ['Chocolate', 'Suco de maçã integral, iogurte zero lactose, proteína sabor chocolate, morango e banana'],
@@ -11,6 +11,10 @@ const SHAKE = [
   ['Pink Lemonade', 'Suco de maçã integral, iogurte zero lactose, morango, limão e colágeno neutro']
 ];
 
+// o cliente escolhe qual salgado vem no combo
+const SALGADOS = ['Empada de Frango', 'Salsicha Empanada', 'Folhado de Presunto e Queijo', 'Folhado de Carne', 'Torta de Frango', 'Croissant', 'Misto Quente']
+  .map(n => [n, '']);
+
 const PRODUTOS = [
   ['Empada de Frango', 'Salgados', 700, true, 'empada-de-frango'],
   ['Salsicha Empanada', 'Salgados', 600, true, 'salsicha-empanada'],
@@ -19,6 +23,7 @@ const PRODUTOS = [
   ['Torta de Frango', 'Salgados', 900, true, 'torta-de-frango'],
   ['Croissant', 'Salgados', 900, true, 'croissant'],
   ['Misto Quente', 'Salgados', 900, true, 'misto-quente'],
+  ['Salgado + Suco', 'Salgados', 1299, true, 'salgado-mais-suco', SALGADOS, true], // combo: preço da loja (05/11/2026)
   ['Feijoada', 'Refeições', 2500, true, 'feijoada'],
   ['Sopa de Frango', 'Refeições', 1500, true, 'sopa-de-frango'],
   ['Caldo de Mocotó', 'Refeições', 1500, true, 'caldo-de-mocoto'],
@@ -29,6 +34,7 @@ const PRODUTOS = [
   ['Suco Desintox Vermelho', 'Sucos', 1200, true, 'suco-desintox-vermelho'],
   ['Suco de Laranja 500ml', 'Sucos', 1000, true, 'suco-de-laranja-500ml'],
   ['Guaraná Natural 300ml', 'Sucos', 800, true, 'guarana-natural-300ml'],
+  ['Suco Natural (copo)', 'Sucos', 500, true, 'suco-natural', null, true], // preço da loja (05/11/2026)
   ['Café Expresso', 'Cafés', 500, true, 'cafe-expresso'],
   ['Cappuccino', 'Cafés', 800, true, 'cappuccino'],
   ['Chocolate Quente', 'Cafés', 900, true, 'chocolate-quente'],
