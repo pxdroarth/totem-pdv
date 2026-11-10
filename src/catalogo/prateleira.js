@@ -11,6 +11,7 @@ const PRODUTOS = [
   ['Força do Vaqueiro Pré-Treino Limão 300g', 'Pré-Treino', 12000, 'forca-do-vaqueiro-pre-treino'],
   ['Megalodon Pré-Treino Abacaxi 300g', 'Pré-Treino', 8990, 'megalodon-pre-treino'],
   ['Creatina Monohidratada Probiótica 300g', 'Creatina', 4990, 'creatina-probiotica-300g'],
+  ['Creatina Hardcore Integralmedica 300g', 'Creatina', 4990, 'creatina-hardcore-integralmedica-300g'],
   ['Vitamina Amazônica XTR Açaí e Guaraná 600g', 'Vitaminas', 11990, 'vitamina-amazonica-xtr'],
   ['100% Whey Profit 900g', 'Proteínas', 11990, 'whey-profit-900g', ['Baunilha', 'Chocolate', 'Morango']],
   ['Whey 100% com Creatina Vitamin Horse 1kg', 'Proteínas', 13990, 'whey-vitamin-horse'],
