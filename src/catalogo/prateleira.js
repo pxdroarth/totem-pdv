@@ -4,7 +4,7 @@
 // [nome, categoria, preçoCentavos, foto (em src/catalogo/fotos), sabores?]
 const PRODUTOS = [
   // ---- Empório: sanduíches e congelados ----
-  ['Sanduíche Natural', 'Sanduíches Naturais', 700, ''],
+  ['Sanduíche Natural', 'Sanduíches Naturais', 700, 'sanduiche-natural'],
   ['Sanduíche de Salpicão Bom Bigmania 130g', 'Sanduíches Naturais', 0, 'sanduiche-salpicao-bigmania-130g'],
   ['Pulled Pork Congelado Fogo36 400g', 'Congelados', 0, 'pulled-pork-fogo36-400g'],
   // ---- Suplementos ----
