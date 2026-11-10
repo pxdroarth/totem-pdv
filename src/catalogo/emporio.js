@@ -64,6 +64,7 @@ const CATEGORIAS = [
   ['Snacks', 'Suplementos', 'cookie'],
   ['Acessórios', 'Suplementos', 'bag'],
   ['Salgados', 'Empório', 'croissant'],
+  ['Sanduíches Naturais', 'Empório', 'croissant'],
   ['Refeições', 'Empório', 'utensils'],
   ['Shakes', 'Empório', 'milk'],
   ['Smoothies', 'Empório', 'cupSoda'],

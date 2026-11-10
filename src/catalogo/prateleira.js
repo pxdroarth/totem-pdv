@@ -3,6 +3,10 @@
 // na primeira vez que o sistema abre. A seção (Suplementos / Empório) vem da categoria.
 // [nome, categoria, preçoCentavos, foto (em src/catalogo/fotos), sabores?]
 const PRODUTOS = [
+  // ---- Empório: sanduíches e congelados ----
+  ['Sanduíche Natural', 'Sanduíches Naturais', 700, ''],
+  ['Sanduíche de Salpicão Bom Bigmania 130g', 'Sanduíches Naturais', 0, 'sanduiche-salpicao-bigmania-130g'],
+  ['Pulled Pork Congelado Fogo36 400g', 'Congelados', 0, 'pulled-pork-fogo36-400g'],
   // ---- Suplementos ----
   ['Força do Vaqueiro Pré-Treino Limão 300g', 'Pré-Treino', 12000, 'forca-do-vaqueiro-pre-treino'],
   ['Megalodon Pré-Treino Abacaxi 300g', 'Pré-Treino', 8990, 'megalodon-pre-treino'],
@@ -21,6 +25,7 @@ const PRODUTOS = [
   ['Nuclear Rush Pré-Treino Body Action Guaraná Fusion 269ml', 'Pré-Treino', 1000, 'nuclear-rush-guarana'],
   ['Agent Orange Pré-Treino New Millen Tangerina com Morango 269ml', 'Pré-Treino', 1000, 'agent-orange-tangerina-morango'],
   // ---- Empório: doces e pastas ----
+  ['Pasta de Amendoim Dr. Peanut Avelã 250g', 'Doces e Pastas', 0, 'pasta-amendoim-dr-peanut-avela-250g'],
   ['Chocolate em Pó 50% Cacau Guimarães 200g', 'Doces e Pastas', 2600, 'chocolate-po'],
   ["Doce de Cupuaçu Francy's 550g", 'Doces e Pastas', 2000, 'doce-cupuacu', ['Tradicional', 'Com Castanha de Caju']],
   ["Geleia Francy's", 'Doces e Pastas', 2000, 'geleias', ['Cajá', 'Pimenta', 'Morango']],
