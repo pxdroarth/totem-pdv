@@ -7,6 +7,7 @@ const PRODUTOS = [
   ['Sanduíche Natural', 'Sanduíches Naturais', 700, 'sanduiche-natural'],
   ['Sanduíche de Salpicão Bom Bigmania 130g', 'Sanduíches Naturais', 0, 'sanduiche-salpicao-bigmania-130g'],
   ['Pulled Pork Congelado Fogo36 400g', 'Congelados', 0, 'pulled-pork-fogo36-400g'],
+  ['Dadinho de Panceta Fogo36', 'Congelados', 0, 'dadinho-panceta-fogo36'],
   ['Camarão Empanado Mais Boteco 180g', 'Congelados', 0, 'camarao-empanado-mais-boteco-180g'],
   ['Polpa de Acerola Tropi Cássia 400g', 'Congelados', 0, 'polpa-acerola-tropi-cassia'],
   ['Polpa de Goiaba Tropi Cássia 400g', 'Congelados', 0, 'polpa-goiaba-tropi-cassia'],
@@ -39,6 +40,7 @@ const PRODUTOS = [
   ['Panic Pré-Treino Adaptogen Morango 355ml', 'Pré-Treino', 1590, 'panic-pre-treino-morango'],
   ['Nuclear Rush Pré-Treino Body Action Guaraná Fusion 269ml', 'Pré-Treino', 1000, 'nuclear-rush-guarana'],
   ['Agent Orange Pré-Treino New Millen Tangerina com Morango 269ml', 'Pré-Treino', 1000, 'agent-orange-tangerina-morango'],
+  ['AWE Limonada Italiana 14 Sachês 70g', 'Pré-Treino', 0, 'awe-limonada-italiana-70g'],
   // ---- Empório: doces e pastas ----
   ['Pasta de Amendoim Dr. Peanut Avelã 250g', 'Doces e Pastas', 0, 'pasta-amendoim-dr-peanut-avela-250g'],
   ['Chocolate em Pó 50% Cacau Guimarães 200g', 'Doces e Pastas', 2600, 'chocolate-po'],
@@ -51,6 +53,7 @@ const PRODUTOS = [
   ["Bendu Soft Bar Cookies'n Cream 45g", 'Snacks', 1150, 'bendu-soft-bar-cookies'],
   // preço 0 = SEM PREÇO: entram ocultos no totem; aparecem sozinhos quando a loja digitar o preço no painel
   ['Supino Barra de Banana e Morango', 'Snacks', 0, 'supino-banana-morango'],
+  ['Beef Crispy Protein Sabor Churrasco', 'Snacks', 1100, 'beef-crispy-protein-churrasco'],
   ['Energel Outdoors Body Action Morango 30g', 'Pré-Treino', 0, 'energel-outdoors-morango'],
   ['Goiabinha Mais Leve Zero Açúcar 30g', 'Doces e Pastas', 0, 'goiabinha-mais-leve'],
   ['Pé de Moça Guimarães 25g', 'Doces e Pastas', 0, 'pe-de-moca-guimaraes'],
@@ -63,7 +66,18 @@ const PRODUTOS = [
   // ---- Empório: bebidas (fotos de 05/11/2026) ----
   ['Jungle Endurance Plant Power Tangerina 500ml', 'Bebidas', 990, 'jungle-endurance-tangerina'],
   ['Jungle Low Carb Plant Power Morango e Limão 500ml', 'Bebidas', 990, 'jungle-low-carb-morango-limao'], // etiqueta meio coberta na foto: conferir
+  ['Moving Protein Booster Abacaxi e Hortelã 310ml', 'Bebidas', 0, 'moving-protein-booster-abacaxi-hortela-310ml'],
+  ['Suco de Maçã Integral Puro Pomar 900ml', 'Bebidas', 0, 'suco-maca-integral-puro-pomar-900ml'],
+  ['AWE Morango e Kiwi 355ml', 'Bebidas', 0, 'awe-morango-kiwi-355ml'],
+  // ---- Empório: cafés ----
+  ['SuperCoffee Caffeine Army Choconilla 140g', 'Cafés', 0, 'supercoffee-caffeine-army-choconilla-140g'],
   // ---- Empório: mercearia ----
+  ['Biscoito de Polvilho Bombiscoito Cebola 100g', 'Mercearia', 0, 'bombiscoito-polvilho-cebola-100g'],
+  ['Cookies Zero Rio Grande Alimentos Banana e Aveia com Chocolate 100g', 'Mercearia', 0, 'cookies-zero-rio-grande-banana-aveia-100g'],
+  ['Biscoito de Polvilho Bombiscoito Tradicional Sem Lactose', 'Mercearia', 0, 'bombiscoito-polvilho-tradicional-sem-lactose'],
+  ['Biscoito de Polvilho Bombiscoito Tradicional 100g', 'Mercearia', 0, 'bombiscoito-polvilho-tradicional-100g'],
+  ['Cookies Zero Rio Grande Alimentos Chocolate 100g', 'Mercearia', 0, 'cookies-zero-rio-grande-chocolate-100g'],
+  ['Biscoito de Polvilho Bombiscoito Queijo 100g', 'Mercearia', 0, 'bombiscoito-polvilho-queijo-100g'],
   ['Risotto Dona Antônia 250g', 'Mercearia', 2490, 'risotto', ['Alho Poró', 'Funghi e Shitake', 'Limão Siciliano']],
   ['Café Tradicional Empório Lisufit 250g', 'Mercearia', 2700, 'cafe-lisufit'],
   ['Sal Marinho Integral Leve Croc 250g', 'Mercearia', 1599, 'sal-marinho'],
