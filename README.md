@@ -1,7 +1,96 @@
-# Lisufit PDV — Autoatendimento (Windows)
+# Lisufit PDV — Totem de autoatendimento
 
-Sistema de totem/PDV **100% offline** feito em Electron (HTML + CSS + JavaScript puro, sem framework),
-fácil de editar. Roda no Dell com Windows em tela cheia travada (modo quiosque).
+Sistema de **totem de autoatendimento e PDV** feito para a **Lisufit**, loja de suplementos com um Empório (salgados, refeições, shakes, sucos e cafés). Está **em uso na loja**: o cliente monta o pedido na tela de toque, paga no PIX ou no cartão direto na maquininha, e o pedido sai impresso para a cozinha.
+
+Funciona **100% offline** (a internet só é usada pela maquininha), em um PC com Windows e tela de toque, em modo quiosque.
+
+**Stack:** Electron · JavaScript puro (sem framework) · HTML/CSS · banco local em JSON · API Orders do Mercado Pago (Point) · Playwright (testes ponta a ponta) · PowerShell (instalador)
+
+### Destaques técnicos
+- **Pagamento integrado à maquininha** Mercado Pago Point (API Orders, modo PDV): o valor vai sozinho para a maquininha e o totem confirma quando o pagamento é aprovado. Os gateways são **plugáveis** (um arquivo por provedor: Mercado Pago, Stone, simulador e manual).
+- **Offline-first:** banco em JSON com gravação segura, backup diário automático, restauração pela tela e registro de erros.
+- **Segurança:** PIN guardado só como hash (scrypt), bloqueio depois de 5 tentativas erradas, preço sempre recalculado no processo principal (nunca confia no valor vindo da tela) e ponte `preload` isolada entre a interface e o sistema.
+- **Catálogo sincronizado pelo Git:** produtos novos sobem pelo repositório e entram na loja com foto, sem sobrescrever os preços que a loja mudou.
+- **Atualização em 1 clique** pelo painel, com volta para a versão anterior.
+- **Instalador para PC zerado** em PowerShell: instala Git, Node e as dependências, cria atalhos e configura o Windows como totem.
+- **Teclado virtual próprio** (o teclado do Windows não abre em modo quiosque), com acentos e layout numérico.
+- **10 testes ponta a ponta** que abrem o app de verdade (Electron + Playwright) e passam pelos fluxos de venda, pagamento, catálogo, caixa e indicadores.
+
+## Telas
+
+### Totem (cliente)
+
+**Tela inicial.** É o que o cliente vê ao chegar. Um toque abre o cardápio. Depois de um tempo parado, o totem volta sozinho para esta tela e limpa o pedido.
+
+![Tela inicial do totem](docs/telas/01-totem-inicio.png)
+
+**Catálogo.** As categorias ficam na lateral, agrupadas por seção (Suplementos e Empório). Os produtos aparecem com foto e preço, e o botão "+" adiciona ao pedido. Embaixo ficam o carrinho, com a quantidade de itens, e o total com o botão de finalizar. Categoria sem produto disponível não aparece.
+
+![Catálogo do totem](docs/telas/02-totem-catalogo.png)
+
+**Monte do seu jeito.** Produtos com variações (sabor, frutas, adicionais) abrem esta janela. Cada opção mostra os ingredientes e pode ter preço extra. O botão só libera quando as escolhas obrigatórias foram feitas, e o preço é atualizado na hora.
+
+![Escolha de sabor](docs/telas/03-totem-sabores.png)
+
+**Busca com teclado na tela.** O totem não tem teclado físico, então o sistema tem um teclado próprio que abre ao tocar em qualquer campo. Ele tem acentos (´ ~ ^), Ç, símbolos e um modo numérico para preços e PINs, e a lista filtra enquanto o cliente digita.
+
+![Busca com o teclado virtual](docs/telas/04-totem-teclado-busca.png)
+
+**Forma de pagamento.** O cliente escolhe PIX, Cartão ou Pagar no caixa. O topo mostra em que etapa ele está (Pedido, Pagamento, Pronto) e o total. A loja pode desligar qualquer uma das formas nas configurações.
+
+![Escolha da forma de pagamento](docs/telas/05-totem-pagamento.png)
+
+**PIX.** O QR Code é gerado com o valor exato da compra, no padrão do Banco Central (PIX Copia e Cola). Com a maquininha integrada, o QR aparece na própria maquininha e a confirmação é automática.
+
+![Pagamento por PIX](docs/telas/06-totem-pix.png)
+
+**Cartão na maquininha.** O valor é enviado direto para a maquininha ao lado do totem. O cliente só aproxima ou insere o cartão. O totem consulta o pagamento a cada poucos segundos e confirma sozinho, com tempo limite e opção de tentar de novo se for recusado.
+
+![Pagamento na maquininha](docs/telas/07-totem-cartao-maquininha.png)
+
+### Painel da loja (admin)
+
+O painel abre com o PIN do admin (5 toques no logo ou Ctrl+Shift+A). Com o PIN de um atendente, ele mostra só as vendas e o fechamento do caixa.
+
+**Produtos.** Lista com filtros por categoria e situação, preço editável direto na tabela, chave para mostrar ou esconder do totem, ações em massa, duplicar produto e importação/exportação por planilha Excel. Os avisos no topo mostram produtos com preço de exemplo e produtos ainda sem preço, que ficam fora do totem.
+
+![Produtos no painel](docs/telas/08-admin-produtos.png)
+
+**Categorias.** Cada categoria tem seção, ícone e ordem no totem. Renomear uma categoria atualiza todos os produtos dela.
+
+![Categorias](docs/telas/09-admin-categorias.png)
+
+**Vendas.** Mostra os totais do período (faturamento, ticket médio, PIX, cartão, balcão e dinheiro), os pedidos que esperam pagamento no caixa, os mais vendidos e a lista de vendas com reimpressão e cancelamento. Daqui saem a planilha do período, a tela de pedidos da cozinha e o fechamento do caixa.
+
+![Vendas do dia](docs/telas/10-admin-vendas.png)
+
+**Receber no balcão.** Para o pedido "pagar no caixa", o atendente escolhe como o cliente pagou. No dinheiro, ele digita o valor recebido e o troco é calculado. Fica registrado quem recebeu.
+
+![Receber pedido com troco](docs/telas/11-admin-receber-troco.png)
+
+**Indicadores.** Faturamento, vendas e ticket médio comparados ao período anterior, cancelamentos, lucro bruto e margem (com o custo cadastrado) e tempo médio de preparo. O gráfico mostra as entradas por dia, e a tabela traz o fluxo de caixa por forma de pagamento.
+
+![Indicadores](docs/telas/12-admin-indicadores.png)
+
+**Fluxo de caixa e vendas por hora.** O fluxo de caixa diário traz o acumulado, seguido das entradas por forma de recebimento, das vendas por hora (para ver os horários de pico), do faturamento por seção e categoria e do ranking dos mais vendidos com o lucro de cada item.
+
+![Fluxo de caixa e gráficos](docs/telas/13-admin-fluxo-caixa.png)
+
+**Configurações.** Dados da loja que saem no cupom, formas de pagamento do totem, escolha do gateway (aqui, Mercado Pago Point integrado, com Access Token e número de série da maquininha, mais o botão Testar conexão) e a chave PIX. Mais abaixo ficam impressora, PINs e atendentes, backup, modo teste e atualização do sistema.
+
+![Configurações e gateway de pagamento](docs/telas/14-admin-configuracoes.png)
+
+### Tela de pedidos (cozinha)
+
+Abre numa segunda tela ou TV para quem prepara. Os pedidos pagos que têm item feito na hora aparecem com a senha, o nome do cliente e as opções escolhidas. O cartão muda de cor conforme o tempo de espera (amarelo aos 6 minutos, vermelho aos 10). **Pronto** chama a senha com som e a coloca em "Prontos para retirar".
+
+![Tela de pedidos da cozinha](docs/telas/15-tela-pedidos-preparo.png)
+
+> As telas foram capturadas com dados de demonstração (vendas fictícias), sem dados reais da loja.
+
+---
+
+## Documentação técnica
 
 ## O que ele faz
 - **Catálogo na tela de toque** com categorias, busca e fotos
@@ -30,7 +119,7 @@ Pode rodar de novo quando quiser: o que já existe é pulado e o sistema é atua
 
 Para levar só o instalador num pendrive, copie `instalar.bat` e `scripts\instalar.ps1` para a mesma pasta. **Sem pendrive:** `node scripts/gerar-instalador-unico.js` gera `dist-instalador/instalar-lisufit.zip`, um arquivo único para baixar direto no navegador do totem. O token pode ficar num `token.txt` na mesma pasta ou ser colado quando pedir.
 
-**Manual (se preferir):** instale o Node.js LTS e o Git, rode `git clone https://github.com/pxdroarth/lisufit-pdv.git` e `npm ci`, e abra pelo `iniciar-totem.bat`.
+**Manual (se preferir):** instale o Node.js LTS e o Git, rode `git clone https://github.com/pxdroarth/totem-pdv.git` e `npm ci`, e abra pelo `iniciar-totem.bat`.
 
 Outros comandos: `npm start` abre em modo desenvolvimento (janela normal com DevTools). `npm test` roda os testes. `npm run dist` gera o instalador .exe em `dist\`, mas com ele o botão de atualizar não funciona.
 
@@ -196,12 +285,7 @@ src/catalogo/    catálogo inicial do Empório (lista + fotos) e os produtos fic
 renderer/        telas: index.html, styles.css, app.js (cliente), admin.js (painel), util.js
 ```
 
-## Limitações importantes (leia)
-- **PIX**: o QR é estático. O sistema não consegue saber sozinho se o dinheiro caiu — por isso o
-  atendente confirma com PIN após ver no app do banco. Para confirmação automática é preciso internet
-  e a API PIX do seu banco (Mercado Pago, Inter, Efí etc.) — dá para adicionar depois.
-- **Cartão**: a maquininha é avulsa, então o valor é digitado nela e o atendente confirma com PIN.
-  Integração direta (TEF) depende do modelo/adquirente.
-- **Nota fiscal**: por enquanto o sistema imprime **cupom não fiscal**. A integração com o equipamento
-  fiscal fica em `src/fiscal.js`; o modo "pasta" já exporta cada venda paga em JSON para um
-  emissor/integrador ler. A integração direta depende do modelo do equipamento e da sua contabilidade.
+## Limitações
+- **Nota fiscal:** o sistema imprime **cupom não fiscal**. A integração fica em `src/fiscal.js`; o modo "pasta" já exporta cada venda paga em JSON para um emissor ler.
+- **PIX sem maquininha integrada (modo manual):** o QR é estático, então o atendente confirma com PIN depois de ver o pagamento no app do banco. Com o Mercado Pago integrado, a confirmação é automática.
+- Roda em **um totem por loja**, com os dados no próprio computador (sem painel na nuvem).
