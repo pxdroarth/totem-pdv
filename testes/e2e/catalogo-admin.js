@@ -4,11 +4,14 @@ const ExcelJS = require('exceljs');
 const { abrir, verificador, SAIDA } = require('./_base');
 const { ok, fim } = verificador('catalogo-admin');
 const OUT = path.join(SAIDA, 'catalogo-admin');
+const { Banco: BancoCat } = require('../../src/db');
+const CATALOGO = BancoCat.entradasCatalogo();
+const N = CATALOGO.length; // total do catálogo (cresce a cada lote de produtos)
 (async () => {
   const { app, pg, erros, set, shot } = await abrir('catalogo-admin');
   // ---- catálogo inicial ----
   const prods = await pg.evaluate(() => pdv.produtos());
-  ok(prods.length === 76, `abre com os 33 itens do Empório + 43 de prateleira (veio ${prods.length})`);
+  ok(prods.length === N, `abre com os ${N} itens do catálogo (veio ${prods.length})`);
   ok(prods.every(p => p.imagem && fs.existsSync(p.imagem)), 'todos com foto copiada para a pasta do sistema');
   ok(prods.filter(p => p.precoExemplo).length === 28 && prods.every(p => p.precoCentavos > 0 || (p.semPreco && !p.ativo)), 'Empório com preço de exemplo marcado; sem preço fica oculto');
   const whey = prods.find(p => p.nome === '100% Whey Profit 900g');
@@ -51,11 +54,11 @@ const OUT = path.join(SAIDA, 'catalogo-admin');
   await pg.selectOption('#filtro-estoque-admin', 'exemplo'); await pg.waitForTimeout(300);
   ok(await pg.$$eval('#tabela-produtos tr', t => t.length) === 26, 'filtro "Preço de exemplo": 26');
   await pg.selectOption('#filtro-estoque-admin', ''); await pg.selectOption('#filtro-categoria-admin', 'Bebidas'); await pg.waitForTimeout(300);
-  ok(await pg.$$eval('#tabela-produtos tr', t => t.length) === 11, 'filtro por categoria Bebidas: 11');
+  ok(await pg.$$eval('#tabela-produtos tr', t => t.length) === CATALOGO.filter(e => e.categoria === 'Bebidas').length, 'filtro por categoria Bebidas');
 
   // ações em massa: selecionar todas as bebidas, ocultar, mudar categoria, confirmar preço
   await pg.check('#sel-todos'); await pg.waitForTimeout(300);
-  ok(await pg.isVisible('#barra-massa') && (await pg.textContent('#massa-qtd')).includes('11'), 'barra de ações com 11 selecionados');
+  ok(await pg.isVisible('#barra-massa') && (await pg.textContent('#massa-qtd')).includes(String(CATALOGO.filter(e => e.categoria === 'Bebidas').length)), 'barra de ações com as bebidas selecionadas');
   await shot('3-massa');
   await pg.click('[data-massa=ocultar]'); await pg.waitForTimeout(500);
   let bebidas = (await pg.evaluate(() => pdv.produtos())).filter(p => p.categoria === 'Bebidas');
@@ -63,7 +66,7 @@ const OUT = path.join(SAIDA, 'catalogo-admin');
   await pg.click('[data-massa=mostrar]'); await pg.waitForTimeout(500);
   await pg.click('[data-massa=confirmarPreco]'); await pg.waitForTimeout(500);
   bebidas = (await pg.evaluate(() => pdv.produtos())).filter(p => p.categoria === 'Bebidas');
-  ok(bebidas.every(p => p.ativo && !p.precoExemplo), 'mostrar e confirmar preço em massa');
+  ok(bebidas.every(p => (p.ativo || p.semPreco) && !p.precoExemplo), 'mostrar e confirmar preço em massa (sem preço continua oculto)');
   await pg.click('[data-massa=limpar]'); await pg.selectOption('#filtro-categoria-admin', ''); await pg.waitForTimeout(300);
   // chave "no totem" direto na linha
   const feij = prods.find(p => p.nome === 'Feijoada');
@@ -84,7 +87,7 @@ const OUT = path.join(SAIDA, 'catalogo-admin');
   await pg.click('#form-produto button[type=submit]'); await pg.waitForTimeout(500);
   const todos = await pg.evaluate(() => pdv.produtos());
   const nova = todos.find(p => p.nome === 'Salada de Fruta com Iogurte 700ml');
-  ok(todos.length === 77 && nova && nova.imagem === sal.imagem && nova.categoria === 'Sobremesas' && !nova.precoExemplo, 'cópia salva com a foto e a categoria do original');
+  ok(todos.length === N + 1 && nova && nova.imagem === sal.imagem && nova.categoria === 'Sobremesas' && !nova.precoExemplo, 'cópia salva com a foto e a categoria do original');
 
   // ---- modelo de planilha ----
   const modelo = path.join(OUT, 'arquivos', 'modelo.xlsx'); fs.rmSync(modelo, { force: true });
@@ -104,7 +107,7 @@ const OUT = path.join(SAIDA, 'catalogo-admin');
   const resumo = (await pg.textContent('#importar-resumo')).replace(/\s+/g, ' ');
   ok(/novos ?1/.test(resumo) && /problema ?0/.test(resumo), 'importar modelo: linhas de exemplo ignoradas, só a Tapioca entra — ' + resumo);
   await pg.click('#btn-importar-confirmar'); await pg.waitForTimeout(600);
-  ok((await pg.evaluate(() => pdv.produtos())).length === 78, 'produtos que não estavam na planilha continuam cadastrados');
+  ok((await pg.evaluate(() => pdv.produtos())).length === N + 2, 'produtos que não estavam na planilha continuam cadastrados');
   ok((await pg.evaluate(() => pdv.produtos())).find(p => p.nome === 'Tapioca de Frango').custoCentavos === 450, 'coluna Custo importada (R$ 4,50)');
   // importar preço pela planilha tira o "exemplo"
   const exp = path.join(OUT, 'arquivos', 'export.xlsx'); await set('__salvar', exp);

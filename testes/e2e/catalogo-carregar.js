@@ -3,6 +3,9 @@
 const fs = require('fs');
 const { abrir, verificador } = require('./_base');
 const { ok, fim } = verificador('catalogo-carregar');
+const { Banco: BancoCat } = require('../../src/db');
+const CATALOGO = BancoCat.entradasCatalogo();
+const N = CATALOGO.length; // total do catálogo (cresce a cada lote de produtos)
 
 (async () => {
   const { app, pg, erros, shot, entrar } = await abrir('catalogo-carregar', { catalogo: 'exemplo' }); // base antiga, sem o catálogo
@@ -17,12 +20,12 @@ const { ok, fim } = verificador('catalogo-carregar');
   await pg.click('.menu-planilha summary'); await pg.click('#btn-carregar-catalogo'); await pg.waitForTimeout(1500);
   const toast = await pg.textContent('#toast');
   const depois = await pg.evaluate(() => pdv.produtos());
-  ok(depois.length === antes.length + 2 + 74, `cadastrou os 74 que faltavam (${depois.length - antes.length - 2}) — ${toast}`);
+  ok(depois.length === antes.length + 2 + (N - 2), `cadastrou os ${N - 2} que faltavam (${depois.length - antes.length - 2}) — ${toast}`);
   const cafe = depois.filter(p => p.nome === 'Café Expresso');
   ok(cafe.length === 1 && cafe[0].precoCentavos === 700 && cafe[0].imagem && fs.existsSync(cafe[0].imagem), 'Café Expresso: não duplicou, manteve R$ 7,00 e ganhou foto');
   const whey = depois.filter(p => /whey profit/i.test(p.nome));
   ok(whey.length === 1 && whey[0].precoCentavos === 12500 && whey[0].imagem, 'Whey Profit (nome em maiúsculas): reconhecido, manteve preço e ganhou foto');
-  ok(depois.filter(p => p.imagem).length >= 76, 'produtos do catálogo com foto');
+  ok(depois.filter(p => p.imagem).length >= N, 'produtos do catálogo com foto');
   const cats = await pg.evaluate(() => pdv.categorias());
   ok(['Doces e Pastas', 'Mercearia', 'Farinhas e Naturais', 'Salgados'].every(n => cats.some(c => c.nome === n && c.secao === 'Empório')), 'categorias do Empório criadas');
   // de novo: nada muda
@@ -32,7 +35,7 @@ const { ok, fim } = verificador('catalogo-carregar');
   await pg.click('#btn-sair-admin'); await pg.waitForTimeout(300);
   await pg.click('#btn-comecar'); await pg.waitForTimeout(400); await pg.click('[data-cat="Mercearia"]'); await pg.waitForTimeout(400);
   await shot('totem-mercearia');
-  ok(await pg.$$eval('.card-produto img', i => i.filter(x => x.naturalWidth > 0).length) === 4, 'totem mostra a Mercearia com as fotos (3 + vinagre)');
+  ok(await pg.$$eval('.card-produto img', i => i.filter(x => x.naturalWidth > 0).length) === depois.filter(p => p.categoria === 'Mercearia' && p.ativo && p.precoCentavos > 0).length, 'totem mostra a Mercearia com as fotos');
   ok(!erros.length, 'sem erros no console' + (erros.length ? ': ' + erros.join(' | ') : ''));
   await app.close();
   fim();

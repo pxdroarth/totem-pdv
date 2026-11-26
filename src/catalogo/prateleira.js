@@ -4,8 +4,16 @@
 // [nome, categoria, preçoCentavos, foto (em src/catalogo/fotos), sabores?]
 const PRODUTOS = [
   // ---- Empório: sanduíches e congelados ----
+  // "Sanduíche Natural" é o da própria loja; os Bigmania são de marca (preços das etiquetas, 26/11/2026)
   ['Sanduíche Natural', 'Sanduíches Naturais', 700, 'sanduiche-natural'],
-  ['Sanduíche de Salpicão Bom Bigmania 130g', 'Sanduíches Naturais', 0, 'sanduiche-salpicao-bigmania-130g'],
+  ['Sanduíche de Salpicão Bom Bigmania 130g', 'Sanduíches Naturais', 1300, 'sanduiche-salpicao-bigmania-130g'],
+  ['Sanduíche de Filé de Frango Supremo Bigmania', 'Sanduíches Naturais', 1300, 'sanduiche-file-frango-bigmania'],
+  ['Sanduíche de Frango com Ricota Supremo Bigmania', 'Sanduíches Naturais', 1300, 'sanduiche-frango-ricota-bigmania'],
+  ['Sanduíche de Frango com Milho Supremo Bigmania', 'Sanduíches Naturais', 1300, 'sanduiche-frango-milho-bigmania'],
+  ['Sanduíche de Peito de Peru Supremo Bigmania', 'Sanduíches Naturais', 1400, 'sanduiche-peito-peru-bigmania'],
+  ['Sanduíche de Frango com Salada Supremo Bigmania', 'Sanduíches Naturais', 1400, 'sanduiche-frango-salada-bigmania'],
+  ['Sanduíche de Peito de Peru com Mussarela Linha Fit Bigmania', 'Sanduíches Naturais', 1400, 'sanduiche-peito-peru-mussarela-fit-bigmania'],
+  ['Sanduíche de Atum Supremo Bigmania', 'Sanduíches Naturais', 1500, 'sanduiche-atum-bigmania'],
   ['Pulled Pork Congelado Fogo36 400g', 'Congelados', 0, 'pulled-pork-fogo36-400g'],
   ['Dadinho de Panceta Fogo36', 'Congelados', 0, 'dadinho-panceta-fogo36'],
   ['Camarão Empanado Mais Boteco 180g', 'Congelados', 0, 'camarao-empanado-mais-boteco-180g'],
@@ -23,6 +31,13 @@ const PRODUTOS = [
   ['Panelada Congelada', 'Congelados', 0, 'panelada-congelada'],
   ['Marmita de Strogonoff de Carne Lisufit 350g', 'Congelados', 0, 'marmita-strogonoff-carne-lisufit-350g'],
   ['Marmita de Peito de Frango Lisufit 350g', 'Congelados', 0, 'marmita-peito-frango-lisufit-350g'],
+  ['Marmita de Filé de Abadejo Lisufit 370g', 'Congelados', 0, 'marmita-file-de-abadejo'],
+  ['Marmita de Filé de Salmão Lisufit 350g', 'Congelados', 0, 'marmita-file-de-salmao'],
+  ['Marmita de Moqueca de Arraia Lisufit 350g', 'Congelados', 0, 'marmita-moqueca-de-arraia'],
+  ['Marmita de Macarrão à Bolonhesa Lisufit 350g', 'Congelados', 0, 'marmita-macarrao-bolonhesa'],
+  ['Marmita de Risoto de Limão Siciliano com Frango Lisufit 350g', 'Congelados', 0, 'marmita-risoto-limao-siciliano-frango'],
+  ['Marmita de Risoto de Cogumelos com Frango Lisufit 350g', 'Congelados', 0, 'marmita-risoto-cogumelos-frango'],
+  ['Red Bull Energy Drink 250ml', 'Bebidas', 0, 'red-bull-250ml'],
   ['Bolo Confeitado de Chocolate', 'Sobremesas', 4000, 'bolo-confeitado-chocolate'],
   // ---- Suplementos ----
   ['Força do Vaqueiro Pré-Treino Limão 300g', 'Pré-Treino', 12000, 'forca-do-vaqueiro-pre-treino'],

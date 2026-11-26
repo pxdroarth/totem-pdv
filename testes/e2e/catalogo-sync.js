@@ -4,11 +4,14 @@ const fs = require('fs'), os = require('os'), path = require('path');
 const { Banco } = require('../../src/db');
 const { verificador } = require('./_base');
 const { ok, fim } = verificador('catalogo-sync');
+const { Banco: BancoCat } = require('../../src/db');
+const CATALOGO = BancoCat.entradasCatalogo();
+const N = CATALOGO.length; // total do catálogo (cresce a cada lote de produtos)
 
 const pasta = fs.mkdtempSync(path.join(os.tmpdir(), 'lisufit-sync-'));
 const b = new Banco(pasta);
 const original = Banco.entradasCatalogo;
-ok(!b.catalogoDesatualizado() && b.dados.produtos.length === 76, 'instalação nova já nasce sincronizada');
+ok(!b.catalogoDesatualizado() && b.dados.produtos.length === N, 'instalação nova já nasce sincronizada');
 
 // a loja muda o preço do JoyPro e oculta a Coca-Cola por conta própria
 const p = n => b.dados.produtos.find(x => x.nome === n);
@@ -32,8 +35,8 @@ ok(p('Feijoada').precoCentavos === 2800 && !p('Feijoada').precoExemplo, 'Empóri
 const whey = p('100% Whey Profit 900g');
 ok(path.basename(whey.imagem) === 'catalogo-whey-pride.webp' && whey.opcoes[0].itens.map(i => i.nome).join() === 'Baunilha,Chocolate,Morango,Cookies', 'foto e sabor novo do Whey Profit');
 ok(p('Coca-Cola Lata 350ml').ativo === false, 'produto oculto pela loja continua oculto');
-ok(b.dados.produtos.length === 77 && !b.catalogoDesatualizado(), 'nada apagado e catálogo em dia');
-ok(b.sincronizarCatalogo().novos.length === 0 && b.dados.produtos.length === 77, 'rodar de novo não muda nada');
+ok(b.dados.produtos.length === N + 1 && !b.catalogoDesatualizado(), 'nada apagado e catálogo em dia');
+ok(b.sincronizarCatalogo().novos.length === 0 && b.dados.produtos.length === N + 1, 'rodar de novo não muda nada');
 // base antiga, sem registro do catálogo (instalação do Pedro): na 1ª vez só completa, não mexe nos preços
 const pasta2 = fs.mkdtempSync(path.join(os.tmpdir(), 'lisufit-sync2-'));
 const b2 = new Banco(pasta2);

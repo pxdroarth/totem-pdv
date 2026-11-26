@@ -3,6 +3,9 @@
 const fs = require('fs'), path = require('path');
 const { abrir, verificador } = require('./_base');
 const { ok, fim } = verificador('catalogo-atualizar');
+const { Banco: BancoCat } = require('../../src/db');
+const CATALOGO = BancoCat.entradasCatalogo();
+const N = CATALOGO.length; // total do catálogo (cresce a cada lote de produtos)
 
 (async () => {
   // 1ª abertura: cria a base; depois simulamos uma base "de antes" sem 2 produtos e sem o registro do catálogo
@@ -25,7 +28,7 @@ const { ok, fim } = verificador('catalogo-atualizar');
   await app.evaluate(({ BrowserWindow }) => { const j = BrowserWindow.getAllWindows()[0]; j.setKiosk(false); j.setBounds({ x: 0, y: 0, width: 1366, height: 768 }); });
   await pg.waitForTimeout(1500);
   const nomes = (await pg.evaluate(() => pdv.produtos())).map(p => p.nome);
-  ok(nomes.includes('Feijoada') && nomes.includes('Ginseng em Pó Vila Natural 100g') && nomes.length === 76, 'ao abrir a versão nova, os produtos que faltavam entram sozinhos');
+  ok(nomes.includes('Feijoada') && nomes.includes('Ginseng em Pó Vila Natural 100g') && nomes.length === N, 'ao abrir a versão nova, os produtos que faltavam entram sozinhos');
   pg.evaluate(() => { abrirAdmin(); }); await pg.waitForSelector('#modal-pin.aberto'); await pg.keyboard.type('1234'); await pg.keyboard.press('Enter'); await pg.waitForTimeout(900);
   ok((await pg.textContent('#toast')).includes('2 novo(s)'), 'admin vê o aviso: ' + (await pg.textContent('#toast')));
   await pg.evaluate(() => trocarAba('config')); await pg.waitForTimeout(800);
